@@ -1,0 +1,119 @@
+<?php
+
+namespace App\Http\Controllers\Portal;
+
+use App\Http\Controllers\Controller;
+use App\Models\Branch;
+use App\Models\TelegramLinkRequest;
+use App\Models\Ticket;
+use App\Models\TicketCategory;
+use App\Models\User;
+use Carbon\Carbon;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\View\View;
+
+class PortalDashboardController extends Controller
+{
+    /**
+     * Display the operations dashboard and ticket queues.
+     */
+    public function index(Request $request): View
+    {
+        $user = Auth::user();
+        $viewTab = $request->input('view', 'triage'); // 'triage', 'my_tasks', 'all_active', 'blocked'
+        $branchFilter = $request->input('branch_id');
+        $priorityFilter = $request->input('priority');
+
+        // 1. KPI Counts
+        $triageCount = Ticket::where('status', 'submitted')->count();
+        $myTasksCount = Ticket::where('current_technician_id', $user->id)
+            ->whereIn('status', ['assigned', 'in_progress', 'blocked'])
+            ->count();
+        
+        // 30-minute acknowledgement SLA breach count
+        $slaBreachCount = Ticket::where('status', 'assigned')
+            ->whereNull('acknowledged_at')
+            ->where('assigned_at', '<', Carbon::now()->subMinutes(30))
+            ->count();
+
+        $blockedCount = Ticket::where('status', 'blocked')->count();
+        $pendingConfirmCount = Ticket::where('status', 'pending_confirmation')->count();
+        $pendingApprovalsCount = Ticket::where('status', 'pending_approval')->count();
+        $pendingLinkRequestsCount = TelegramLinkRequest::where('status', 'pending')->count();
+
+        // 2. Queue Query
+        $query = Ticket::with(['requester', 'branch', 'category.parent', 'technician', 'helpdesk', 'approvals']);
+
+        if ($branchFilter) {
+            $query->where('branch_id', $branchFilter);
+        }
+        if ($priorityFilter) {
+            $query->where('priority', $priorityFilter);
+        }
+
+        switch ($viewTab) {
+            case 'pending_approvals':
+                $query->where('status', 'pending_approval')
+                    ->orderByDesc('created_at');
+                break;
+
+            case 'my_tasks':
+                $query->where('current_technician_id', $user->id)
+                    ->whereIn('status', ['assigned', 'in_progress', 'blocked'])
+                    ->orderByRaw("CASE priority WHEN 'critical' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END")
+                    ->orderBy('created_at');
+                break;
+
+            case 'all_active':
+                $query->whereIn('status', ['pending_approval', 'submitted', 'clarifying', 'assigned', 'in_progress', 'blocked', 'pending_confirmation', 'reopened'])
+                    ->orderByRaw("CASE status WHEN 'pending_approval' THEN 1 WHEN 'submitted' THEN 2 WHEN 'assigned' THEN 3 WHEN 'in_progress' THEN 4 WHEN 'blocked' THEN 5 WHEN 'clarifying' THEN 6 WHEN 'pending_confirmation' THEN 7 ELSE 8 END")
+                    ->orderByRaw("CASE priority WHEN 'critical' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END")
+                    ->orderByDesc('created_at');
+                break;
+
+            case 'blocked':
+                $query->where('status', 'blocked')
+                    ->orderByDesc('updated_at');
+                break;
+
+            case 'triage':
+            default:
+                $viewTab = 'triage';
+                $query->where('status', 'submitted')
+                    ->orderByRaw("CASE priority WHEN 'critical' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END")
+                    ->orderBy('created_at');
+                break;
+        }
+
+        $tickets = $query->paginate(15)->withQueryString();
+
+        // 3. Technicians available for assignment
+        $technicians = User::whereHas('roles', fn($q) => $q->where('name', 'technician'))
+            ->where('is_active', true)
+            ->withCount(['assignedTickets as active_tasks_count' => function ($q) {
+                $q->whereIn('status', ['assigned', 'in_progress', 'blocked']);
+            }])
+            ->get();
+
+        $branches = Branch::where('is_active', true)->get();
+        $categories = TicketCategory::whereNull('parent_id')->get();
+
+        return view('portal.dashboard', compact(
+            'tickets',
+            'viewTab',
+            'triageCount',
+            'myTasksCount',
+            'slaBreachCount',
+            'blockedCount',
+            'pendingConfirmCount',
+            'pendingApprovalsCount',
+            'pendingLinkRequestsCount',
+            'technicians',
+            'branches',
+            'categories',
+            'branchFilter',
+            'priorityFilter'
+        ));
+    }
+}
