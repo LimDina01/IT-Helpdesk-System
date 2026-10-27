@@ -90,7 +90,8 @@ function tmaApp() {
             if (n.includes('email') || n.includes('collaboration')) return 'អ៊ីមែល & Microsoft 365';
             if (n.includes('network') || n.includes('connectivity') || n.includes('internet')) return 'ប្រព័ន្ធបណ្តាញ & អ៊ីនធឺណិត';
             if (n.includes('business') || n.includes('erp')) return 'ប្រព័ន្ធគ្រប់គ្រងអាជីវកម្ម (ERP)';
-            if (n.includes('facility') || n.includes('cctv') || n.includes('other')) return 'សេវា IT ផ្សេងៗ & បន្ទប់ប្រជុំ';
+            if (n.includes('facility') || n.includes('cctv') || n.includes('phone') || n.includes('other')) return 'សេវា IT ផ្សេងៗ & បន្ទប់ប្រជុំ';
+            if (n.includes('procurement') || n.includes('service request')) return 'សំណើស្នើសុំឧបករណ៍ & អាជ្ញាប័ណ្ណ';
             return cat.name;
         },
 
@@ -318,6 +319,7 @@ function tmaApp() {
                 if (n.includes('network') || n.includes('connectivity') || n.includes('internet')) return 'ប្រព័ន្ធបណ្តាញ Wi-Fi, VPN, និងអ៊ីនធឺណិត';
                 if (n.includes('business') || n.includes('erp')) return 'ប្រព័ន្ធ Business Central, POS, RFID, Humica, IQ, Bio-Start';
                 if (n.includes('facility') || n.includes('cctv') || n.includes('phone') || n.includes('other')) return 'បន្ទប់ប្រជុំ កាមេរ៉ាសុវត្ថិភាព ទូរស័ព្ទ និងសេវាផ្សេងៗ';
+                if (n.includes('procurement') || n.includes('service')) return 'ស្នើសុំកុំព្យូទ័រថ្មី បរិក្ខារ IT និងការបញ្ជាក់លក្ខណៈបច្ចេកទេស';
                 return 'ជ្រើសរើសប្រភេទសេវាកម្មដើម្បីបន្ត';
             }
             if (n.includes('account') || n.includes('access')) return 'New account, system access, permission change';
@@ -328,6 +330,7 @@ function tmaApp() {
             if (n.includes('network') || n.includes('connectivity') || n.includes('internet')) return 'Network, Wi-Fi, VPN, internet';
             if (n.includes('business') || n.includes('erp')) return 'Business Central, POS, RFID, Humica, IQ, Bio-Start, etc.';
             if (n.includes('facility') || n.includes('cctv') || n.includes('phone') || n.includes('other')) return 'Meeting room, CCTV, phone, others';
+            if (n.includes('procurement') || n.includes('service')) return 'Hardware procurement, IT asset spec recommendation';
             return 'Select category and proceed';
         },
 
@@ -339,7 +342,8 @@ function tmaApp() {
             if (n.includes('software') || n.includes('application')) return 'bg-blue-500';
             if (n.includes('business') || n.includes('erp')) return 'bg-blue-600';
             if (n.includes('facility') || n.includes('cctv') || n.includes('other') || n.includes('phone')) return 'bg-amber-500';
-            if (n.includes('pos') || n.includes('cashier')) return 'bg-amber-600';
+            if (n.includes('pos') || n.includes('cashier')) return 'bg-sky-700';
+            if (n.includes('procurement') || (n.includes('service') && !n.includes('hardware'))) return 'bg-indigo-600';
             return 'bg-blue-600';
         },
 
