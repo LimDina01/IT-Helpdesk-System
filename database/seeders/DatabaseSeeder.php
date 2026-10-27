@@ -172,6 +172,7 @@ class DatabaseSeeder extends Seeder
 
         // 7. Ticket Categories
         $categories = [
+            // --- Incident / Issue Categories (Report Issue View) ---
             [
                 'name' => 'POS & Cashier Hardware',
                 'type' => 'incident_issue',
@@ -184,6 +185,7 @@ class DatabaseSeeder extends Seeder
                     'Barcode Scanner Not Reading',
                     'Cash Drawer Jammed / Not Ejecting',
                     'POS Touch Terminal Freezing',
+                    'RFID Reader Not Scanning',
                 ],
             ],
             [
@@ -199,6 +201,7 @@ class DatabaseSeeder extends Seeder
                     'Monitor Blank or Flickering',
                     'Office Network Printer Paper Jam',
                     'Mouse / Keyboard Replacement',
+                    'UPS / Power Backup Beeping or Offline',
                 ],
             ],
             [
@@ -213,6 +216,7 @@ class DatabaseSeeder extends Seeder
                     'Ethernet LAN Wall Port Inactive',
                     'VPN Connection Refused',
                     'Branch Main Internet Offline (Critical)',
+                    'Network Cable Damaged / Replaced',
                 ],
             ],
             [
@@ -227,22 +231,57 @@ class DatabaseSeeder extends Seeder
                     'Accounting / ERP Software Crash',
                     'Windows OS Activation Error',
                     'Microsoft Office License Prompt',
+                    'Antivirus / Security Warning Pop-up',
+                    'Browser / PDF Viewer Error',
                 ],
             ],
             [
-                'name' => 'Service Requests & Procurement',
-                'type' => 'service_request',
-                'requires_approval' => true,
-                'default_priority' => 'medium',
-                'target_acknowledge_minutes' => 60,
-                'target_resolve_hours' => 72,
+                'name' => 'Business Systems & POS',
+                'type' => 'incident_issue',
+                'requires_approval' => false,
+                'default_priority' => 'high',
+                'target_acknowledge_minutes' => 20,
+                'target_resolve_hours' => 8,
                 'children' => [
-                    'Laptop / Desktop Procurement Request',
-                    'Office / Desk Relocation (Floor Move)',
-                    'ERP / Accounting Advanced Permissions',
-                    'System Feature Enhancement Request',
+                    'Business Central (BC) System Error / Timeout',
+                    'BC Posting / Transaction Failed',
+                    'POS Software Crash / Freeze',
+                    'RFID / Warehouse System Sync Error',
+                    'Integration / API Synchronization Failure',
+                    'Power BI / Report Refresh Error',
                 ],
             ],
+            [
+                'name' => 'Facility, CCTV & Phone',
+                'type' => 'incident_issue',
+                'requires_approval' => false,
+                'default_priority' => 'medium',
+                'target_acknowledge_minutes' => 45,
+                'target_resolve_hours' => 24,
+                'children' => [
+                    'CCTV Camera Feed Offline / Black Screen',
+                    'IP Phone / Telephone Line Not Ringing',
+                    'Meeting Room TV / Screen Projection Issue',
+                    'Door Access / Electronic Lock Issue',
+                ],
+            ],
+            [
+                'name' => 'Account & Access Issue',
+                'type' => 'incident_issue',
+                'requires_approval' => false,
+                'default_priority' => 'high',
+                'target_acknowledge_minutes' => 20,
+                'target_resolve_hours' => 4,
+                'children' => [
+                    'Domain / Windows Password Locked Out',
+                    'Cannot Log In to Business Central / ERP',
+                    'Shared Network Drive / Folder Permission Denied',
+                    'Microsoft 365 / Email Login Failed',
+                    'MFA / Two-Factor Authentication Issue',
+                ],
+            ],
+
+            // --- Service Request Categories (New Service Request View) ---
             [
                 'name' => 'Account & Access Requests',
                 'type' => 'service_request',
@@ -255,6 +294,48 @@ class DatabaseSeeder extends Seeder
                     'New Employee Email & Login Creation',
                     'Shared Network Drive Folder Access',
                     'Standard Software Installation Request',
+                    'ERP / Business Central Permission Set Request',
+                ],
+            ],
+            [
+                'name' => 'Hardware & Equipment Requests',
+                'type' => 'service_request',
+                'requires_approval' => true,
+                'default_priority' => 'medium',
+                'target_acknowledge_minutes' => 60,
+                'target_resolve_hours' => 48,
+                'children' => [
+                    'Request Extra Monitor / Display',
+                    'Request New Mouse / Keyboard / Cable',
+                    'Printer Setup on Workstation',
+                    'Office / Desk Relocation (Floor Move)',
+                ],
+            ],
+            [
+                'name' => 'Service Requests & Procurement',
+                'type' => 'service_request',
+                'requires_approval' => true,
+                'default_priority' => 'medium',
+                'target_acknowledge_minutes' => 60,
+                'target_resolve_hours' => 72,
+                'children' => [
+                    'Laptop / Desktop Procurement Request',
+                    'ERP / Accounting Advanced Permissions',
+                    'System Feature Enhancement Request',
+                    'Recommend IT Equipment Spec',
+                ],
+            ],
+            [
+                'name' => 'Facility & Meeting Room Requests',
+                'type' => 'service_request',
+                'requires_approval' => false,
+                'default_priority' => 'low',
+                'target_acknowledge_minutes' => 60,
+                'target_resolve_hours' => 48,
+                'children' => [
+                    'Meeting Room IT Setup & Video Conference Support',
+                    'CCTV Video Recording Review Request',
+                    'IP Telephone Extension Request',
                 ],
             ],
         ];
