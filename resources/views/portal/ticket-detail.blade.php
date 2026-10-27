@@ -599,7 +599,7 @@
                                                 </span>
                                                 <span class="font-bold text-amber-900 text-xs" x-text="msg.sender_name"></span>
                                             </div>
-                                            <span class="text-[10px] text-amber-700/80 font-mono" x-text="msg.created_at_full + ' (' + msg.created_at_human + ')'"></span>
+                                            <span class="text-[10px] text-amber-700/80 font-mono" x-text="msg.created_at_full"></span>
                                         </div>
                                         <p class="text-xs text-amber-950 font-medium leading-relaxed whitespace-pre-wrap" x-text="msg.body"></p>
 

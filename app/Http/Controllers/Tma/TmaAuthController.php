@@ -26,20 +26,11 @@ class TmaAuthController extends Controller
         // 0. If user already has an active web session
         if (Auth::check()) {
             $user = Auth::user();
-            $user->loadMissing('employee.branch', 'employee.department');
+            $user->loadMissing('employee.branch', 'employee.department', 'roles');
             return response()->json([
                 'status' => 'authenticated',
                 'login_method' => 'web_session',
-                'user' => [
-                    'id' => $user->id,
-                    'name' => $user->name,
-                    'email' => $user->email,
-                    'telegram_id' => $user->telegram_id,
-                    'telegram_username' => $user->telegram_username,
-                    'employee_code' => $user->employee->employee_code ?? 'EMP',
-                    'branch' => $user->employee->branch->name ?? 'Headquarters',
-                    'department' => $user->employee->department->name ?? 'General',
-                ],
+                'user' => $this->formatUserPayload($user),
             ]);
         }
 
@@ -49,17 +40,13 @@ class TmaAuthController extends Controller
         if (app()->environment('local') && $request->has('dev_employee_code')) {
             $employee = Employee::where('employee_code', $request->input('dev_employee_code'))->first();
             if ($employee && $employee->user) {
-                Auth::login($employee->user);
+                $user = $employee->user;
+                $user->loadMissing('employee.branch', 'employee.department', 'roles');
+                Auth::login($user);
                 return response()->json([
                     'status' => 'authenticated',
-                    'user' => [
-                        'id' => $employee->user->id,
-                        'name' => $employee->user->name,
-                        'email' => $employee->user->email,
-                        'employee_code' => $employee->employee_code,
-                        'branch' => $employee->branch->name ?? 'N/A',
-                        'department' => $employee->department->name ?? 'N/A',
-                    ],
+                    'login_method' => 'dev_login',
+                    'user' => $this->formatUserPayload($user),
                 ]);
             }
         }
@@ -82,22 +69,14 @@ class TmaAuthController extends Controller
         $telegramId = (int) $tgUser['id'];
 
         // 3. Find user linked to this telegram_id
-        $user = User::where('telegram_id', $telegramId)->where('is_active', true)->with('employee.branch', 'employee.department')->first();
+        $user = User::where('telegram_id', $telegramId)->where('is_active', true)->with('employee.branch', 'employee.department', 'roles')->first();
 
         if ($user) {
             Auth::login($user);
 
             return response()->json([
                 'status' => 'authenticated',
-                'user' => [
-                    'id' => $user->id,
-                    'name' => $user->name,
-                    'email' => $user->email,
-                    'telegram_id' => $user->telegram_id,
-                    'employee_code' => $user->employee->employee_code ?? 'N/A',
-                    'branch' => $user->employee->branch->name ?? 'N/A',
-                    'department' => $user->employee->department->name ?? 'N/A',
-                ],
+                'user' => $this->formatUserPayload($user),
             ]);
         }
 
@@ -243,17 +222,36 @@ class TmaAuthController extends Controller
         return response()->json([
             'status' => 'authenticated',
             'login_method' => 'password',
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'telegram_id' => $user->telegram_id,
-                'telegram_username' => $user->telegram_username,
-                'employee_code' => $user->employee->employee_code ?? 'EMP',
-                'branch' => $user->employee->branch->name ?? 'Headquarters',
-                'department' => $user->employee->department->name ?? 'General',
-            ],
+            'user' => $this->formatUserPayload($user),
         ]);
+    }
+
+    /**
+     * Format lean user payload with role and department flags for TMA client.
+     */
+    protected function formatUserPayload(User $user): array
+    {
+        $isHod = $user->hasRole(['hod', 'system_admin']);
+        $userDeptCode = $user->employee?->department?->code;
+        $userEmpCode = $user->employee?->employee_code;
+        $isItHod = $isHod && ($userDeptCode === 'IT' || $userEmpCode === 'EMP-1007');
+
+        return [
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'telegram_id' => $user->telegram_id,
+            'telegram_username' => $user->telegram_username,
+            'employee_code' => $user->employee?->employee_code ?? 'EMP',
+            'branch' => $user->employee?->branch?->name ?? 'Headquarters',
+            'branch_id' => $user->employee?->branch_id,
+            'department' => $user->employee?->department?->name ?? 'General',
+            'department_id' => $user->employee?->department_id,
+            'department_code' => $userDeptCode,
+            'is_hod' => $isHod,
+            'is_it_hod' => $isItHod,
+            'roles' => $user->roles->pluck('name')->values()->toArray(),
+        ];
     }
 
     /**

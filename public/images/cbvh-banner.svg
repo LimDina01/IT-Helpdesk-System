@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 240" width="100%" height="100%">
+  <defs>
+    <!-- Background Silk Gradients -->
+    <linearGradient id="silkBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FCF8ED" />
+      <stop offset="25%" stop-color="#F7EED5" />
+      <stop offset="50%" stop-color="#FBF7EC" />
+      <stop offset="75%" stop-color="#F0DFB9" />
+      <stop offset="100%" stop-color="#FAF4E3" />
+    </linearGradient>
+
+    <linearGradient id="ribbon1" x1="0%" y1="20%" x2="100%" y2="80%">
+      <stop offset="0%" stop-color="#DEBE78" stop-opacity="0.35" />
+      <stop offset="50%" stop-color="#FAF1D9" stop-opacity="0.6" />
+      <stop offset="100%" stop-color="#CFA348" stop-opacity="0.3" />
+    </linearGradient>
+
+    <linearGradient id="ribbon2" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#D9B25F" stop-opacity="0.25" />
+      <stop offset="40%" stop-color="#FFFFFF" stop-opacity="0.5" />
+      <stop offset="100%" stop-color="#C29437" stop-opacity="0.2" />
+    </linearGradient>
+
+    <!-- Metallic Gold Logo Gradient -->
+    <linearGradient id="goldMetallic" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#BA8B32" />
+      <stop offset="20%" stop-color="#E5C378" />
+      <stop offset="45%" stop-color="#FFF2B8" />
+      <stop offset="70%" stop-color="#D4A749" />
+      <stop offset="90%" stop-color="#9E6F18" />
+      <stop offset="100%" stop-color="#D8AF58" />
+    </linearGradient>
+
+    <!-- Drop Shadows -->
+    <filter id="softGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#735212" flood-opacity="0.18" />
+    </filter>
+  </defs>
+
+  <!-- Base Silk Canvas -->
+  <rect width="600" height="240" rx="20" fill="url(#silkBg)" />
+
+  <!-- Flowing Silk Ribbon Curves -->
+  <path d="M-20,0 C120,40 180,180 320,130 C440,80 500,190 620,160 L620,0 Z" fill="url(#ribbon1)" />
+  <path d="M-20,240 C100,200 220,110 360,160 C480,210 520,130 620,180 L620,240 Z" fill="url(#ribbon2)" />
+  <path d="M0,80 C150,110 240,30 400,90 C500,130 560,70 600,100 L600,0 L0,0 Z" fill="url(#ribbon2)" opacity="0.6" />
+
+  <!-- CBVH Center Emblem -->
+  <g transform="translate(300, 72)" filter="url(#softGlow)">
+    <!-- Outer Curved Ribbon Looping (Jewelry Diamond/Ring Monogram) -->
+    <path d="M 0,-42 
+             C 18,-42 36,-26 36,-6 
+             C 36,18 16,36 0,44 
+             C -16,36 -36,18 -36,-6 
+             C -36,-26 -18,-42 0,-42 Z" 
+          fill="none" stroke="url(#goldMetallic)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" />
+    
+    <!-- Inner Interlocking Ring Ribbons -->
+    <ellipse cx="0" cy="-3" rx="16" ry="24" fill="none" stroke="url(#goldMetallic)" stroke-width="5" />
+    
+    <!-- Central Shimmer Accent -->
+    <circle cx="0" cy="-6" r="3" fill="#FFFBE6" opacity="0.9" />
+  </g>
+
+  <!-- Typography -->
+  <!-- CBVH Serif Title -->
+  <text x="300" y="160" 
+        text-anchor="middle" 
+        font-family="'Playfair Display', 'Cinzel', 'Georgia', serif" 
+        font-size="34" 
+        font-weight="800" 
+        letter-spacing="0.08em" 
+        fill="#111827">CBVH</text>
+
+  <!-- CAMBODIA JEWELRY Subtitle -->
+  <text x="300" y="186" 
+        text-anchor="middle" 
+        font-family="'Inter', -apple-system, BlinkMacSystemFont, sans-serif" 
+        font-size="13" 
+        font-weight="700" 
+        letter-spacing="0.16em" 
+        fill="#1F2937">CAMBODIA JEWELRY</text>
+
+  <!-- PUBLIC COMPANY Subtitle -->
+  <text x="300" y="206" 
+        text-anchor="middle" 
+        font-family="'Inter', -apple-system, BlinkMacSystemFont, sans-serif" 
+        font-size="10.5" 
+        font-weight="600" 
+        letter-spacing="0.22em" 
+        fill="#4B5563">PUBLIC COMPANY</text>
+</svg>

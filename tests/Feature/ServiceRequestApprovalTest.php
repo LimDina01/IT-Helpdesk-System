@@ -22,6 +22,8 @@ class ServiceRequestApprovalTest extends TestCase
 
     protected User $requester;
     protected User $hodUser;
+    protected User $opsHodUser;
+    protected User $itHodUser;
     protected User $adminUser;
     protected User $techUser;
     protected Branch $branch;
@@ -34,7 +36,9 @@ class ServiceRequestApprovalTest extends TestCase
         $this->seed(DatabaseSeeder::class);
 
         $this->requester = User::where('email', 'sokha.chan@cbvh.com.kh')->firstOrFail();
-        $this->hodUser = User::where('email', 'admin@cbvh.com.kh')->firstOrFail();
+        $this->opsHodUser = User::where('email', 'hod.ops@cbvh.com.kh')->firstOrFail();
+        $this->hodUser = $this->opsHodUser;
+        $this->itHodUser = User::where('email', 'admin@cbvh.com.kh')->firstOrFail();
         $this->adminUser = User::where('email', 'admin@cbvh.com.kh')->firstOrFail();
         $this->techUser = User::where('email', 'tech1@cbvh.com.kh')->firstOrFail();
         $this->branch = Branch::firstOrFail();
@@ -298,5 +302,51 @@ class ServiceRequestApprovalTest extends TestCase
         $detailResponse->assertSee('Action Required: Department HOD Approval');
         $detailResponse->assertSee('Approve Step');
         $detailResponse->assertSee('Reject Step');
+    }
+
+    public function test_two_step_separation_it_hod_cannot_approve_step_1_for_ops_and_cannot_approve_step_2_early(): void
+    {
+        $ticket = Ticket::create([
+            'ticket_code' => 'TICK-TEST-SEP',
+            'requester_id' => $this->requester->id,
+            'branch_id' => $this->branch->id,
+            'category_id' => $this->procurementCat->id,
+            'ticket_type' => 'service_request',
+            'priority' => 'high',
+            'status' => 'submitted',
+            'subject' => 'Separation Test',
+            'description' => 'Test department HOD vs IT HOD',
+        ]);
+
+        $approvalService = app(TicketApprovalService::class);
+        $approvalService->createApprovalChain($ticket);
+        $ticket->refresh();
+
+        $step1 = $ticket->approvals()->where('step_number', 1)->first();
+        $step2 = $ticket->approvals()->where('step_number', 2)->first();
+
+        // 1. IT HOD cannot approve Step 1 for Operations request
+        $this->assertFalse($approvalService->canUserApprove($this->itHodUser, $step1));
+        $this->assertTrue($approvalService->canUserApprove($this->opsHodUser, $step1));
+
+        // 2. IT HOD cannot approve Step 2 while Step 1 is still pending
+        $this->assertFalse($approvalService->canUserApprove($this->itHodUser, $step2));
+
+        // 3. Step 1 approved by Operations HOD
+        $this->assertTrue($approvalService->approve($step1, $this->opsHodUser, 'Ops approved'));
+        $step1->refresh();
+        $this->assertEquals('approved', $step1->status);
+
+        // 4. Now Step 2 is ready: IT HOD can approve Step 2, but Ops HOD cannot
+        $this->assertTrue($approvalService->canUserApprove($this->itHodUser, $step2));
+        $this->assertFalse($approvalService->canUserApprove($this->opsHodUser, $step2));
+
+        // 5. IT HOD approves Step 2
+        $this->assertTrue($approvalService->approve($step2, $this->itHodUser, 'IT approved'));
+        $step2->refresh();
+        $this->assertEquals('approved', $step2->status);
+
+        $ticket->refresh();
+        $this->assertEquals('submitted', $ticket->status);
     }
 }

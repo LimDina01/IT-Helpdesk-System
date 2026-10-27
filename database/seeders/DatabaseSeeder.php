@@ -68,6 +68,7 @@ class DatabaseSeeder extends Seeder
             ['employee_code' => 'EMP-1005', 'full_name' => 'Dara Sam', 'email' => 'dara.sam@cbvh.com.kh', 'phone' => '+855 12 999 000', 'branch' => 'HQ-PP', 'dept' => 'IT'],
             ['employee_code' => 'EMP-1006', 'full_name' => 'Kosal Meng', 'email' => 'kosal.meng@cbvh.com.kh', 'phone' => '+855 12 222 333', 'branch' => 'HQ-PP', 'dept' => 'IT'],
             ['employee_code' => 'EMP-1007', 'full_name' => 'Vannak Ouk', 'email' => 'vannak.ouk@cbvh.com.kh', 'phone' => '+855 12 444 555', 'branch' => 'HQ-PP', 'dept' => 'IT'],
+            ['employee_code' => 'EMP-1008', 'full_name' => 'Chantha Som', 'email' => 'hod.ops@cbvh.com.kh', 'phone' => '+855 12 777 999', 'branch' => 'HQ-PP', 'dept' => 'OPS'],
         ];
 
         $empModels = [];
@@ -86,7 +87,7 @@ class DatabaseSeeder extends Seeder
         // 5. Staff Users
         $defaultPassword = Hash::make('Password123!');
 
-        // HOD & System Admin
+        // IT HOD & System Admin (Process 2 Approver: IT Manager)
         $hodUser = User::create([
             'employee_id' => $empModels['EMP-1007']->id,
             'name' => 'Vannak Ouk (HOD / Admin)',
@@ -95,6 +96,16 @@ class DatabaseSeeder extends Seeder
             'is_active' => true,
         ]);
         $hodUser->roles()->attach([$roleModels['system_admin']->id, $roleModels['hod']->id]);
+
+        // Operations Department HOD (Process 1 Approver: Requester Department HOD)
+        $opsHodUser = User::create([
+            'employee_id' => $empModels['EMP-1008']->id,
+            'name' => 'Chantha Som (Operations HOD)',
+            'email' => 'hod.ops@cbvh.com.kh',
+            'password' => $defaultPassword,
+            'is_active' => true,
+        ]);
+        $opsHodUser->roles()->attach([$roleModels['hod']->id]);
 
         // Help Desk Specialist
         $helpdeskUser = User::create([

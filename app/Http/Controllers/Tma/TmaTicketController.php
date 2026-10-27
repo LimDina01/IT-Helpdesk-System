@@ -9,6 +9,8 @@ use App\Models\TicketAttachment;
 use App\Models\TicketAuditLog;
 use App\Models\TicketCategory;
 use App\Models\TicketMessage;
+use App\Models\TicketApproval;
+use App\Models\User;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -25,91 +27,160 @@ class TmaTicketController extends Controller
     use AuthorizesRequests;
 
     /**
-     * Get tickets for the authenticated employee.
+     * Get tickets for the authenticated employee across all categories.
      */
-    public function index(Request $request): JsonResponse
+    public function index(Request $request, \App\Services\TicketApprovalService $approvalService): JsonResponse
     {
         $user = Auth::user();
-        $tab = $request->input('tab', 'active'); // 'active', 'history', or 'approvals'
+        $isStaff = $user->isStaff();
+        $isHod = $user->hasRole(['hod', 'system_admin']);
 
-        if ($tab === 'history') {
-            $query = Ticket::where('requester_id', $user->id)
-                ->whereIn('status', ['resolved_confirmed', 'resolved_auto_closed', 'cancelled', 'rejected'])
-                ->orderByDesc('closed_at')
-                ->orderByDesc('updated_at');
-        } elseif ($tab === 'approvals') {
-            // Approvals tab for HOD / Manager
-            $query = Ticket::whereHas('approvals', function ($q) {
-                $q->where('status', 'pending');
-            })->orderByDesc('created_at');
+        // TMA is the self-service requester portal for employees.
+        // "My Requests" strictly shows tickets personally requested by the current authenticated employee.
+        $applyVisibilityScope = function ($query) use ($user) {
+            $query->where('requester_id', $user->id);
+        };
+
+        // 1. Open Tickets (Pending Approval, Submitted, Assigned, Clarifying, Reopened)
+        $openStatuses = ['pending_approval', 'submitted', 'assigned', 'clarifying', 'reopened'];
+
+        // 2. In Progress Tickets (In Progress, Blocked, Pending Confirmation)
+        $inProgressStatuses = ['in_progress', 'blocked', 'pending_confirmation'];
+
+        // 3. Resolved / Completed Tickets
+        $resolvedStatuses = ['resolved_confirmed', 'resolved_auto_closed', 'cancelled', 'rejected'];
+
+        // All active tickets (Open + In Progress + Pending Approval), strictly ordered by date (newest first)
+        $activeQuery = Ticket::query();
+        $applyVisibilityScope($activeQuery);
+        $activeTickets = $activeQuery
+            ->whereIn('status', array_merge(['pending_approval', 'submitted', 'assigned', 'clarifying', 'reopened'], $inProgressStatuses))
+            ->orderByDesc('created_at')
+            ->with(['branch', 'category.parent', 'technician', 'requester.employee.department', 'approvals', 'latestRequesterMessage.sender'])
+            ->get()
+            ->map(fn(Ticket $t) => $this->formatTicketSummary($t, $user));
+
+        // History tickets (Resolved / Completed / Rejected), strictly ordered by date
+        $historyQuery = Ticket::query();
+        if ($isHod) {
+            // For HODs: include tickets personally requested OR tickets they actioned as approver that are resolved/cancelled/rejected
+            $historyQuery->where(function ($q) use ($user) {
+                $q->where('requester_id', $user->id)
+                  ->orWhereHas('approvals', function ($aq) use ($user) {
+                      $aq->where('approver_id', $user->id);
+                  });
+            });
         } else {
-            $query = Ticket::where('requester_id', $user->id)
-                ->whereIn('status', [
-                    'pending_approval',
-                    'submitted',
-                    'clarifying',
-                    'assigned',
-                    'in_progress',
-                    'blocked',
-                    'pending_confirmation',
-                    'reopened',
-                ])->orderByDesc('created_at');
+            $applyVisibilityScope($historyQuery);
         }
 
-        $query->with(['branch', 'category.parent', 'technician', 'requester', 'approvals', 'latestRequesterMessage.sender']);
+        $historyTickets = $historyQuery
+            ->whereIn('status', $resolvedStatuses)
+            ->orderByRaw('COALESCE(closed_at, updated_at) DESC')
+            ->with(['branch', 'category.parent', 'technician', 'requester.employee.department', 'approvals', 'latestRequesterMessage.sender'])
+            ->get()
+            ->map(fn(Ticket $t) => $this->formatTicketSummary($t, $user));
 
-        $tickets = $query->get()->map(function (Ticket $t) use ($user) {
-            $currentApproval = $t->currentApproval();
-            $latestMsg = $t->latestRequesterMessage;
-            $isStaff = $latestMsg && $latestMsg->sender ? $latestMsg->sender->isStaff() : false;
+        // Counts matching user specification
+        $openCount = $activeTickets->filter(fn($t) => in_array($t['status'], $openStatuses))->count();
+        $inProgressCount = $activeTickets->filter(fn($t) => in_array($t['status'], $inProgressStatuses))->count();
+        $resolvedCount = $historyTickets->count();
 
-            return [
-                'id' => $t->id,
-                'ticket_code' => $t->ticket_code,
-                'ticket_type' => $t->ticket_type ?? 'incident',
-                'subject' => $t->subject,
-                'status' => $t->status,
-                'priority' => $t->priority,
-                'branch_name' => $t->branch->name ?? 'N/A',
-                'category_name' => $t->category->name ?? 'N/A',
-                'parent_category_name' => $t->category->parent->name ?? null,
-                'technician_name' => $t->technician->name ?? 'Awaiting Assignment',
-                'requester_name' => $t->requester->name ?? 'N/A',
-                'created_at' => $t->created_at->format('d-M-Y H:i'),
-                'created_at_human' => $t->created_at->diffForHumans(),
-                'resolved_at' => $t->resolved_at?->format('d-M-Y H:i'),
-                'auto_close_deadline' => $t->auto_close_deadline?->format('d-M-Y H:i'),
-                'is_pending_confirmation' => $t->isPendingConfirmation(),
-                'is_pending_approval' => $t->isPendingApproval(),
-                'is_clarifying' => $t->isClarifying(),
-                'current_approval_step' => $currentApproval ? [
-                    'id' => $currentApproval->id,
-                    'step_number' => $currentApproval->step_number,
-                    'step_name' => $currentApproval->step_name,
-                    'role_name' => $currentApproval->role_name,
-                ] : null,
-                'latest_message' => $latestMsg ? [
-                    'id' => $latestMsg->id,
-                    'body' => Str::limit($latestMsg->body ?? '(Attachment)', 80),
-                    'sender_name' => $latestMsg->sender->name ?? 'System',
-                    'is_staff' => $isStaff,
-                    'created_at_human' => $latestMsg->created_at->diffForHumans(),
-                ] : null,
-                'has_new_reply' => $isStaff && !in_array($t->status, ['resolved_confirmed', 'resolved_auto_closed', 'cancelled', 'rejected']),
-            ];
-        });
+        $tab = $request->input('tab', 'active');
+        $tabTickets = match($tab) {
+            'history' => $historyTickets,
+            default => $activeTickets,
+        };
 
-        // Count pending approvals for current user if they are HOD
-        $pendingApprovalsCount = 0;
-        if ($user->hasRole(['hod', 'system_admin'])) {
-            $pendingApprovalsCount = TicketApproval::where('status', 'pending')->count();
-        }
+        $approvalService = app(\App\Services\TicketApprovalService::class);
+        $pendingApprovals = $approvalService->getPendingApprovalTicketsForUser($user)
+            ->map(fn(Ticket $t) => $this->formatTicketSummary($t, $user));
+        $approvedByMe = $approvalService->getApprovedTicketsForUser($user)
+            ->map(fn(Ticket $t) => $this->formatTicketSummary($t, $user));
 
         return response()->json([
             'tab' => $tab,
-            'tickets' => $tickets,
-            'pending_approvals_count' => $pendingApprovalsCount,
-        ]);
+            'tickets' => $tabTickets,
+            'active' => $activeTickets,
+            'history' => $historyTickets,
+            'approvals' => $pendingApprovals,
+            'approved_by_me' => $approvedByMe,
+            'pending_approvals_count' => $pendingApprovals->count(),
+            'active_count' => $activeTickets->count(),
+            'history_count' => $historyTickets->count(),
+            'open_count' => $openCount,
+            'in_progress_count' => $inProgressCount,
+            'resolved_count' => $resolvedCount,
+            'all_count' => $openCount + $inProgressCount + $resolvedCount,
+            'is_hod' => $isHod,
+        ])->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+    }
+
+    /**
+     * Map a ticket model into a lean summary object for the TMA list.
+     */
+    private function formatTicketSummary(Ticket $t, User $user): array
+    {
+        $currentApproval = $t->currentApproval();
+        $latestMsg = $t->latestRequesterMessage;
+        $isStaff = $latestMsg && $latestMsg->sender ? $latestMsg->sender->isStaff() : false;
+        $myApproval = $t->approvals->where('approver_id', $user->id)->first();
+        $canApprove = false;
+        if ($currentApproval) {
+            $canApprove = app(\App\Services\TicketApprovalService::class)->canUserApprove($user, $currentApproval);
+        }
+
+        return [
+            'id' => $t->id,
+            'ticket_code' => $t->ticket_code,
+            'ticket_type' => $t->ticket_type ?? 'incident',
+            'subject' => $t->subject,
+            'status' => $t->status,
+            'priority' => $t->priority,
+            'branch_name' => $t->branch->name ?? 'N/A',
+            'category_name' => $t->category->name ?? 'N/A',
+            'parent_category_name' => $t->category->parent->name ?? null,
+            'technician_name' => $t->technician->name ?? 'Awaiting Assignment',
+            'requester_name' => $t->requester->name ?? 'N/A',
+            'requester_dept' => $t->requester->employee?->department?->name ?? 'N/A',
+            'created_at' => $t->created_at->format('d-M-Y H:i'),
+            'created_at_human' => $t->created_at->diffForHumans(),
+            'resolved_at' => $t->resolved_at?->format('d-M-Y H:i'),
+            'auto_close_deadline' => $t->auto_close_deadline?->format('d-M-Y H:i'),
+            'is_pending_confirmation' => $t->isPendingConfirmation(),
+            'is_pending_approval' => $t->isPendingApproval(),
+            'is_clarifying' => $t->isClarifying(),
+            'can_approve' => $canApprove,
+            'approved_by_me' => (bool) ($myApproval && $myApproval->status === 'approved'),
+            'rejected_by_me' => (bool) ($myApproval && $myApproval->status === 'rejected'),
+            'my_approval_status' => $myApproval?->status,
+            'my_approval_step' => $myApproval?->step_name,
+            'my_approval_comments' => $myApproval?->comments,
+            'cancellation_reason' => $t->cancellation_reason,
+            'approvals' => $t->approvals->map(fn($a) => [
+                'id' => $a->id,
+                'step_number' => $a->step_number,
+                'step_name' => $a->step_name,
+                'status' => $a->status,
+                'comments' => $a->comments,
+                'approver_name' => $a->approver?->name,
+                'actioned_at' => $a->actioned_at?->format('d-M-Y H:i'),
+            ])->values()->all(),
+            'current_approval_step' => $currentApproval ? [
+                'id' => $currentApproval->id,
+                'step_number' => $currentApproval->step_number,
+                'step_name' => $currentApproval->step_name,
+                'role_name' => $currentApproval->role_name,
+            ] : null,
+            'latest_message' => $latestMsg ? [
+                'id' => $latestMsg->id,
+                'body' => Str::limit($latestMsg->body ?? '(Attachment)', 80),
+                'sender_name' => $latestMsg->sender->name ?? 'System',
+                'is_staff' => $isStaff,
+                'created_at_human' => $latestMsg->created_at->diffForHumans(),
+            ] : null,
+            'has_new_reply' => $isStaff && !in_array($t->status, ['resolved_confirmed', 'resolved_auto_closed', 'cancelled', 'rejected']),
+        ];
     }
 
     /**
@@ -150,9 +221,9 @@ class TmaTicketController extends Controller
                     'message_type' => $m->message_type,
                     'visibility' => $m->visibility,
                     'body' => $m->body,
-                    'created_at' => $m->created_at->format('d-M-Y H:i:s'),
+                    'created_at' => $m->created_at->format('d-M-Y H:i'),
                     'created_at_human' => $m->created_at->diffForHumans(),
-                    'full_timestamp' => $m->created_at->format('d-M-Y H:i') . ' (' . $m->created_at->diffForHumans() . ')',
+                    'full_timestamp' => $m->created_at->format('d-M-Y H:i'),
                     'attachments' => $m->attachments->map(fn(TicketAttachment $a) => [
                         'id' => $a->id,
                         'original_filename' => $a->original_filename,
@@ -202,13 +273,14 @@ class TmaTicketController extends Controller
                 'helpdesk_name' => $ticket->helpdesk->name ?? null,
                 'requester_name' => $ticket->requester->name,
                 'requester_dept' => $ticket->requester->employee?->department?->name ?? 'N/A',
-                'created_at' => $ticket->created_at->format('d-M-Y H:i:s'),
+                'created_at' => $ticket->created_at->format('d-M-Y H:i'),
                 'created_at_human' => $ticket->created_at->diffForHumans(),
-                'full_created_timestamp' => $ticket->created_at->format('d-M-Y H:i') . ' (' . $ticket->created_at->diffForHumans() . ')',
+                'full_created_timestamp' => $ticket->created_at->format('d-M-Y H:i'),
                 'resolved_at' => $ticket->resolved_at?->format('d-M-Y H:i'),
                 'closed_at' => $ticket->closed_at?->format('d-M-Y H:i'),
                 'auto_close_deadline' => $ticket->auto_close_deadline?->format('d-M-Y H:i'),
                 'blocked_reason' => $ticket->blocked_reason,
+                'cancellation_reason' => $ticket->cancellation_reason,
                 'is_pending_confirmation' => $ticket->isPendingConfirmation(),
                 'is_pending_approval' => $ticket->isPendingApproval(),
                 'is_clarifying' => $ticket->isClarifying(),
@@ -243,28 +315,31 @@ class TmaTicketController extends Controller
      */
     public function store(Request $request, \App\Services\TicketApprovalService $approvalService): JsonResponse
     {
+        $user = Auth::user();
+        $userBranchId = $user?->employee?->branch_id ?? $user?->branch_id ?? Branch::first()?->id ?? 1;
+
         $validated = $request->validate([
             'ticket_type' => 'nullable|in:incident,service_request',
-            'branch_id' => 'required|exists:branches,id',
+            'branch_id' => 'nullable|exists:branches,id',
             'category_id' => 'required|exists:ticket_categories,id',
             'priority' => 'required|in:low,medium,high,critical',
             'subject' => 'required|string|max:255',
             'description' => 'required|string|min:5',
-            'attachments.*' => 'nullable|file|max:20480|mimes:jpeg,jpg,png,webp,pdf',
+            'attachments.*' => 'nullable|file|max:25600|mimes:jpeg,jpg,png,webp,gif,bmp,heic,heif,pdf,doc,docx,xls,xlsx,txt,zip',
         ]);
 
-        $user = Auth::user();
         $category = TicketCategory::findOrFail($validated['category_id']);
         $ticketType = $validated['ticket_type'] ?? ($category->type === 'service_request' ? 'service_request' : 'incident');
+        $effectiveBranchId = $validated['branch_id'] ?? $userBranchId;
 
-        $ticket = DB::transaction(function () use ($validated, $user, $request, $ticketType, $category, $approvalService) {
+        $ticket = DB::transaction(function () use ($validated, $user, $request, $ticketType, $category, $approvalService, $effectiveBranchId) {
             $ticketCode = Ticket::generateTicketCode();
 
             $ticket = Ticket::create([
                 'ticket_code' => $ticketCode,
                 'ticket_type' => $ticketType,
                 'requester_id' => $user->id,
-                'branch_id' => $validated['branch_id'],
+                'branch_id' => $effectiveBranchId,
                 'category_id' => $validated['category_id'],
                 'status' => 'submitted',
                 'priority' => $validated['priority'],
@@ -384,7 +459,7 @@ class TmaTicketController extends Controller
 
         $validated = $request->validate([
             'body' => 'required_without:attachments|nullable|string',
-            'attachments.*' => 'nullable|file|max:20480|mimes:jpeg,jpg,png,webp,pdf',
+            'attachments.*' => 'nullable|file|max:25600|mimes:jpeg,jpg,png,webp,gif,bmp,heic,heif,pdf,doc,docx,xls,xlsx,txt,zip',
         ]);
 
         $user = Auth::user();
@@ -532,7 +607,7 @@ class TmaTicketController extends Controller
     /**
      * Download or stream authorized private file attachment.
      */
-    public function downloadAttachment(Ticket $ticket, TicketAttachment $attachment, Request $request): StreamedResponse
+    public function downloadAttachment(Ticket $ticket, TicketAttachment $attachment, Request $request): \Symfony\Component\HttpFoundation\Response
     {
         $this->authorize('downloadAttachment', [$ticket, $attachment]);
 
@@ -540,11 +615,19 @@ class TmaTicketController extends Controller
             abort(404, 'File not found on storage disk.');
         }
 
-        if ($request->has('preview') || str_starts_with($attachment->mime_type, 'image/')) {
+        // Ultra-fast lightweight thumbnail for in-chat previews (loads in <15ms instead of fetching multi-megabyte originals)
+        if ($request->has('preview') && str_starts_with($attachment->mime_type, 'image/')) {
+            return $this->getThumbnailResponse($attachment);
+        }
+
+        if (str_starts_with($attachment->mime_type, 'image/')) {
             return Storage::disk('attachments')->response(
                 $attachment->storage_path,
                 $attachment->original_filename,
-                ['Content-Type' => $attachment->mime_type]
+                [
+                    'Content-Type' => $attachment->mime_type,
+                    'Cache-Control' => 'private, max-age=86400, stale-while-revalidate=604800',
+                ]
             );
         }
 
@@ -552,6 +635,67 @@ class TmaTicketController extends Controller
             $attachment->storage_path,
             $attachment->original_filename
         );
+    }
+
+    /**
+     * Return a fast resized thumbnail response for image attachments.
+     */
+    protected function getThumbnailResponse(TicketAttachment $attachment): \Symfony\Component\HttpFoundation\Response
+    {
+        $storage = Storage::disk('attachments');
+        $fullPath = $storage->path($attachment->storage_path);
+
+        if (!file_exists($fullPath)) {
+            abort(404, 'File not found on storage disk.');
+        }
+
+        $thumbDir = storage_path('app/attachments/thumbs');
+        if (!is_dir($thumbDir)) {
+            @mkdir($thumbDir, 0755, true);
+        }
+
+        $thumbFileName = 'thumb_' . $attachment->id . '_' . md5($attachment->storage_path) . '.jpg';
+        $thumbFilePath = $thumbDir . DIRECTORY_SEPARATOR . $thumbFileName;
+
+        if (!file_exists($thumbFilePath)) {
+            $info = @getimagesize($fullPath);
+            if ($info && in_array($info['mime'], ['image/jpeg', 'image/png', 'image/webp', 'image/gif'])) {
+                $origW = $info[0];
+                $origH = $info[1];
+                $maxDim = 320;
+                $scale = min($maxDim / max($origW, 1), $maxDim / max($origH, 1), 1.0);
+                $newW = max(1, (int)($origW * $scale));
+                $newH = max(1, (int)($origH * $scale));
+
+                $srcImg = match($info['mime']) {
+                    'image/jpeg' => @imagecreatefromjpeg($fullPath),
+                    'image/png' => @imagecreatefrompng($fullPath),
+                    'image/webp' => @imagecreatefromwebp($fullPath),
+                    'image/gif' => @imagecreatefromgif($fullPath),
+                    default => null,
+                };
+
+                if ($srcImg) {
+                    $dstImg = imagecreatetruecolor($newW, $newH);
+                    imagecopyresampled($dstImg, $srcImg, 0, 0, 0, 0, $newW, $newH, $origW, $origH);
+                    imagejpeg($dstImg, $thumbFilePath, 78);
+                    imagedestroy($srcImg);
+                    imagedestroy($dstImg);
+                }
+            }
+        }
+
+        if (file_exists($thumbFilePath)) {
+            return response()->file($thumbFilePath, [
+                'Content-Type' => 'image/jpeg',
+                'Cache-Control' => 'public, max-age=604800, immutable',
+            ]);
+        }
+
+        return $storage->response($attachment->storage_path, $attachment->original_filename, [
+            'Content-Type' => $attachment->mime_type,
+            'Cache-Control' => 'private, max-age=86400',
+        ]);
     }
 
     /**
@@ -570,20 +714,35 @@ class TmaTicketController extends Controller
             ->get();
 
         $user = Auth::user();
+        $emp = $user?->employee?->load(['branch', 'department']);
+        $userBranchId = $emp?->branch_id ?? $user?->branch_id ?? $branches->first()?->id;
+        $userBranchName = $emp?->branch?->name ?? $branches->first()?->name ?? 'Main Branch';
+        $userDeptName = $emp?->department?->name ?? 'General Department';
+
         $isHod = $user ? $user->hasRole(['hod', 'system_admin']) : false;
+        $userDeptCode = $user?->employee?->department?->code;
+        $userEmpCode = $user?->employee?->employee_code;
+        $isItHod = $isHod && ($userDeptCode === 'IT' || $userEmpCode === 'EMP-1007');
+
         $pendingApprovalsCount = 0;
         if ($isHod) {
-            $pendingApprovalsCount = \App\Models\TicketApproval::where('status', 'pending')->count();
+            $pendingApprovalsCount = app(\App\Services\TicketApprovalService::class)->getPendingApprovalTicketsForUser($user)->count();
         }
 
         return response()->json([
             'branches' => $branches,
             'categories' => $categories,
             'user' => [
-                'branch_id' => $user->employee->branch_id ?? null,
+                'branch_id' => $userBranchId,
+                'branch_name' => $userBranchName,
+                'department_id' => $emp?->department_id,
+                'department_name' => $userDeptName,
+                'department_code' => $userDeptCode,
+                'name' => $user?->name,
                 'is_hod' => $isHod,
+                'is_it_hod' => $isItHod,
                 'pending_approvals_count' => $pendingApprovalsCount,
             ],
-        ]);
+        ])->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
     }
 }

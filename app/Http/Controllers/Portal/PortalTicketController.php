@@ -322,7 +322,7 @@ class PortalTicketController extends Controller
         $validated = $request->validate([
             'body' => 'required|string',
             'visibility' => 'required|in:requester_visible,internal_staff_only',
-            'attachments.*' => 'nullable|file|max:20480|mimes:jpeg,jpg,png,webp,pdf',
+            'attachments.*' => 'nullable|file|max:25600|mimes:jpeg,jpg,png,webp,gif,bmp,heic,heif,pdf,doc,docx,xls,xlsx,txt,zip',
         ]);
 
         $user = Auth::user();

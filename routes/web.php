@@ -22,7 +22,11 @@ Route::get('/', function () {
 
 // TMA Main Container View
 Route::get('/tma', function () {
-    return view('tma.app');
+    return response()
+        ->view('tma.app')
+        ->header('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0')
+        ->header('Pragma', 'no-cache')
+        ->header('Expires', '0');
 })->name('tma.index');
 
 // TMA API
@@ -31,10 +35,10 @@ Route::prefix('tma/api')->group(function () {
     Route::post('/login', [TmaAuthController::class, 'webLogin'])->name('tma.web-login');
     Route::post('/link-request', [TmaAuthController::class, 'requestLink'])->name('tma.link-request');
     Route::post('/logout', [TmaAuthController::class, 'logout'])->name('tma.logout');
+    Route::get('/form-data', [TmaTicketController::class, 'getFormData'])->name('tma.form-data');
 
     // Authenticated Requester Endpoints
     Route::middleware('auth')->group(function () {
-        Route::get('/form-data', [TmaTicketController::class, 'getFormData'])->name('tma.form-data');
         Route::get('/tickets', [TmaTicketController::class, 'index'])->name('tma.tickets.index');
         Route::post('/tickets', [TmaTicketController::class, 'store'])->name('tma.tickets.store');
         Route::get('/tickets/{ticket}', [TmaTicketController::class, 'show'])->name('tma.tickets.show');
