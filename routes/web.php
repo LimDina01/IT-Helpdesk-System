@@ -78,6 +78,8 @@ Route::prefix('portal')->group(function () {
         Route::get('/tickets/{ticket}', [PortalTicketController::class, 'show'])->name('portal.tickets.show');
         Route::get('/tickets/{ticket}/poll', [PortalTicketController::class, 'poll'])->name('portal.tickets.poll');
         Route::post('/tickets/{ticket}/assign', [PortalTicketController::class, 'assign'])->name('portal.tickets.assign');
+        Route::post('/tickets/{ticket}/assign-me', [PortalTicketController::class, 'assignToMe'])->name('portal.tickets.assign-me');
+        Route::post('/tickets/{ticket}/priority', [PortalTicketController::class, 'updatePriority'])->name('portal.tickets.priority');
         Route::post('/tickets/{ticket}/accept', [PortalTicketController::class, 'acceptAndStart'])->name('portal.tickets.accept');
         Route::post('/tickets/{ticket}/clarify', [PortalTicketController::class, 'requestClarification'])->name('portal.tickets.clarify');
         Route::post('/tickets/{ticket}/done', [PortalTicketController::class, 'markDone'])->name('portal.tickets.done');

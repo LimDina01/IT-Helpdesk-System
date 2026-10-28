@@ -138,6 +138,96 @@ class PortalTicketController extends Controller
     }
 
     /**
+     * Quick action: Assign ticket directly to the logged-in staff member.
+     */
+    public function assignToMe(Ticket $ticket, TelegramNotificationService $telegram): RedirectResponse
+    {
+        $user = Auth::user();
+
+        DB::transaction(function () use ($ticket, $user) {
+            $oldTechId = $ticket->current_technician_id;
+
+            $ticket->update([
+                'current_technician_id' => $user->id,
+                'current_helpdesk_id' => $ticket->current_helpdesk_id ?? $user->id,
+                'status' => 'assigned',
+                'assigned_at' => now(),
+                'acknowledged_at' => null,
+            ]);
+
+            TicketAssignment::create([
+                'ticket_id' => $ticket->id,
+                'assigned_by_id' => $user->id,
+                'technician_id' => $user->id,
+                'assigned_at' => now(),
+                'reassignment_reason' => 'Self-assigned from ticket workspace',
+            ]);
+
+            TicketMessage::create([
+                'ticket_id' => $ticket->id,
+                'sender_id' => $user->id,
+                'visibility' => 'system_event',
+                'message_type' => 'reassignment',
+                'body' => "Ticket assigned to {$user->name} (Self-assigned).",
+            ]);
+
+            TicketAuditLog::create([
+                'ticket_id' => $ticket->id,
+                'actor_id' => $user->id,
+                'action' => 'ASSIGNED',
+                'old_value' => $oldTechId ? (string)$oldTechId : null,
+                'new_value' => (string)$user->id,
+                'metadata' => [
+                    'technician_name' => $user->name,
+                    'note' => 'Self-assigned from ticket workspace',
+                ],
+                'created_at' => now(),
+            ]);
+        });
+
+        return back()->with('status', 'Ticket successfully assigned to you.');
+    }
+
+    /**
+     * Quick action: Update ticket priority.
+     */
+    public function updatePriority(Request $request, Ticket $ticket): RedirectResponse
+    {
+        $validated = $request->validate([
+            'priority' => 'required|in:low,medium,high,critical',
+        ]);
+
+        $oldPriority = $ticket->priority;
+        $newPriority = $validated['priority'];
+
+        if ($oldPriority !== $newPriority) {
+            DB::transaction(function () use ($ticket, $oldPriority, $newPriority) {
+                $ticket->update(['priority' => $newPriority]);
+
+                TicketAuditLog::create([
+                    'ticket_id' => $ticket->id,
+                    'actor_id' => Auth::id(),
+                    'action' => 'PRIORITY_CHANGED',
+                    'old_value' => $oldPriority,
+                    'new_value' => $newPriority,
+                    'metadata' => ['priority' => $newPriority],
+                    'created_at' => now(),
+                ]);
+
+                TicketMessage::create([
+                    'ticket_id' => $ticket->id,
+                    'sender_id' => Auth::id(),
+                    'visibility' => 'system_event',
+                    'message_type' => 'priority_change',
+                    'body' => "Priority changed from " . strtoupper($oldPriority) . " to " . strtoupper($newPriority) . ".",
+                ]);
+            });
+        }
+
+        return back()->with('status', 'Ticket priority updated to ' . strtoupper($newPriority) . '.');
+    }
+
+    /**
      * Technician action: Accept & Start.
      */
     public function acceptAndStart(Ticket $ticket): RedirectResponse

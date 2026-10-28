@@ -19,6 +19,8 @@
     lightboxUrl: '',
     lightboxName: '',
     lightboxDownload: '',
+    copiedTicket: false,
+    copiedEmail: false,
     requesterActive: {{ \Illuminate\Support\Facades\Cache::has("ticket_presence_{$ticket->id}_{$ticket->requester_id}") ? 'true' : 'false' }},
     chatMessages: {{ Js::from($messages->map(fn($m) => [
         'id' => $m->id,
@@ -50,6 +52,37 @@
         this.chatToastTimer = setTimeout(() => {
             this.chatToast = '';
         }, 3500);
+    },
+    copyCode() {
+        navigator.clipboard.writeText('{{ $ticket->ticket_code }}');
+        this.copiedTicket = true;
+        setTimeout(() => { this.copiedTicket = false; }, 2000);
+    },
+    copyEmail(email) {
+        navigator.clipboard.writeText(email);
+        this.copiedEmail = true;
+        setTimeout(() => { this.copiedEmail = false; }, 2000);
+    },
+    handleFileSelect(event) {
+        if (event.target.files) {
+            this.messageFiles = [...this.messageFiles, ...Array.from(event.target.files)];
+        }
+    },
+    handlePaste(event) {
+        if (!event.clipboardData || !event.clipboardData.items) return;
+        for (let i = 0; i < event.clipboardData.items.length; i++) {
+            const item = event.clipboardData.items[i];
+            if (item.type.indexOf('image') !== -1) {
+                const blob = item.getAsFile();
+                const ext = item.type.split('/')[1] || 'png';
+                const file = new File([blob], `screenshot_${Date.now()}.${ext}`, { type: item.type });
+                this.messageFiles.push(file);
+                this.showToast('Screenshot attached from clipboard!');
+            }
+        }
+    },
+    removeFile(index) {
+        this.messageFiles.splice(index, 1);
     },
     async fetchLiveMessages() {
         try {
@@ -120,7 +153,6 @@
                     inputEl.focus();
                 }
             } else {
-                // Only restore text if server returned error and user hasn't typed anything new
                 if (!this.messageBody) {
                     this.messageBody = text;
                     if (inputEl) inputEl.value = text;
@@ -145,117 +177,187 @@
     }
 }" x-init="initLivePoll()" class="space-y-6">
 
-    <!-- Top Ticket Header -->
-    <div class="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
+    <!-- Top Ticket Header & Action Command Center -->
+    <div class="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs space-y-4">
+        
+        <!-- Row 1: Breadcrumbs, Badges, Priority Switcher & Live Presence -->
+        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3.5">
             <div class="flex flex-wrap items-center gap-2">
-                <a href="{{ route('portal.dashboard') }}" class="text-xs text-slate-400 hover:text-slate-700 font-bold flex items-center space-x-1">
-                    <span>&larr;</span> <span>Back to Queues</span>
+                <a href="{{ route('portal.dashboard') }}" class="text-xs text-slate-500 hover:text-slate-800 font-bold flex items-center space-x-1.5 transition bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded-lg">
+                    <span>&larr;</span> <span>Queues</span>
                 </a>
-                <span>•</span>
-                <span class="font-mono font-bold text-blue-600 text-sm">{{ $ticket->ticket_code }}</span>
-                
+
+                <div class="w-px h-4 bg-slate-200"></div>
+
+                <!-- 1-Click Copy Ticket Code -->
+                <button type="button"
+                        @click="copyCode()"
+                        class="group inline-flex items-center space-x-1.5 font-mono font-bold text-blue-600 text-xs hover:text-blue-700 bg-blue-50/80 hover:bg-blue-100 px-2.5 py-1 rounded-lg border border-blue-200 transition"
+                        title="Click to copy ticket code">
+                    <span>{{ $ticket->ticket_code }}</span>
+                    <svg class="w-3.5 h-3.5 text-blue-500 group-hover:scale-110 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                    <span x-show="copiedTicket" x-cloak class="text-[10px] text-emerald-600 font-bold ml-0.5">Copied!</span>
+                </button>
+
+                <!-- Ticket Type Pill -->
                 @if($ticket->isIncident())
-                    <span class="bg-rose-100 text-rose-700 border border-rose-200 font-extrabold text-[9px] uppercase px-2 py-0.5 rounded tracking-wider flex items-center space-x-1">
+                    <span class="bg-rose-100 text-rose-700 border border-rose-200 font-extrabold text-[10px] uppercase px-2.5 py-1 rounded-lg tracking-wider flex items-center space-x-1">
                         <span>🔴</span> <span>Incident</span>
                     </span>
                 @else
-                    <span class="bg-indigo-100 text-indigo-700 border border-indigo-200 font-extrabold text-[9px] uppercase px-2 py-0.5 rounded tracking-wider flex items-center space-x-1">
+                    <span class="bg-indigo-100 text-indigo-700 border border-indigo-200 font-extrabold text-[10px] uppercase px-2.5 py-1 rounded-lg tracking-wider flex items-center space-x-1">
                         <span>🔵</span> <span>Service Request</span>
                     </span>
                 @endif
 
-                @if($ticket->priority === 'critical')
-                    <span class="bg-red-600 text-white font-bold text-[9px] uppercase px-2 py-0.5 rounded tracking-wider">Critical</span>
-                @elseif($ticket->priority === 'high')
-                    <span class="bg-orange-500 text-white font-bold text-[9px] uppercase px-2 py-0.5 rounded tracking-wider">High</span>
-                @elseif($ticket->priority === 'medium')
-                    <span class="bg-blue-100 text-blue-800 font-bold text-[9px] uppercase px-2 py-0.5 rounded tracking-wider">Medium</span>
-                @else
-                    <span class="bg-slate-100 text-slate-700 font-bold text-[9px] uppercase px-2 py-0.5 rounded tracking-wider">Low</span>
-                @endif
+                <!-- Inline Priority Quick Switcher -->
+                <form method="POST" action="{{ route('portal.tickets.priority', $ticket->id) }}" class="inline-flex items-center">
+                    @csrf
+                    <select name="priority" onchange="this.form.submit()"
+                            title="Change Priority"
+                            class="text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-lg border cursor-pointer transition shadow-2xs {{ $ticket->priority === 'critical' ? 'bg-rose-600 text-white border-rose-700' : ($ticket->priority === 'high' ? 'bg-amber-500 text-white border-amber-600' : ($ticket->priority === 'medium' ? 'bg-blue-100 text-blue-800 border-blue-200' : 'bg-slate-100 text-slate-700 border-slate-200')) }}">
+                        <option value="critical" {{ $ticket->priority === 'critical' ? 'selected' : '' }}>🔴 Critical Priority</option>
+                        <option value="high" {{ $ticket->priority === 'high' ? 'selected' : '' }}>🟠 High Priority</option>
+                        <option value="medium" {{ $ticket->priority === 'medium' ? 'selected' : '' }}>🔵 Medium Priority</option>
+                        <option value="low" {{ $ticket->priority === 'low' ? 'selected' : '' }}>⚪ Low Priority</option>
+                    </select>
+                </form>
 
+                <!-- Status Badge -->
                 @if($ticket->status === 'pending_approval')
-                    <span class="bg-purple-100 text-purple-800 font-bold text-[10px] uppercase px-2.5 py-0.5 rounded-full border border-purple-200 animate-pulse">
+                    <span class="bg-purple-100 text-purple-800 font-bold text-[10px] uppercase px-2.5 py-1 rounded-lg border border-purple-200 animate-pulse">
                         ⏳ Pending Approval
                     </span>
                 @elseif($ticket->status === 'rejected')
-                    <span class="bg-rose-100 text-rose-800 font-bold text-[10px] uppercase px-2.5 py-0.5 rounded-full border border-rose-200">
+                    <span class="bg-rose-100 text-rose-800 font-bold text-[10px] uppercase px-2.5 py-1 rounded-lg border border-rose-200">
                         ✖ Rejected
                     </span>
+                @elseif($ticket->status === 'submitted')
+                    <span class="bg-amber-100 text-amber-800 font-bold text-[10px] uppercase px-2.5 py-1 rounded-lg border border-amber-200">
+                        ⚠️ Submitted / Unassigned
+                    </span>
+                @elseif($ticket->status === 'assigned')
+                    <span class="bg-blue-100 text-blue-800 font-bold text-[10px] uppercase px-2.5 py-1 rounded-lg border border-blue-200">
+                        👤 Assigned
+                    </span>
+                @elseif($ticket->status === 'in_progress')
+                    <span class="bg-emerald-100 text-emerald-800 font-bold text-[10px] uppercase px-2.5 py-1 rounded-lg border border-emerald-200 flex items-center space-x-1">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-ping"></span>
+                        <span>In Progress</span>
+                    </span>
+                @elseif($ticket->status === 'blocked')
+                    <span class="bg-amber-100 text-amber-900 font-bold text-[10px] uppercase px-2.5 py-1 rounded-lg border border-amber-300">
+                        🛑 Blocked / Hold
+                    </span>
+                @elseif($ticket->status === 'pending_confirmation')
+                    <span class="bg-indigo-100 text-indigo-800 font-bold text-[10px] uppercase px-2.5 py-1 rounded-lg border border-indigo-200">
+                        ⏳ Pending Sign-off
+                    </span>
                 @else
-                    <span class="bg-slate-100 text-slate-800 font-bold text-[10px] uppercase px-2.5 py-0.5 rounded-full border border-slate-200">
-                        Status: {{ str_replace('_', ' ', strtoupper($ticket->status)) }}
+                    <span class="bg-slate-100 text-slate-800 font-bold text-[10px] uppercase px-2.5 py-1 rounded-lg border border-slate-200">
+                        {{ str_replace('_', ' ', strtoupper($ticket->status)) }}
                     </span>
                 @endif
+            </div>
 
-                <!-- Dynamic Live Requester Presence Badge -->
+            <!-- Dynamic Live Requester Presence Badge -->
+            <div class="flex items-center space-x-2">
                 <template x-if="requesterActive">
-                    <span class="inline-flex items-center space-x-1.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2.5 py-0.5 rounded-full border border-emerald-300">
+                    <span class="inline-flex items-center space-x-1.5 bg-emerald-50 text-emerald-800 text-[10px] font-bold px-3 py-1 rounded-full border border-emerald-200 shadow-2xs">
                         <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
                         <span>🟢 Requester In Chat</span>
                     </span>
                 </template>
                 <template x-if="!requesterActive">
-                    <span class="inline-flex items-center space-x-1 bg-slate-100 text-slate-500 text-[10px] font-medium px-2 py-0.5 rounded-full" title="Replies will send a Telegram push alert">
-                        <span>📱 Telegram Alert Ready</span>
+                    <span class="inline-flex items-center space-x-1.5 bg-slate-100 text-slate-500 text-[10px] font-medium px-3 py-1 rounded-full border border-slate-200/70" title="Replies will send a Telegram push alert">
+                        <span>📱 Telegram Push Ready</span>
                     </span>
                 </template>
             </div>
-            
-            <h1 class="text-xl font-extrabold text-slate-900 mt-2">{{ $ticket->subject }}</h1>
-            
-            <div class="text-xs text-slate-500 flex flex-wrap items-center gap-3 mt-1.5">
-                <span>Created: <strong>{{ $ticket->created_at->format('M d, Y H:i:s') }}</strong> ({{ $ticket->created_at->diffForHumans() }})</span>
-                <span>•</span>
-                <span>Category: <strong>{{ $ticket->category->name }}</strong></span>
-                <span>•</span>
-                <span>Branch: <strong>{{ $ticket->branch->name }} ({{ $ticket->branch->code }})</strong></span>
+        </div>
+
+        <!-- Row 2: Subject & Primary Lifecycle Command Actions -->
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div class="space-y-1 flex-1">
+                <h1 class="text-xl font-black text-slate-900 leading-snug">{{ $ticket->subject }}</h1>
+                <div class="text-xs text-slate-500 flex flex-wrap items-center gap-2.5">
+                    <span>Created: <strong>{{ $ticket->created_at->format('M d, Y H:i') }}</strong> ({{ $ticket->created_at->diffForHumans() }})</span>
+                    <span>•</span>
+                    <span>Category: <strong class="text-slate-700">{{ $ticket->category->name }}</strong></span>
+                    <span>•</span>
+                    <span>Branch: <strong class="text-slate-700">{{ $ticket->branch->name }} ({{ $ticket->branch->code }})</strong></span>
+                </div>
+            </div>
+
+            <!-- Fast Action Command Buttons -->
+            <div class="flex items-center space-x-2 flex-wrap gap-y-2">
+                {{-- If Unassigned: Fast "Assign to Me" + Assign Technician Drawer --}}
+                @if(!$ticket->technician)
+                    <form method="POST" action="{{ route('portal.tickets.assign-me', $ticket->id) }}">
+                        @csrf
+                        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-xs transition flex items-center space-x-1.5">
+                            <span>⚡</span>
+                            <span>Assign to Me</span>
+                        </button>
+                    </form>
+                    <button type="button" @click="reassignDrawer = !reassignDrawer" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 transition">
+                        Assign Technician...
+                    </button>
+                @endif
+
+                {{-- If Assigned: Accept & Start Work --}}
+                @if($ticket->status === 'assigned' && ($ticket->current_technician_id === Auth::id() || Auth::user()->hasRole(['system_admin', 'hod'])))
+                    <form method="POST" action="{{ route('portal.tickets.accept', $ticket->id) }}">
+                        @csrf
+                        <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-xs transition flex items-center space-x-1.5">
+                            <span>⚡</span>
+                            <span>Accept & Start Work</span>
+                        </button>
+                    </form>
+                @endif
+
+                {{-- If In Progress: Mark Done, Block, Ask Clarification --}}
+                @if($ticket->status === 'in_progress')
+                    <form method="POST" action="{{ route('portal.tickets.done', $ticket->id) }}">
+                        @csrf
+                        <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3.5 py-2.5 rounded-xl shadow-xs transition flex items-center space-x-1.5">
+                            <span>✔</span>
+                            <span>Mark as Done</span>
+                        </button>
+                    </form>
+
+                    <button type="button" @click="blockModal = true" class="bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold text-xs px-3 py-2.5 rounded-xl transition">
+                        🛑 Block / Hold
+                    </button>
+
+                    <button type="button" @click="clarifyModal = true" class="bg-slate-100 hover:bg-blue-50 hover:text-blue-600 text-slate-700 font-semibold text-xs px-3 py-2.5 rounded-xl border border-slate-200 transition">
+                        ❓ Ask Info
+                    </button>
+                @endif
+
+                {{-- If Blocked: Resume Work --}}
+                @if($ticket->status === 'blocked')
+                    <form method="POST" action="{{ route('portal.tickets.accept', $ticket->id) }}">
+                        @csrf
+                        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-3.5 py-2.5 rounded-xl shadow-xs transition flex items-center space-x-1.5">
+                            <span>▶</span>
+                            <span>Resume Work</span>
+                        </button>
+                    </form>
+                @endif
             </div>
         </div>
 
-        <!-- Quick Lifecycle Actions -->
-        <div class="flex items-center space-x-2">
-            @if($ticket->status === 'assigned' && ($ticket->current_technician_id === Auth::id() || Auth::user()->hasRole(['system_admin', 'hod'])))
-                <form method="POST" action="{{ route('portal.tickets.accept', $ticket->id) }}">
-                    @csrf
-                    <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-xs transition flex items-center space-x-1.5">
-                        <span>⚡</span>
-                        <span>Accept & Start Work</span>
-                    </button>
-                </form>
-            @endif
-
-            @if($ticket->status === 'in_progress')
-                <!-- Mark Done -->
-                <form method="POST" action="{{ route('portal.tickets.done', $ticket->id) }}">
-                    @csrf
-                    <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3.5 py-2.5 rounded-xl shadow-xs transition flex items-center space-x-1.5">
-                        <span>✔</span>
-                        <span>Mark as Done</span>
-                    </button>
-                </form>
-
-                <!-- Mark Blocked -->
-                <button type="button" @click="blockModal = true" class="bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold text-xs px-3 py-2.5 rounded-xl transition">
-                    🛑 Blocked / Hold
-                </button>
-
-                <!-- Ask Clarification -->
-                <button type="button" @click="clarifyModal = true" class="bg-slate-100 hover:bg-blue-50 hover:text-blue-600 text-slate-700 font-semibold text-xs px-3 py-2.5 rounded-xl border border-slate-200 transition">
-                    ❓ Ask Info
-                </button>
-            @endif
-
-            @if($ticket->status === 'blocked')
-                <form method="POST" action="{{ route('portal.tickets.accept', $ticket->id) }}">
-                    @csrf
-                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-3.5 py-2.5 rounded-xl shadow-xs transition">
-                        ▶ Resume Work
-                    </button>
-                </form>
-            @endif
-        </div>
+        <!-- Integrated Problem Description Callout (Cleanly embedded, replaces redundant card) -->
+        @if($ticket->description)
+            <div class="mt-2 pt-3 border-t border-slate-100 text-xs bg-slate-50/70 border border-slate-200/60 rounded-2xl p-3.5 flex items-start space-x-3">
+                <span class="text-base leading-none select-none text-slate-400">📝</span>
+                <div class="flex-1 min-w-0">
+                    <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">Initial Problem Statement</span>
+                    <p class="leading-relaxed whitespace-pre-wrap text-slate-800 font-medium text-xs">{{ $ticket->description }}</p>
+                </div>
+            </div>
+        @endif
     </div>
 
     <!-- Alert Banners -->
@@ -368,7 +470,7 @@
                                     ({{ $approval->actioned_at?->format('d-M-Y H:i:s') }})
                                 </div>
                                 @if($approval->comments)
-                                    <div class="text-slate-700 italic bg-white/70 p-2 rounded-lg border border-slate-200">
+                                    <div class="text-slate-500 italic text-[11px] bg-white/70 p-1.5 rounded">
                                         "{{ $approval->comments }}"
                                     </div>
                                 @endif
@@ -407,16 +509,18 @@
     <!-- 2-Column Operational Grid -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-        <!-- Left Column: Details, SLA, Requester & Audit History -->
+        <!-- Left Column: Details, Assignee, Requester & Audit History -->
         <div class="space-y-6">
             
             <!-- Assigned Technician & Delegation Card -->
             <div class="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs space-y-4">
                 <div class="flex items-center justify-between border-b border-slate-100 pb-3">
                     <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Current Assignee</span>
-                    <button type="button" @click="reassignDrawer = !reassignDrawer" class="text-xs text-blue-600 hover:underline font-semibold">
-                        Reassign
-                    </button>
+                    @if($ticket->technician)
+                        <button type="button" @click="reassignDrawer = !reassignDrawer" class="text-xs text-blue-600 hover:underline font-semibold">
+                            Reassign
+                        </button>
+                    @endif
                 </div>
 
                 @if($ticket->technician)
@@ -447,57 +551,115 @@
                         </div>
                     </div>
                 @else
-                    <div class="p-3 bg-amber-50 text-amber-800 rounded-xl text-xs font-medium text-center">
-                        Not assigned to any technician yet.
+                    <!-- High-Visibility Unassigned Triage Card -->
+                    <div class="p-4 bg-amber-50/70 border border-amber-200/80 rounded-2xl space-y-3">
+                        <div class="flex items-center space-x-2 text-amber-800 text-xs font-bold">
+                            <span>⚠️</span>
+                            <span>Awaiting Assignment</span>
+                        </div>
+                        <p class="text-[11px] text-amber-900/80">This ticket has not been assigned to any technician yet.</p>
+                        
+                        <form method="POST" action="{{ route('portal.tickets.assign-me', $ticket->id) }}">
+                            @csrf
+                            <button type="submit" class="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center space-x-1.5">
+                                <span>⚡</span>
+                                <span>Assign to Myself</span>
+                            </button>
+                        </form>
+
+                        <div class="pt-2 border-t border-amber-200/60">
+                            <div class="text-[11px] font-bold text-slate-600 mb-1.5">Or assign to a teammate:</div>
+                            <form method="POST" action="{{ route('portal.tickets.assign', $ticket->id) }}" class="space-y-2">
+                                @csrf
+                                <select name="technician_id" required class="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 bg-white font-medium focus:ring-2 focus:ring-blue-500">
+                                    <option value="">Select Technician...</option>
+                                    @foreach($technicians as $tech)
+                                        <option value="{{ $tech->id }}">{{ $tech->name }}</option>
+                                    @endforeach
+                                </select>
+                                <button type="submit" class="w-full py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-xl transition">
+                                    Assign Technician
+                                </button>
+                            </form>
+                        </div>
                     </div>
                 @endif
 
-                <!-- Reassign Drawer -->
-                <div x-show="reassignDrawer" class="pt-3 border-t border-slate-100 space-y-3">
-                    <form method="POST" action="{{ route('portal.tickets.assign', $ticket->id) }}" class="space-y-3">
-                        @csrf
-                        <div>
-                            <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">New Technician</label>
-                            <select name="technician_id" required class="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white">
-                                @foreach($technicians as $tech)
-                                    <option value="{{ $tech->id }}" {{ $ticket->current_technician_id == $tech->id ? 'selected' : '' }}>
-                                        {{ $tech->name }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Transfer Reason</label>
-                            <input type="text" name="assignment_note" placeholder="e.g. Workload rebalancing" class="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-300">
-                        </div>
-                        <div class="flex justify-end space-x-2">
-                            <button type="button" @click="reassignDrawer = false" class="text-xs text-slate-500 px-2 py-1">Cancel</button>
-                            <button type="submit" class="text-xs bg-blue-600 text-white font-bold px-3 py-1.5 rounded-lg">Update</button>
-                        </div>
-                    </form>
-                </div>
+                <!-- Reassign Drawer (For already assigned tickets) -->
+                @if($ticket->technician)
+                    <div x-show="reassignDrawer" class="pt-3 border-t border-slate-100 space-y-3" x-cloak>
+                        <form method="POST" action="{{ route('portal.tickets.assign', $ticket->id) }}" class="space-y-3">
+                            @csrf
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">New Technician</label>
+                                <select name="technician_id" required class="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white">
+                                    @foreach($technicians as $tech)
+                                        <option value="{{ $tech->id }}" {{ $ticket->current_technician_id == $tech->id ? 'selected' : '' }}>
+                                            {{ $tech->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Transfer Reason</label>
+                                <input type="text" name="assignment_note" placeholder="e.g. Workload rebalancing" class="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-300">
+                            </div>
+                            <div class="flex justify-end space-x-2">
+                                <button type="button" @click="reassignDrawer = false" class="text-xs text-slate-500 px-2 py-1">Cancel</button>
+                                <button type="submit" class="text-xs bg-blue-600 text-white font-bold px-3 py-1.5 rounded-lg">Update</button>
+                            </div>
+                        </form>
+                    </div>
+                @endif
             </div>
 
             <!-- Requester Profile Card -->
             <div class="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs space-y-3">
                 <span class="text-xs font-bold uppercase tracking-wider text-slate-500 block border-b border-slate-100 pb-2">Requester Info</span>
                 
-                <div class="space-y-2 text-xs">
-                    <div>
-                        <div class="font-bold text-sm text-slate-800">{{ $ticket->requester->name }}</div>
-                        <div class="text-blue-600 font-mono font-medium text-[11px]">{{ $ticket->requester->employee->employee_code ?? 'EMP' }}</div>
+                <div class="space-y-3 text-xs">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-9 h-9 rounded-full bg-slate-100 text-slate-700 font-bold flex items-center justify-center text-sm border border-slate-200">
+                            {{ substr($ticket->requester->name, 0, 1) }}
+                        </div>
+                        <div>
+                            <div class="font-bold text-sm text-slate-800">{{ $ticket->requester->name }}</div>
+                            <div class="text-blue-600 font-mono font-medium text-[11px]">{{ $ticket->requester->employee->employee_code ?? 'EMP' }}</div>
+                        </div>
                     </div>
 
-                    <div class="pt-2 border-t border-slate-100 space-y-1 text-slate-600">
-                        <div>🏢 <strong>Branch:</strong> {{ $ticket->branch->name }} ({{ $ticket->branch->code }})</div>
-                        <div>📂 <strong>Department:</strong> {{ $ticket->requester->employee->department->name ?? 'General' }}</div>
-                        <div>📧 <strong>Email:</strong> {{ $ticket->requester->email ?? 'N/A' }}</div>
-                        <div>📱 <strong>Telegram:</strong> 
-                            @if($ticket->requester->telegram_username)
-                                <span class="text-blue-600 font-mono">@<span x-text="'{{ $ticket->requester->telegram_username }}'"></span></span>
-                            @else
-                                <span class="text-slate-400">ID: {{ $ticket->requester->telegram_id ?? 'Not linked' }}</span>
+                    <div class="pt-2 border-t border-slate-100 space-y-2 text-slate-600">
+                        <div class="flex items-center space-x-2">
+                            <span class="text-sm">🏢</span>
+                            <span><strong>Branch:</strong> {{ $ticket->branch->name }} ({{ $ticket->branch->code }})</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span class="text-sm">📂</span>
+                            <span><strong>Department:</strong> {{ $ticket->requester->employee->department->name ?? 'General' }}</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-2 truncate">
+                                <span class="text-sm">📧</span>
+                                <a href="mailto:{{ $ticket->requester->email }}" class="text-blue-600 hover:underline truncate">{{ $ticket->requester->email ?? 'N/A' }}</a>
+                            </div>
+                            @if($ticket->requester->email)
+                                <button type="button" @click="copyEmail('{{ $ticket->requester->email }}')" class="text-slate-400 hover:text-slate-600 text-[10px] ml-2 font-semibold">
+                                    <span x-show="!copiedEmail">Copy</span>
+                                    <span x-show="copiedEmail" class="text-emerald-600">Copied!</span>
+                                </button>
                             @endif
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span class="text-sm">📱</span>
+                            <span><strong>Telegram:</strong>
+                                @if($ticket->requester->telegram_username)
+                                    <a href="https://t.me/{{ ltrim($ticket->requester->telegram_username, '@') }}" target="_blank" class="text-blue-600 font-mono hover:underline font-bold">
+                                        {{ Str::start($ticket->requester->telegram_username, '@') }} &nearr;
+                                    </a>
+                                @else
+                                    <span class="text-slate-400">ID: {{ $ticket->requester->telegram_id ?? 'Not linked' }}</span>
+                                @endif
+                            </span>
                         </div>
                     </div>
                 </div>
@@ -506,9 +668,9 @@
             <!-- Audit Trail & Assignment History -->
             <div class="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs space-y-3">
                 <span class="text-xs font-bold uppercase tracking-wider text-slate-500 block border-b border-slate-100 pb-2">Assignment History</span>
-                <div class="space-y-2 max-h-48 overflow-y-auto pr-1 text-xs">
+                <div class="space-y-2 max-h-56 overflow-y-auto pr-1 text-xs">
                     @forelse($ticket->assignments as $assign)
-                        <div class="p-2 rounded-xl bg-slate-50 border border-slate-100 text-[11px] space-y-0.5">
+                        <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-[11px] space-y-0.5">
                             <div class="font-semibold text-slate-700">
                                 Assigned to <strong>{{ $assign->technician->name }}</strong>
                             </div>
@@ -516,11 +678,13 @@
                                 by {{ $assign->assignedBy->name }} • {{ $assign->assigned_at->diffForHumans() }}
                             </div>
                             @if($assign->reassignment_reason)
-                                <div class="text-slate-500 italic text-[10px]">"{{ $assign->reassignment_reason }}"</div>
+                                <div class="text-slate-500 italic text-[10px] bg-white p-1 rounded border border-slate-100">
+                                    "{{ $assign->reassignment_reason }}"
+                                </div>
                             @endif
                         </div>
                     @empty
-                        <div class="text-slate-400 text-xs">No assignment history.</div>
+                        <div class="text-slate-400 text-xs py-2 text-center">No assignment history.</div>
                     @endforelse
                 </div>
             </div>
@@ -529,15 +693,7 @@
         <!-- Right Column: Conversation, Internal Notes & Reply Workspace -->
         <div class="lg:col-span-2 space-y-6">
 
-            <!-- Issue Description Box -->
-            <div class="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs space-y-3">
-                <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Initial Problem Statement</span>
-                <div class="text-sm text-slate-800 leading-relaxed whitespace-pre-wrap font-medium">
-                    {{ $ticket->description }}
-                </div>
-            </div>
-
-            <!-- Unified Modern Chat Panel -->
+            <!-- Unified Modern Chat Panel (Starts directly at top of column) -->
             <div id="chatPanel" class="bg-white rounded-3xl border border-slate-200/80 shadow-xs flex flex-col overflow-hidden">
                 
                 <!-- Chat Panel Header -->
@@ -559,12 +715,12 @@
                              x-transition:leave="transition ease-in duration-150"
                              x-transition:leave-start="opacity-100 scale-100"
                              x-transition:leave-end="opacity-0 scale-95"
-                             class="bg-emerald-600 text-white text-[11px] font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1 shadow-xs">
+                             class="bg-emerald-600 text-white text-[11px] font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1 shadow-xs" x-cloak>
                             <span>✔</span>
                             <span x-text="chatToast"></span>
                         </div>
 
-                        <span x-show="requesterActive" class="text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full flex items-center gap-1.5">
+                        <span x-show="requesterActive" class="text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full flex items-center gap-1.5" x-cloak>
                             <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
                             Employee Active in TMA
                         </span>
@@ -575,8 +731,8 @@
                     </div>
                 </div>
 
-                <!-- Contained Scrollable Chat Viewport (Prevents infinite page height) -->
-                <div id="portalChatStream" class="flex-1 max-h-[500px] min-h-[320px] overflow-y-auto p-4 sm:p-5 bg-slate-50/40 space-y-3.5">
+                <!-- Contained Scrollable Chat Viewport -->
+                <div id="portalChatStream" class="flex-1 max-h-[540px] min-h-[360px] overflow-y-auto p-4 sm:p-5 bg-slate-50/40 space-y-3.5">
                     <template x-for="msg in chatMessages" :key="msg.id">
                         <div>
                             <!-- System Event: Compact Centered Pill -->
@@ -740,10 +896,10 @@
                     </div>
                 </div>
 
-                <!-- Integrated Bottom Composer -->
+                <!-- Modern Bottom Composer -->
                 <div class="p-4 bg-white border-t border-slate-200 space-y-3">
                     
-                    <!-- Segmented Mode Toggle: Reply vs Internal Note -->
+                    <!-- Mode Toggle: Reply vs Internal Note -->
                     <div class="flex items-center space-x-2">
                         <button type="button" @click="messageTab = 'requester_visible'"
                                 :class="messageTab === 'requester_visible' ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-100 text-slate-600 hover:text-slate-900'"
@@ -766,17 +922,35 @@
                                       x-model="messageBody"
                                       rows="2"
                                       @keydown.enter.exact.prevent="submitChatMessage()"
-                                      :placeholder="messageTab === 'internal_staff_only' ? 'Write confidential internal note (Press Enter to post, Shift+Enter for newline)...' : 'Type reply that the employee will see on their Telegram Mini App (Press Enter to send, Shift+Enter for newline)...'"
+                                      @paste="handlePaste($event)"
+                                      :placeholder="messageTab === 'internal_staff_only' ? 'Write confidential internal note (Press Enter to post, Shift+Enter for newline, Ctrl+V to paste screenshot)...' : 'Type reply that the employee will see on their Telegram Mini App (Press Enter to send, Shift+Enter for newline, Ctrl+V to paste screenshot)...'"
                                       :class="messageTab === 'internal_staff_only' ? 'bg-amber-50/40 border-amber-300 focus:ring-amber-500' : 'bg-slate-50/70 border-slate-300 focus:bg-white focus:ring-blue-600'"
                                       class="w-full text-xs p-3 rounded-xl border focus:outline-none focus:ring-2"></textarea>
+                        </div>
+
+                        <!-- Staged Attachment Chips -->
+                        <div x-show="messageFiles.length > 0" class="flex flex-wrap gap-2 pt-0.5" x-cloak>
+                            <template x-for="(file, idx) in messageFiles" :key="idx">
+                                <span class="inline-flex items-center space-x-1.5 bg-blue-50 border border-blue-200 text-blue-800 text-[11px] font-medium px-2.5 py-1 rounded-xl shadow-2xs">
+                                    <span>📎</span>
+                                    <span class="truncate max-w-[140px]" x-text="file.name"></span>
+                                    <span class="text-[9px] opacity-70" x-text="'(' + (file.size > 1048576 ? (file.size/1048576).toFixed(1) + ' MB' : Math.round(file.size/1024) + ' KB') + ')'"></span>
+                                    <button type="button" @click="removeFile(idx)" class="text-blue-500 hover:text-rose-600 font-bold ml-1 text-xs">&times;</button>
+                                </span>
+                            </template>
                         </div>
 
                         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                             <div class="flex items-center space-x-2">
                                 <input type="file" id="chatFileInput" multiple accept="image/*,application/pdf"
-                                       @change="messageFiles = Array.from($event.target.files)"
-                                       class="text-xs text-slate-500 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200">
-                                <span x-show="messageFiles.length > 0" class="text-[11px] text-blue-600 font-semibold" x-text="messageFiles.length + ' file(s) attached'"></span>
+                                       @change="handleFileSelect($event)"
+                                       class="hidden">
+                                <label for="chatFileInput"
+                                       class="cursor-pointer inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-semibold transition shadow-2xs">
+                                    <span>📎</span>
+                                    <span>Attach Files</span>
+                                </label>
+                                <span class="text-[11px] text-slate-400 hidden sm:inline">or paste screenshot (Ctrl+V)</span>
                             </div>
 
                             <button type="submit"
@@ -870,6 +1044,8 @@
                 </form>
             @endif
         </div>
+    </div>
+
     <!-- FULL-SCREEN IMAGE LIGHTBOX MODAL -->
     <div x-show="lightbox"
          x-transition:enter="transition ease-out duration-200"
