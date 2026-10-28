@@ -115,9 +115,16 @@
         <!-- Triage Queue -->
         <a href="{{ route('portal.dashboard', ['view' => 'triage', 'branch_id' => $branchFilter, 'priority' => $priorityFilter]) }}"
            class="{{ $viewTab === 'triage' ? 'ring-2 ring-blue-600 bg-blue-50/70 border-blue-600' : 'bg-white hover:border-blue-400' }} p-3.5 rounded-2xl border border-slate-200/80 shadow-xs transition block group">
-            <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-blue-600">Triage Queue</div>
+            <div class="flex items-center justify-between">
+                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-blue-600">Triage Queue</div>
+                @if(isset($reopenedCount) && $reopenedCount > 0)
+                    <span class="bg-amber-100 text-amber-800 text-[9px] font-black px-1.5 py-0.5 rounded-full border border-amber-300 animate-pulse">
+                        {{ $reopenedCount }} Reopened
+                    </span>
+                @endif
+            </div>
             <div class="text-2xl font-black text-blue-600 mt-1">{{ $triageCount }}</div>
-            <div class="text-[10px] text-slate-400 mt-0.5 truncate">Unassigned</div>
+            <div class="text-[10px] text-slate-400 mt-0.5 truncate">{{ isset($reopenedCount) && $reopenedCount > 0 ? 'Unassigned & Reopened' : 'Unassigned' }}</div>
         </a>
 
         <!-- Approvals -->
@@ -398,7 +405,10 @@
                                         @elseif($t->status === 'pending_confirmation')
                                             <span class="bg-emerald-100 text-emerald-900 font-bold px-1.5 py-0.5 rounded text-[9px] uppercase">Pending Confirm</span>
                                         @elseif($t->status === 'reopened')
-                                            <span class="bg-rose-100 text-rose-800 font-bold px-1.5 py-0.5 rounded text-[9px] uppercase">Reopened</span>
+                                            <span class="bg-amber-100 text-amber-900 border border-amber-300 font-extrabold px-1.5 py-0.5 rounded text-[9px] uppercase flex items-center space-x-1 animate-pulse">
+                                                <span>⚠️</span>
+                                                <span>Reopened</span>
+                                            </span>
                                         @elseif($t->status === 'resolved_confirmed' || $t->status === 'resolved_auto_closed')
                                             <span class="bg-teal-100 text-teal-800 font-bold px-1.5 py-0.5 rounded text-[9px] uppercase">✔ Solved</span>
                                         @elseif($t->status === 'closed')
@@ -424,7 +434,7 @@
                                     <!-- Target Resolution SLA Info -->
                                     <div class="text-[10px] text-slate-400 flex items-center space-x-1.5">
                                         <span>Age: {{ $t->created_at->diffForHumans(null, true) }}</span>
-                                        @if($hoursRemaining !== null && in_array($t->status, ['assigned', 'in_progress', 'blocked']))
+                                        @if($hoursRemaining !== null && in_array($t->status, ['assigned', 'in_progress', 'blocked', 'reopened']))
                                             <span>•</span>
                                             @if($hoursRemaining < 0)
                                                 <span class="text-rose-600 font-bold">Overdue (+{{ abs($hoursRemaining) }}h)</span>
@@ -441,12 +451,12 @@
                             <!-- Action Buttons -->
                             <td class="py-2.5 px-3 text-right whitespace-nowrap">
                                 <div class="flex items-center justify-end space-x-1">
-                                    <!-- Technician or Admin Quick Accept Button -->
-                                    @if($t->status === 'assigned' && ($t->current_technician_id === Auth::id() || Auth::user()->hasAnyRole(['system_admin', 'hod'])))
+                                    <!-- Technician or Admin Quick Accept or Resume Button -->
+                                    @if(in_array($t->status, ['assigned', 'reopened']) && ($t->current_technician_id === Auth::id() || Auth::user()->hasAnyRole(['system_admin', 'hod'])))
                                         <form method="POST" action="{{ route('portal.tickets.accept', $t->id) }}" class="inline">
                                             @csrf
-                                            <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] px-2 py-1 rounded-lg shadow-2xs transition" title="Accept & Start this ticket">
-                                                Accept
+                                            <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] px-2 py-1 rounded-lg shadow-2xs transition" title="{{ $t->status === 'reopened' ? 'Resume work on this reopened ticket' : 'Accept & Start this ticket' }}">
+                                                {{ $t->status === 'reopened' ? 'Resume' : 'Accept' }}
                                             </button>
                                         </form>
                                     @endif

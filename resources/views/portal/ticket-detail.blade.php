@@ -325,15 +325,21 @@
                     </button>
                 @endif
 
-                {{-- If Assigned: Accept & Start Work --}}
-                @if($ticket->status === 'assigned' && ($ticket->current_technician_id === Auth::id() || Auth::user()->hasRole(['system_admin', 'hod'])))
+                {{-- If Assigned or Reopened: Accept & Start Work / Resume Work --}}
+                @if(in_array($ticket->status, ['assigned', 'reopened']) && ($ticket->current_technician_id === Auth::id() || Auth::user()->hasRole(['system_admin', 'hod'])))
                     <form method="POST" action="{{ route('portal.tickets.accept', $ticket->id) }}">
                         @csrf
                         <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-xs transition flex items-center space-x-1.5">
                             <span>⚡</span>
-                            <span>Accept & Start Work</span>
+                            <span>{{ $ticket->status === 'reopened' ? 'Resume Work' : 'Accept & Start Work' }}</span>
                         </button>
                     </form>
+                @endif
+
+                @if($ticket->status === 'reopened')
+                    <button type="button" @click="reassignDrawer = !reassignDrawer" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 transition">
+                        Reassign Technician...
+                    </button>
                 @endif
 
                 {{-- If In Progress: Mark Done, Block, Ask Clarification --}}
@@ -381,6 +387,34 @@
     </div>
 
     <!-- Alert Banners -->
+    @if($ticket->status === 'reopened')
+        <div class="bg-amber-500 text-white p-4 rounded-2xl shadow-md flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <span class="text-2xl">⚠️</span>
+                <div>
+                    <div class="font-extrabold text-sm">Ticket Reopened by Requester!</div>
+                    <div class="text-xs text-amber-100">
+                        The employee indicated the issue is still unresolved. Check their feedback in the chat stream below, resume work, or reassign to another technician.
+                    </div>
+                </div>
+            </div>
+            <div class="flex items-center space-x-2">
+                @if($ticket->current_technician_id === Auth::id() || Auth::user()->hasRole(['system_admin', 'hod']))
+                    <form method="POST" action="{{ route('portal.tickets.accept', $ticket->id) }}">
+                        @csrf
+                        <button type="submit" class="bg-white text-amber-900 hover:bg-amber-50 font-bold text-xs px-3.5 py-2 rounded-xl shadow-xs transition flex items-center space-x-1">
+                            <span>⚡</span>
+                            <span>Resume Work</span>
+                        </button>
+                    </form>
+                @endif
+                <button type="button" @click="reassignDrawer = true" class="bg-black/20 hover:bg-black/30 text-white font-bold text-xs px-3 py-2 rounded-xl transition">
+                    Reassign
+                </button>
+            </div>
+        </div>
+    @endif
+
     @if($isOverdueAcknowledgement)
         <div class="bg-red-500 text-white p-4 rounded-2xl shadow-md flex items-center justify-between animate-pulse">
             <div class="flex items-center space-x-3">

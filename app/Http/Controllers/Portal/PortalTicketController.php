@@ -229,7 +229,7 @@ class PortalTicketController extends Controller
     }
 
     /**
-     * Technician action: Accept & Start.
+     * Technician action: Accept & Start or Resume Work.
      */
     public function acceptAndStart(Ticket $ticket): RedirectResponse
     {
@@ -237,10 +237,12 @@ class PortalTicketController extends Controller
 
         // Must be the assigned tech or an admin
         if ($ticket->current_technician_id !== $user->id && !$user->hasRole(['system_admin', 'hod'])) {
-            return back()->withErrors(['error' => 'Only the assigned technician can accept this ticket.']);
+            return back()->withErrors(['error' => 'Only the assigned technician can accept or resume this ticket.']);
         }
 
-        DB::transaction(function () use ($ticket, $user) {
+        $oldStatus = $ticket->status;
+
+        DB::transaction(function () use ($ticket, $user, $oldStatus) {
             $now = now();
 
             $ticket->update([
@@ -254,26 +256,37 @@ class PortalTicketController extends Controller
                 $latestAssignment->update(['acknowledged_at' => $now]);
             }
 
+            $messageBody = $oldStatus === 'reopened'
+                ? "{$user->name} resumed work on this reopened ticket."
+                : "{$user->name} accepted the ticket and started investigation.";
+
             TicketMessage::create([
                 'ticket_id' => $ticket->id,
                 'sender_id' => $user->id,
                 'visibility' => 'system_event',
                 'message_type' => 'status_change',
-                'body' => "{$user->name} accepted the ticket and started investigation.",
+                'body' => $messageBody,
             ]);
 
             TicketAuditLog::create([
                 'ticket_id' => $ticket->id,
                 'actor_id' => $user->id,
-                'action' => 'ACKNOWLEDGED',
-                'old_value' => 'assigned',
+                'action' => $oldStatus === 'reopened' ? 'RESUMED' : 'ACKNOWLEDGED',
+                'old_value' => $oldStatus,
                 'new_value' => 'in_progress',
-                'metadata' => ['acknowledged_at' => $now->toIso8601String()],
+                'metadata' => [
+                    'acknowledged_at' => $now->toIso8601String(),
+                    'previous_status' => $oldStatus,
+                ],
                 'created_at' => now(),
             ]);
         });
 
-        return back()->with('status', 'Ticket accepted. Status is now In Progress.');
+        $statusMsg = $oldStatus === 'reopened'
+            ? 'Work resumed on reopened ticket. Status is now In Progress.'
+            : 'Ticket accepted. Status is now In Progress.';
+
+        return back()->with('status', $statusMsg);
     }
 
     /**

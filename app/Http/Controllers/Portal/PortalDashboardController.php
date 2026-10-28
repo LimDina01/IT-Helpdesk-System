@@ -27,9 +27,10 @@ class PortalDashboardController extends Controller
         $searchQuery = $request->input('q');
 
         // 1. KPI Counts
-        $triageCount = Ticket::where('status', 'submitted')->count();
+        $reopenedCount = Ticket::where('status', 'reopened')->count();
+        $triageCount = Ticket::whereIn('status', ['submitted', 'reopened'])->count();
         $myTasksCount = Ticket::where('current_technician_id', $user->id)
-            ->whereIn('status', ['assigned', 'in_progress', 'blocked'])
+            ->whereIn('status', ['assigned', 'in_progress', 'blocked', 'reopened'])
             ->count();
         
         // 30-minute acknowledgement SLA breach count
@@ -74,14 +75,15 @@ class PortalDashboardController extends Controller
 
             case 'my_tasks':
                 $query->where('current_technician_id', $user->id)
-                    ->whereIn('status', ['assigned', 'in_progress', 'blocked'])
+                    ->whereIn('status', ['assigned', 'in_progress', 'blocked', 'reopened'])
+                    ->orderByRaw("CASE status WHEN 'reopened' THEN 1 ELSE 2 END")
                     ->orderByRaw("CASE priority WHEN 'critical' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END")
                     ->orderBy('created_at');
                 break;
 
             case 'all_active':
                 $query->whereIn('status', ['pending_approval', 'submitted', 'clarifying', 'assigned', 'in_progress', 'blocked', 'pending_confirmation', 'reopened'])
-                    ->orderByRaw("CASE status WHEN 'pending_approval' THEN 1 WHEN 'submitted' THEN 2 WHEN 'assigned' THEN 3 WHEN 'in_progress' THEN 4 WHEN 'blocked' THEN 5 WHEN 'clarifying' THEN 6 WHEN 'pending_confirmation' THEN 7 ELSE 8 END")
+                    ->orderByRaw("CASE status WHEN 'reopened' THEN 1 WHEN 'pending_approval' THEN 2 WHEN 'submitted' THEN 3 WHEN 'assigned' THEN 4 WHEN 'in_progress' THEN 5 WHEN 'blocked' THEN 6 WHEN 'clarifying' THEN 7 WHEN 'pending_confirmation' THEN 8 ELSE 9 END")
                     ->orderByRaw("CASE priority WHEN 'critical' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END")
                     ->orderByDesc('created_at');
                 break;
@@ -114,7 +116,8 @@ class PortalDashboardController extends Controller
             case 'triage':
             default:
                 $viewTab = 'triage';
-                $query->where('status', 'submitted')
+                $query->whereIn('status', ['submitted', 'reopened'])
+                    ->orderByRaw("CASE status WHEN 'reopened' THEN 1 ELSE 2 END")
                     ->orderByRaw("CASE priority WHEN 'critical' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END")
                     ->orderBy('created_at');
                 break;
@@ -126,7 +129,7 @@ class PortalDashboardController extends Controller
         $technicians = User::whereHas('roles', fn($q) => $q->where('name', 'technician'))
             ->where('is_active', true)
             ->withCount(['assignedTickets as active_tasks_count' => function ($q) {
-                $q->whereIn('status', ['assigned', 'in_progress', 'blocked']);
+                $q->whereIn('status', ['assigned', 'in_progress', 'blocked', 'reopened']);
             }])
             ->get();
 
@@ -137,6 +140,7 @@ class PortalDashboardController extends Controller
             'tickets',
             'viewTab',
             'triageCount',
+            'reopenedCount',
             'myTasksCount',
             'allActiveCount',
             'solvedCount',
