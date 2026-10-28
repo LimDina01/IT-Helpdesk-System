@@ -27,6 +27,7 @@ function tmaApp() {
         // Multi-View Navigation Stack ('home', 'category_select', 'new_ticket_form', 'tickets_list')
         currentView: 'home',
         categorySearchQuery: '',
+        ticketSearchQuery: '',
 
         // Tabs & Tickets (Filtered by 'open', 'in_progress', 'resolved', 'all')
         currentTab: 'open',
@@ -162,6 +163,47 @@ function tmaApp() {
             return this.allTickets;
         },
 
+        filterTickets(list) {
+            if (!this.ticketSearchQuery || !this.ticketSearchQuery.trim()) {
+                return list || [];
+            }
+            const q = this.ticketSearchQuery.toLowerCase().trim();
+            return (list || []).filter(t => {
+                const code = (t.ticket_code || t.ticket_number || '').toLowerCase();
+                const subj = (t.subject || '').toLowerCase();
+                const desc = (t.description || '').toLowerCase();
+                const cat = (t.category_name || t.category?.name || '').toLowerCase();
+                const reqName = (t.requester_name || t.requester?.name || '').toLowerCase();
+                const reqDept = (t.requester_dept || t.requester?.department || '').toLowerCase();
+                const tech = (t.technician_name || t.assigned_to?.name || '').toLowerCase();
+                const status = (t.status || '').toLowerCase();
+                const formattedStatus = (this.formatStatus(t.status) || '').toLowerCase();
+                const type = (t.ticket_type || '').toLowerCase();
+                return code.includes(q) ||
+                       subj.includes(q) ||
+                       desc.includes(q) ||
+                       cat.includes(q) ||
+                       reqName.includes(q) ||
+                       reqDept.includes(q) ||
+                       tech.includes(q) ||
+                       status.includes(q) ||
+                       formattedStatus.includes(q) ||
+                       type.includes(q);
+            });
+        },
+
+        get filteredCurrentList() {
+            return this.filterTickets(this.currentList);
+        },
+
+        get filteredApprovalTickets() {
+            return this.filterTickets(this.approvalTickets);
+        },
+
+        get filteredApprovedTickets() {
+            return this.filterTickets(this.approvedTickets);
+        },
+
         get selectedParentCategory() {
             return (this.formData.categories || []).find(c => c.id == this.formParentCatId);
         },
@@ -287,6 +329,7 @@ function tmaApp() {
 
         openTicketsListTab(tab = 'open') {
             this.currentTab = tab;
+            this.ticketSearchQuery = '';
             this.currentView = 'tickets_list';
             this.updateBackButton();
             this.scrollToTop();
@@ -296,6 +339,7 @@ function tmaApp() {
 
         openApprovalsList() {
             this.currentTab = 'approvals';
+            this.ticketSearchQuery = '';
             this.currentView = 'tickets_list';
             this.updateBackButton();
             this.scrollToTop();

@@ -35,6 +35,9 @@ window.tmaI18n = {
         search_categories: "Search categories...",
         no_matching_categories: "No matching categories found",
         try_different_keyword: "Try searching for a different keyword or check spelling.",
+        search_tickets: "Search tickets by #, subject, or keyword...",
+        no_matching_tickets: "No matching tickets found",
+        clear_search: "Clear search",
         back: "Back",
 
         // New Ticket Form
@@ -162,6 +165,9 @@ window.tmaI18n = {
         search_categories: "ស្វែងរកប្រភេទសេវាកម្ម...",
         no_matching_categories: "រកមិនឃើញប្រភេទដែលត្រូវគ្នាទេ",
         try_different_keyword: "សូមសាកល្បងស្វែងរកពាក្យគន្លឹះផ្សេង ឬពិនិត្យអក្ខរាវិរុទ្ធ។",
+        search_tickets: "ស្វែងរកតាមលេខកូដ ចំណងជើង ឬពាក្យគន្លឹះ...",
+        no_matching_tickets: "រកមិនឃើញសំណើដែលត្រូវគ្នាទេ",
+        clear_search: "សម្អាតការស្វែងរក",
         back: "ត្រឡប់ក្រោយ",
 
         // New Ticket Form

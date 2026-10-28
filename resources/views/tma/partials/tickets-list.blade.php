@@ -22,6 +22,33 @@
                 <div class="w-12"></div>
             </header>
 
+            <!-- Search Input for Tickets (matching category select style) -->
+            <div class="px-4 py-3 bg-white border-b border-slate-100">
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                    </div>
+                    <input type="text" x-model="ticketSearchQuery"
+                           :placeholder="t('search_tickets')"
+                           class="tma-input w-full pl-9 pr-9 py-2.5 bg-slate-100 border border-slate-200 rounded-2xl text-xs text-slate-900 placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none transition">
+                    <button x-show="ticketSearchQuery"
+                            @click="ticketSearchQuery = ''"
+                            class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 transition"
+                            type="button">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+                <!-- Search Result Count Badge when user is actively searching -->
+                <div x-show="ticketSearchQuery && ticketSearchQuery.trim()" class="flex items-center justify-between text-[11px] text-slate-500 px-1 pt-2">
+                    <span class="flex items-center space-x-1">
+                        <span x-text="locale === 'km' ? 'លទ្ធផលស្វែងរក៖' : 'Found:'">Found:</span>
+                        <span class="font-bold text-blue-600" x-text="currentTab === 'approvals' ? (filteredApprovalTickets.length + filteredApprovedTickets.length) : filteredCurrentList.length"></span>
+                        <span x-text="locale === 'km' ? 'សំណើ' : 'ticket(s)'"></span>
+                    </span>
+                    <button @click="ticketSearchQuery = ''" class="text-blue-600 font-bold hover:underline" x-text="t('clear_search')">Clear</button>
+                </div>
+            </div>
+
             <!-- Tab Ticket Lists -->
             <main class="flex-1 flex flex-col">
                 <!-- APPROVALS CATEGORY (Dedicated view for HOD) -->
@@ -30,18 +57,28 @@
                      x-transition:enter-start="opacity-0 translate-y-1.5"
                      x-transition:enter-end="opacity-100 translate-y-0"
                      class="flex-1 px-4 py-2 space-y-4">
+
+                    <!-- Search No Results in Approvals -->
+                    <div x-show="ticketSearchQuery.trim() && filteredApprovalTickets.length === 0 && filteredApprovedTickets.length === 0"
+                         class="tg-theme-card rounded-2xl border border-slate-200/60 p-7 text-center space-y-2 bg-white mt-1 shadow-xs">
+                        <div class="w-10 h-10 bg-slate-100 text-slate-400 rounded-full flex items-center justify-center mx-auto text-base">🔍</div>
+                        <h3 class="text-xs font-bold text-slate-800" x-text="t('no_matching_tickets')">No matching tickets found</h3>
+                        <p class="text-[11px] text-slate-500 max-w-xs mx-auto" x-text="locale === 'km' ? 'រកមិនឃើញសំណើដែលត្រូវគ្នានឹងពាក្យគន្លឹះនេះទេ។' : 'No approval requests match your search query.'"></p>
+                        <button @click="ticketSearchQuery = ''" class="text-xs text-blue-600 font-semibold underline" x-text="t('clear_search')">Clear search</button>
+                    </div>
+
                     <!-- Section 1: Awaiting My Review -->
-                    <div class="space-y-2.5">
+                    <div class="space-y-2.5" x-show="!ticketSearchQuery.trim() || filteredApprovalTickets.length > 0">
                         <div class="flex items-center justify-between px-0.5">
                             <div class="flex items-center space-x-1.5">
                                 <span class="text-xs font-bold text-slate-800" x-text="t('awaiting_my_review')">Awaiting My Review</span>
-                                <span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-1.5 py-0.2 rounded-full" x-text="approvalTickets.length"></span>
+                                <span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-1.5 py-0.2 rounded-full" x-text="filteredApprovalTickets.length"></span>
                             </div>
                             <span class="text-[10px] text-slate-400 font-medium" x-text="locale === 'km' ? 'តម្រូវឱ្យអ្នកពិនិត្យ' : 'Requires your action'">Requires your action</span>
                         </div>
 
                         <!-- Empty State if no pending approvals -->
-                        <div x-show="approvalTickets.length === 0 && !loadingTickets" class="tg-theme-card rounded-2xl border border-slate-200/70 p-6 text-center space-y-2 bg-white shadow-xs">
+                        <div x-show="filteredApprovalTickets.length === 0 && !loadingTickets && !ticketSearchQuery.trim()" class="tg-theme-card rounded-2xl border border-slate-200/70 p-6 text-center space-y-2 bg-white shadow-xs">
                             <div class="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-lg">
                                 ✔
                             </div>
@@ -52,29 +89,29 @@
                         </div>
 
                         <!-- Pending Tickets List -->
-                        <template x-for="t in approvalTickets" :key="'pending-' + t.id">
+                        <template x-for="t in filteredApprovalTickets" :key="'pending-' + t.id">
                             @include('tma.partials.ticket-card')
                         </template>
                     </div>
 
                     <!-- Section 2: Approved Requests & In-Flight Tracking -->
-                    <div class="space-y-2.5 pt-3 border-t border-slate-200/80">
+                    <div class="space-y-2.5 pt-3 border-t border-slate-200/80" x-show="!ticketSearchQuery.trim() || filteredApprovedTickets.length > 0">
                         <div class="flex items-center justify-between px-0.5">
                             <div class="flex items-center space-x-1.5">
                                 <span class="text-xs font-bold text-slate-800" x-text="locale === 'km' ? 'សំណើដែលខ្ញុំបានសម្រេច' : 'Actioned by Me'">Actioned by Me</span>
-                                <span class="bg-slate-100 text-slate-800 text-[10px] font-bold px-1.5 py-0.2 rounded-full" x-text="approvedTickets.length"></span>
+                                <span class="bg-slate-100 text-slate-800 text-[10px] font-bold px-1.5 py-0.2 rounded-full" x-text="filteredApprovedTickets.length"></span>
                             </div>
                             <span class="text-[10px] text-slate-400 font-medium" x-text="locale === 'km' ? 'ប្រវត្តិនៃការសម្រេច' : 'Decisions history'">Decisions history</span>
                         </div>
 
                         <!-- Empty State if no actioned tickets yet -->
-                        <div x-show="approvedTickets.length === 0 && !loadingTickets" class="tg-theme-card rounded-2xl border border-dashed border-slate-200/90 p-5 text-center space-y-1 bg-white">
+                        <div x-show="filteredApprovedTickets.length === 0 && !loadingTickets && !ticketSearchQuery.trim()" class="tg-theme-card rounded-2xl border border-dashed border-slate-200/90 p-5 text-center space-y-1 bg-white">
                             <p class="text-xs font-semibold text-slate-600" x-text="t('no_actioned_approvals')">No Actioned Requests Yet</p>
                             <p class="text-[10px] text-slate-400" x-text="locale === 'km' ? 'សំណើដែលអ្នកបានអនុម័ត ឬបដិសេធ នឹងបង្ហាញនៅទីនេះ។' : 'Requests you approve or decline will appear here so you can track them.'">Requests you approve or decline will appear here so you can track them.</p>
                         </div>
 
                         <!-- Approved Tickets List (showing where they currently stand) -->
-                        <template x-for="t in approvedTickets" :key="'approved-' + t.id">
+                        <template x-for="t in filteredApprovedTickets" :key="'approved-' + t.id">
                             @include('tma.partials.ticket-card')
                         </template>
                     </div>
@@ -86,8 +123,18 @@
                      x-transition:enter-start="opacity-0 translate-y-1.5"
                      x-transition:enter-end="opacity-100 translate-y-0"
                      class="flex-1 px-4 py-2 space-y-3">
-                    <!-- Empty State -->
-                    <div x-show="currentList.length === 0 && !loadingTickets"
+                    <!-- Search No Results State -->
+                    <div x-show="ticketSearchQuery.trim() && filteredCurrentList.length === 0 && !loadingTickets"
+                         class="tg-theme-card rounded-2xl border border-slate-200/60 p-8 text-center space-y-2.5 mt-2"
+                         style="background-color: #ffffff !important;">
+                        <div class="w-10 h-10 bg-slate-100 text-slate-400 rounded-full flex items-center justify-center mx-auto text-base">🔍</div>
+                        <h3 class="text-xs font-bold text-slate-800" x-text="t('no_matching_tickets')">No matching tickets found</h3>
+                        <p class="text-[11px] text-slate-500 max-w-xs mx-auto" x-text="locale === 'km' ? 'រកមិនឃើញសំណើដែលត្រូវគ្នានឹងពាក្យគន្លឹះនេះទេ។ សូមសាកល្បងពាក្យផ្សេង។' : 'No tickets match your search query. Try another keyword or ticket number.'"></p>
+                        <button @click="ticketSearchQuery = ''" class="text-xs text-blue-600 font-semibold underline" x-text="t('clear_search')">Clear search</button>
+                    </div>
+
+                    <!-- Regular Empty State (when not searching) -->
+                    <div x-show="!ticketSearchQuery.trim() && currentList.length === 0 && !loadingTickets"
                          class="tg-theme-card rounded-2xl border border-slate-200/60 p-8 text-center space-y-3 mt-4"
                          style="background-color: #ffffff !important;">
                         <div class="w-12 h-12 bg-slate-100 text-slate-400 rounded-full flex items-center justify-center mx-auto text-xl">
@@ -108,7 +155,7 @@
                     </div>
 
                     <!-- Ticket Cards Loop -->
-                    <template x-for="t in currentList" :key="t.id">
+                    <template x-for="t in filteredCurrentList" :key="t.id">
                         @include('tma.partials.ticket-card')
                     </template>
                 </div>
