@@ -111,6 +111,7 @@ Route::prefix('portal')->group(function () {
             Route::delete('/holidays/{holiday}', [PortalAdminController::class, 'destroyHoliday'])->name('portal.admin.holidays.destroy');
 
             Route::get('/users', [PortalAdminController::class, 'users'])->name('portal.admin.users');
+            Route::post('/users', [PortalAdminController::class, 'storeUser'])->name('portal.admin.users.store');
             Route::post('/users/{user}/roles', [PortalAdminController::class, 'updateUserRoles'])->name('portal.admin.users.roles');
             Route::post('/users/{user}/toggle', [PortalAdminController::class, 'toggleUserActive'])->name('portal.admin.users.toggle');
         });

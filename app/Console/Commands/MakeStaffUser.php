@@ -17,9 +17,10 @@ class MakeStaffUser extends Command
      * @var string
      */
     protected $signature = 'user:make-staff 
-                            {identifier : Username or email, e.g. dina.lim or dina.lim@cbvh66.com} 
+                            {identifier : Username or email, e.g. dina.lim, Lim_Dina01, or dina.lim@cbvh66.com} 
                             {role=system_admin : The staff role to assign (system_admin, hod, technician, helpdesk)}
-                            {--name= : Optional full name override}';
+                            {--name= : Optional full name override}
+                            {--password=Password123! : Initial password for local portal sign-in}';
 
     /**
      * The console command description.
@@ -50,8 +51,13 @@ class MakeStaffUser extends Command
             return 1;
         }
 
-        // 2. Find Existing Local User
+        $passwordInput = $this->option('password') ?: 'Password123!';
+        $cleanUsername = ltrim($identifier, '@');
+
+        // 2. Find Existing Local User (by exact email, prefix, telegram username, employee code, or name)
         $user = User::where('email', $identifier)
+            ->orWhere('telegram_username', $cleanUsername)
+            ->orWhereHas('employee', fn($q) => $q->where('employee_code', $identifier)->orWhere('email', $identifier))
             ->orWhere('email', 'like', "{$identifier}@%")
             ->orWhere('name', $identifier)
             ->first();
@@ -72,7 +78,7 @@ class MakeStaffUser extends Command
             }
 
             if (!$email) {
-                $email = str_contains($identifier, '@') ? $identifier : "{$identifier}@cbvh66.com";
+                $email = str_contains($identifier, '@') ? $identifier : "{$identifier}@cbvh.com.kh";
             }
 
             $fullName = $fullName ?: $identifier;
@@ -80,7 +86,8 @@ class MakeStaffUser extends Command
             $user = User::create([
                 'name' => $fullName,
                 'email' => strtolower($email),
-                'password' => Hash::make(Str::random(32)), // Random password (authenticated via AD)
+                'password' => Hash::make($passwordInput),
+                'telegram_username' => $cleanUsername !== $identifier ? $cleanUsername : null,
                 'is_active' => true,
             ]);
 
@@ -88,6 +95,9 @@ class MakeStaffUser extends Command
         } else {
             $this->info("Found existing user record: #{$user->id} {$user->name} ({$user->email})");
             $user->update(['is_active' => true]);
+            if (!$user->password) {
+                $user->update(['password' => Hash::make($passwordInput)]);
+            }
         }
 
         // 4. Attach Role

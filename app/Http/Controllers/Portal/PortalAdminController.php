@@ -205,6 +205,48 @@ class PortalAdminController extends Controller
     }
 
     /**
+     * Create a new staff or admin user.
+     */
+    public function storeUser(Request $request): RedirectResponse
+    {
+        abort_unless(Auth::user()->hasRole(['system_admin', 'hod']), 403);
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:100',
+            'email' => 'required|email|max:150|unique:users,email',
+            'password' => 'nullable|string|min:6',
+            'telegram_username' => 'nullable|string|max:100',
+            'employee_code' => 'nullable|string|max:50',
+            'roles' => 'required|array|min:1',
+            'roles.*' => 'exists:roles,id',
+        ]);
+
+        $password = !empty($validated['password']) ? $validated['password'] : 'Password123!';
+
+        // Check if employee code matches an existing employee
+        $employeeId = null;
+        if (!empty($validated['employee_code'])) {
+            $emp = \App\Models\Employee::where('employee_code', trim($validated['employee_code']))->first();
+            if ($emp) {
+                $employeeId = $emp->id;
+            }
+        }
+
+        $newUser = User::create([
+            'name' => $validated['name'],
+            'email' => strtolower($validated['email']),
+            'password' => \Illuminate\Support\Facades\Hash::make($password),
+            'telegram_username' => !empty($validated['telegram_username']) ? ltrim($validated['telegram_username'], '@') : null,
+            'employee_id' => $employeeId,
+            'is_active' => true,
+        ]);
+
+        $newUser->roles()->sync($validated['roles']);
+
+        return back()->with('status', "Staff user '{$newUser->name}' ({$newUser->email}) created successfully! Password: {$password}");
+    }
+
+    /**
      * Update user role assignments.
      */
     public function updateUserRoles(Request $request, User $user): RedirectResponse
@@ -215,6 +257,12 @@ class PortalAdminController extends Controller
             'roles' => 'required|array|min:1',
             'roles.*' => 'exists:roles,id',
         ]);
+
+        // Protect primary admin from losing system_admin role
+        $adminRoleId = Role::where('name', 'system_admin')->value('id');
+        if (($user->id === 1 || $user->email === 'admin@cbvh.com.kh') && $adminRoleId && !in_array($adminRoleId, $validated['roles'])) {
+            $validated['roles'][] = $adminRoleId;
+        }
 
         $user->roles()->sync($validated['roles']);
 
@@ -230,6 +278,10 @@ class PortalAdminController extends Controller
 
         if ($user->id === Auth::id()) {
             return back()->withErrors(['error' => 'You cannot deactivate your own account.']);
+        }
+
+        if ($user->id === 1 || $user->email === 'admin@cbvh.com.kh') {
+            return back()->withErrors(['error' => 'The primary testing admin account cannot be deactivated.']);
         }
 
         $user->update(['is_active' => !$user->is_active]);

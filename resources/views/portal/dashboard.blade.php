@@ -329,7 +329,7 @@
                                     @if($t->isIncident())
                                         <span class="text-[9px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-1 py-0.2 rounded leading-tight">🔴 Incident</span>
                                     @else
-                                        <span class="text-[9px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-1 py-0.2 rounded leading-tight">🔵 Request</span>
+                                        <span class="text-[9px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-1 py-0.2 rounded leading-tight">🔵 Service Request</span>
                                     @endif
                                 </div>
                                 <a href="{{ route('portal.tickets.show', $t->id) }}" class="font-bold text-slate-800 hover:text-blue-600 line-clamp-1 text-xs">

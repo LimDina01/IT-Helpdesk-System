@@ -69,11 +69,17 @@ class PortalLinkRequestController extends Controller
 
             // 2. Find or create the user record
             $appUser = User::firstOrNew(['employee_id' => $employee->id]);
-            $appUser->name = $employee->full_name;
-            $appUser->email = $employee->email;
+            $appUser->name = $appUser->exists && $appUser->id === 1 ? $appUser->name : $employee->full_name;
+            // Protect primary test admin email from being overwritten
+            if (!$appUser->exists || ($appUser->id !== 1 && $appUser->email !== 'admin@cbvh.com.kh')) {
+                $appUser->email = $employee->email;
+            }
             $appUser->telegram_id = $linkRequest->telegram_id;
             $appUser->telegram_username = $linkRequest->telegram_username;
             $appUser->is_active = true;
+            if (!$appUser->password) {
+                $appUser->password = \Illuminate\Support\Facades\Hash::make('Password123!');
+            }
             $appUser->save();
 
             // 3. Ensure requester role is assigned
