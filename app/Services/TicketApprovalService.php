@@ -32,9 +32,8 @@ class TicketApprovalService
         $ticket->update(['status' => 'pending_approval']);
 
         $deptId = $ticket->requester->employee?->department_id;
-        $hasDeptHod = $deptId && User::whereHas('roles', fn($q) => $q->where('name', 'hod'))
+        $hasDeptHod = $deptId && $deptId != 2 && User::whereHas('roles', fn($q) => $q->where('name', 'hod'))
             ->whereHas('employee', fn($q) => $q->where('department_id', $deptId)->where('employee_code', '!=', 'EMP-1007'))
-            ->where('department_id', '!=', 2)
             ->exists();
 
         if ($hasDeptHod) {
