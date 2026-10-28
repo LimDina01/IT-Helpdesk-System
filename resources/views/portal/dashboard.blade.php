@@ -62,9 +62,9 @@
                 const parser = new DOMParser();
                 const doc = parser.parseFromString(html, 'text/html');
                 
-                const newTabs = doc.getElementById('queueTabsBar');
-                const curTabs = document.getElementById('queueTabsBar');
-                if (newTabs && curTabs) curTabs.innerHTML = newTabs.innerHTML;
+                const newKpis = doc.getElementById('kpiCardsContainer');
+                const curKpis = document.getElementById('kpiCardsContainer');
+                if (newKpis && curKpis) curKpis.innerHTML = newKpis.innerHTML;
                 
                 const newTable = doc.getElementById('ticketTableContainer');
                 const curTable = document.getElementById('ticketTableContainer');
@@ -101,71 +101,73 @@
     }
 }" x-init="init()" class="space-y-6">
 
+    <!-- Big Queue Navigation & KPI Cards Container (Dynamically Swappable via AJAX) -->
+    <div id="kpiCardsContainer" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-7 gap-3.5">
+        
+        <!-- Triage Queue -->
+        <a href="{{ route('portal.dashboard', ['view' => 'triage', 'branch_id' => $branchFilter, 'priority' => $priorityFilter]) }}"
+           class="{{ $viewTab === 'triage' ? 'ring-2 ring-blue-600 bg-blue-50/70 border-blue-600' : 'bg-white hover:border-blue-400' }} p-4 rounded-2xl border border-slate-200/80 shadow-xs transition block group">
+            <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-blue-600">Triage Queue</div>
+            <div class="text-2xl font-black text-blue-600 mt-1">{{ $triageCount }}</div>
+            <div class="text-[11px] text-slate-400 mt-0.5">Unassigned submissions</div>
+        </a>
+
+        <!-- Approvals -->
+        <a href="{{ route('portal.dashboard', ['view' => 'pending_approvals', 'branch_id' => $branchFilter, 'priority' => $priorityFilter]) }}"
+           class="{{ $viewTab === 'pending_approvals' ? 'ring-2 ring-purple-600 bg-purple-50/70 border-purple-600' : 'bg-white hover:border-purple-400' }} p-4 rounded-2xl border border-slate-200/80 shadow-xs transition block group">
+            <div class="text-[11px] font-bold uppercase tracking-wider text-purple-700">Approvals</div>
+            <div class="text-2xl font-black text-purple-700 mt-1">{{ $pendingApprovalsCount }}</div>
+            <div class="text-[11px] text-slate-400 mt-0.5">HOD & IT sign-offs</div>
+        </a>
+
+        <!-- My Tasks -->
+        <a href="{{ route('portal.dashboard', ['view' => 'my_tasks', 'branch_id' => $branchFilter, 'priority' => $priorityFilter]) }}"
+           class="{{ $viewTab === 'my_tasks' ? 'ring-2 ring-indigo-600 bg-indigo-50/70 border-indigo-600' : 'bg-white hover:border-indigo-400' }} p-4 rounded-2xl border border-slate-200/80 shadow-xs transition block group">
+            <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-indigo-600">My Tasks</div>
+            <div class="text-2xl font-black text-indigo-600 mt-1">{{ $myTasksCount }}</div>
+            <div class="text-[11px] text-slate-400 mt-0.5">Assigned to you</div>
+        </a>
+
+        <!-- All Active Tickets (Big Button) -->
+        <a href="{{ route('portal.dashboard', ['view' => 'all_active', 'branch_id' => $branchFilter, 'priority' => $priorityFilter]) }}"
+           class="{{ $viewTab === 'all_active' ? 'ring-2 ring-slate-800 bg-slate-100 border-slate-800' : 'bg-white hover:border-slate-400' }} p-4 rounded-2xl border border-slate-200/80 shadow-xs transition block group">
+            <div class="text-[11px] font-bold uppercase tracking-wider text-slate-700 group-hover:text-slate-900">All Active</div>
+            <div class="text-2xl font-black text-slate-900 mt-1">{{ $allActiveCount }}</div>
+            <div class="text-[11px] text-slate-400 mt-0.5">Running operations</div>
+        </a>
+
+        <!-- Blocked / Hold -->
+        <a href="{{ route('portal.dashboard', ['view' => 'blocked', 'branch_id' => $branchFilter, 'priority' => $priorityFilter]) }}"
+           class="{{ $viewTab === 'blocked' ? 'ring-2 ring-amber-600 bg-amber-50/70 border-amber-600' : 'bg-white hover:border-amber-400' }} p-4 rounded-2xl border border-slate-200/80 shadow-xs transition block group">
+            <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-amber-600">Blocked / Hold</div>
+            <div class="text-2xl font-black text-amber-600 mt-1">{{ $blockedCount }}</div>
+            <div class="text-[11px] text-slate-400 mt-0.5">Parts or vendor hold</div>
+        </a>
+
+        <!-- 30m SLA Breaches -->
+        <div class="bg-white p-4 rounded-2xl border {{ $slaBreachCount > 0 ? 'border-red-300 bg-red-50/60 ring-2 ring-red-400' : 'border-slate-200/80' }} shadow-xs relative overflow-hidden">
+            <div class="text-[11px] font-bold uppercase tracking-wider {{ $slaBreachCount > 0 ? 'text-red-700' : 'text-slate-500' }}">30m SLA Breaches</div>
+            <div class="text-2xl font-black {{ $slaBreachCount > 0 ? 'text-red-600 animate-pulse' : 'text-slate-800' }} mt-1">
+                {{ $slaBreachCount }}
+            </div>
+            <div class="text-[11px] text-slate-400 mt-0.5">Awaiting tech accept >30m</div>
+            @if($slaBreachCount > 0)
+                <span class="absolute top-2.5 right-2.5 w-2.5 h-2.5 rounded-full bg-red-600 animate-ping"></span>
+            @endif
+        </div>
+
+        <!-- Pending Confirmation -->
+        <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
+            <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Pending Sign-off</div>
+            <div class="text-2xl font-black text-emerald-600 mt-1">{{ $pendingConfirmCount }}</div>
+            <div class="text-[11px] text-slate-400 mt-0.5">Requester review window</div>
+        </div>
+    </div>
+
     <!-- Main Workspace Container -->
     <div class="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
 
-        <!-- Tier 1: Queue Navigation Tabs Bar -->
-        <div id="queueTabsBar" class="px-5 pt-3.5 pb-0 border-b border-slate-200/80 bg-slate-50/50 flex flex-wrap items-center justify-between gap-3">
-            <nav class="flex items-center space-x-1 sm:space-x-2 -mb-px flex-wrap gap-y-1">
-                <a href="{{ route('portal.dashboard', ['view' => 'triage', 'branch_id' => $branchFilter, 'priority' => $priorityFilter]) }}"
-                   class="{{ $viewTab === 'triage' ? 'border-blue-600 text-blue-600 font-bold bg-white shadow-xs' : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300' }} px-3.5 py-2.5 border-b-2 text-xs font-semibold rounded-t-xl transition flex items-center space-x-2">
-                    <span>Triage Queue</span>
-                    <span class="{{ $viewTab === 'triage' ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700' }} text-[10px] font-black px-1.5 py-0.5 rounded-full">
-                        {{ $triageCount }}
-                    </span>
-                </a>
-
-                <a href="{{ route('portal.dashboard', ['view' => 'pending_approvals', 'branch_id' => $branchFilter, 'priority' => $priorityFilter]) }}"
-                   class="{{ $viewTab === 'pending_approvals' ? 'border-purple-600 text-purple-700 font-bold bg-white shadow-xs' : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300' }} px-3.5 py-2.5 border-b-2 text-xs font-semibold rounded-t-xl transition flex items-center space-x-2">
-                    <span>⏳ Approvals</span>
-                    <span class="{{ $viewTab === 'pending_approvals' ? 'bg-purple-600 text-white' : 'bg-purple-100 text-purple-800' }} text-[10px] font-black px-1.5 py-0.5 rounded-full">
-                        {{ $pendingApprovalsCount }}
-                    </span>
-                </a>
-
-                <a href="{{ route('portal.dashboard', ['view' => 'my_tasks', 'branch_id' => $branchFilter, 'priority' => $priorityFilter]) }}"
-                   class="{{ $viewTab === 'my_tasks' ? 'border-indigo-600 text-indigo-600 font-bold bg-white shadow-xs' : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300' }} px-3.5 py-2.5 border-b-2 text-xs font-semibold rounded-t-xl transition flex items-center space-x-2">
-                    <span>My Tasks</span>
-                    <span class="{{ $viewTab === 'my_tasks' ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-700' }} text-[10px] font-black px-1.5 py-0.5 rounded-full">
-                        {{ $myTasksCount }}
-                    </span>
-                </a>
-
-                <a href="{{ route('portal.dashboard', ['view' => 'all_active', 'branch_id' => $branchFilter, 'priority' => $priorityFilter]) }}"
-                   class="{{ $viewTab === 'all_active' ? 'border-slate-800 text-slate-900 font-bold bg-white shadow-xs' : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300' }} px-3.5 py-2.5 border-b-2 text-xs font-semibold rounded-t-xl transition flex items-center space-x-2">
-                    <span>All Active Tickets</span>
-                </a>
-
-                <a href="{{ route('portal.dashboard', ['view' => 'blocked', 'branch_id' => $branchFilter, 'priority' => $priorityFilter]) }}"
-                   class="{{ $viewTab === 'blocked' ? 'border-amber-500 text-amber-700 font-bold bg-white shadow-xs' : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300' }} px-3.5 py-2.5 border-b-2 text-xs font-semibold rounded-t-xl transition flex items-center space-x-2">
-                    <span>Blocked / On Hold</span>
-                    @if($blockedCount > 0)
-                        <span class="bg-amber-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">
-                            {{ $blockedCount }}
-                        </span>
-                    @endif
-                </a>
-            </nav>
-
-            <!-- Quick System Health Indicators (SLA Breaches & Sign-offs) -->
-            <div class="flex items-center space-x-2 pb-2 sm:pb-0">
-                @if($slaBreachCount > 0)
-                    <div class="inline-flex items-center space-x-1.5 bg-red-100 text-red-800 border border-red-200 px-3 py-1 rounded-xl text-xs font-bold animate-pulse shadow-2xs" title="Tickets awaiting technician acceptance for over 30 minutes">
-                        <span>🚨</span>
-                        <span>{{ $slaBreachCount }} SLA Breached</span>
-                    </div>
-                @endif
-
-                @if($pendingConfirmCount > 0)
-                    <div class="hidden sm:inline-flex items-center space-x-1.5 bg-emerald-50 text-emerald-800 border border-emerald-200/80 px-2.5 py-1 rounded-xl text-xs font-semibold shadow-2xs" title="Tickets resolved and awaiting user sign-off">
-                        <span>⏳</span>
-                        <span>{{ $pendingConfirmCount }} Pending Sign-off</span>
-                    </div>
-                @endif
-            </div>
-        </div>
-
-        <!-- Tier 2: Filter Controls & Live Controls Toolbar -->
+        <!-- Filter Controls & Live Controls Toolbar -->
         <div class="px-5 py-3.5 border-b border-slate-200/80 bg-white flex flex-col md:flex-row md:items-center justify-between gap-3">
             
             <!-- Instant Client & Server Search Bar -->

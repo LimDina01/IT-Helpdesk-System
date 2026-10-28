@@ -42,6 +42,9 @@ class PortalDashboardController extends Controller
         $pendingConfirmCount = Ticket::where('status', 'pending_confirmation')->count();
         $pendingApprovalsCount = Ticket::where('status', 'pending_approval')->count();
         $pendingLinkRequestsCount = TelegramLinkRequest::where('status', 'pending')->count();
+        $allActiveCount = Ticket::whereIn('status', [
+            'pending_approval', 'submitted', 'clarifying', 'assigned', 'in_progress', 'blocked', 'pending_confirmation', 'reopened'
+        ])->count();
 
         // 2. Queue Query
         $query = Ticket::with(['requester', 'branch', 'category.parent', 'technician', 'helpdesk', 'approvals']);
@@ -114,6 +117,7 @@ class PortalDashboardController extends Controller
             'viewTab',
             'triageCount',
             'myTasksCount',
+            'allActiveCount',
             'slaBreachCount',
             'blockedCount',
             'pendingConfirmCount',
