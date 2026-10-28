@@ -45,6 +45,7 @@ class PortalDashboardController extends Controller
         $allActiveCount = Ticket::whereIn('status', [
             'pending_approval', 'submitted', 'clarifying', 'assigned', 'in_progress', 'blocked', 'pending_confirmation', 'reopened'
         ])->count();
+        $solvedCount = Ticket::whereIn('status', ['resolved_confirmed', 'resolved_auto_closed', 'closed'])->count();
 
         // 2. Queue Query
         $query = Ticket::with(['requester', 'branch', 'category.parent', 'technician', 'helpdesk', 'approvals']);
@@ -90,6 +91,19 @@ class PortalDashboardController extends Controller
                     ->orderByDesc('updated_at');
                 break;
 
+            case 'pending_confirmation':
+                $query->where('status', 'pending_confirmation')
+                    ->orderByDesc('resolved_at')
+                    ->orderByDesc('updated_at');
+                break;
+
+            case 'solved':
+            case 'closed':
+                $query->whereIn('status', ['resolved_confirmed', 'resolved_auto_closed', 'closed'])
+                    ->orderByDesc('resolved_at')
+                    ->orderByDesc('updated_at');
+                break;
+
             case 'triage':
             default:
                 $viewTab = 'triage';
@@ -118,6 +132,7 @@ class PortalDashboardController extends Controller
             'triageCount',
             'myTasksCount',
             'allActiveCount',
+            'solvedCount',
             'slaBreachCount',
             'blockedCount',
             'pendingConfirmCount',

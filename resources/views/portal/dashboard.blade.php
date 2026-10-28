@@ -102,65 +102,74 @@
 }" x-init="init()" class="space-y-6">
 
     <!-- Big Queue Navigation & KPI Cards Container (Dynamically Swappable via AJAX) -->
-    <div id="kpiCardsContainer" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-7 gap-3.5">
+    <div id="kpiCardsContainer" class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 xl:grid-cols-8 gap-3">
         
+        <!-- All Active Tickets -->
+        <a href="{{ route('portal.dashboard', ['view' => 'all_active', 'branch_id' => $branchFilter, 'priority' => $priorityFilter]) }}"
+           class="{{ $viewTab === 'all_active' ? 'ring-2 ring-slate-800 bg-slate-100 border-slate-800' : 'bg-white hover:border-slate-400' }} p-3.5 rounded-2xl border border-slate-200/80 shadow-xs transition block group">
+            <div class="text-[10px] font-bold uppercase tracking-wider text-slate-700 group-hover:text-slate-900">All Active</div>
+            <div class="text-2xl font-black text-slate-900 mt-1">{{ $allActiveCount }}</div>
+            <div class="text-[10px] text-slate-400 mt-0.5 truncate">Running queue</div>
+        </a>
+
         <!-- Triage Queue -->
         <a href="{{ route('portal.dashboard', ['view' => 'triage', 'branch_id' => $branchFilter, 'priority' => $priorityFilter]) }}"
-           class="{{ $viewTab === 'triage' ? 'ring-2 ring-blue-600 bg-blue-50/70 border-blue-600' : 'bg-white hover:border-blue-400' }} p-4 rounded-2xl border border-slate-200/80 shadow-xs transition block group">
-            <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-blue-600">Triage Queue</div>
+           class="{{ $viewTab === 'triage' ? 'ring-2 ring-blue-600 bg-blue-50/70 border-blue-600' : 'bg-white hover:border-blue-400' }} p-3.5 rounded-2xl border border-slate-200/80 shadow-xs transition block group">
+            <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-blue-600">Triage Queue</div>
             <div class="text-2xl font-black text-blue-600 mt-1">{{ $triageCount }}</div>
-            <div class="text-[11px] text-slate-400 mt-0.5">Unassigned submissions</div>
+            <div class="text-[10px] text-slate-400 mt-0.5 truncate">Unassigned</div>
         </a>
 
         <!-- Approvals -->
         <a href="{{ route('portal.dashboard', ['view' => 'pending_approvals', 'branch_id' => $branchFilter, 'priority' => $priorityFilter]) }}"
-           class="{{ $viewTab === 'pending_approvals' ? 'ring-2 ring-purple-600 bg-purple-50/70 border-purple-600' : 'bg-white hover:border-purple-400' }} p-4 rounded-2xl border border-slate-200/80 shadow-xs transition block group">
-            <div class="text-[11px] font-bold uppercase tracking-wider text-purple-700">Approvals</div>
+           class="{{ $viewTab === 'pending_approvals' ? 'ring-2 ring-purple-600 bg-purple-50/70 border-purple-600' : 'bg-white hover:border-purple-400' }} p-3.5 rounded-2xl border border-slate-200/80 shadow-xs transition block group">
+            <div class="text-[10px] font-bold uppercase tracking-wider text-purple-700">Approvals</div>
             <div class="text-2xl font-black text-purple-700 mt-1">{{ $pendingApprovalsCount }}</div>
-            <div class="text-[11px] text-slate-400 mt-0.5">HOD & IT sign-offs</div>
+            <div class="text-[10px] text-slate-400 mt-0.5 truncate">HOD & IT sign-off</div>
         </a>
 
         <!-- My Tasks -->
         <a href="{{ route('portal.dashboard', ['view' => 'my_tasks', 'branch_id' => $branchFilter, 'priority' => $priorityFilter]) }}"
-           class="{{ $viewTab === 'my_tasks' ? 'ring-2 ring-indigo-600 bg-indigo-50/70 border-indigo-600' : 'bg-white hover:border-indigo-400' }} p-4 rounded-2xl border border-slate-200/80 shadow-xs transition block group">
-            <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-indigo-600">My Tasks</div>
+           class="{{ $viewTab === 'my_tasks' ? 'ring-2 ring-indigo-600 bg-indigo-50/70 border-indigo-600' : 'bg-white hover:border-indigo-400' }} p-3.5 rounded-2xl border border-slate-200/80 shadow-xs transition block group">
+            <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-indigo-600">My Tasks</div>
             <div class="text-2xl font-black text-indigo-600 mt-1">{{ $myTasksCount }}</div>
-            <div class="text-[11px] text-slate-400 mt-0.5">Assigned to you</div>
-        </a>
-
-        <!-- All Active Tickets (Big Button) -->
-        <a href="{{ route('portal.dashboard', ['view' => 'all_active', 'branch_id' => $branchFilter, 'priority' => $priorityFilter]) }}"
-           class="{{ $viewTab === 'all_active' ? 'ring-2 ring-slate-800 bg-slate-100 border-slate-800' : 'bg-white hover:border-slate-400' }} p-4 rounded-2xl border border-slate-200/80 shadow-xs transition block group">
-            <div class="text-[11px] font-bold uppercase tracking-wider text-slate-700 group-hover:text-slate-900">All Active</div>
-            <div class="text-2xl font-black text-slate-900 mt-1">{{ $allActiveCount }}</div>
-            <div class="text-[11px] text-slate-400 mt-0.5">Running operations</div>
+            <div class="text-[10px] text-slate-400 mt-0.5 truncate">Assigned to you</div>
         </a>
 
         <!-- Blocked / Hold -->
         <a href="{{ route('portal.dashboard', ['view' => 'blocked', 'branch_id' => $branchFilter, 'priority' => $priorityFilter]) }}"
-           class="{{ $viewTab === 'blocked' ? 'ring-2 ring-amber-600 bg-amber-50/70 border-amber-600' : 'bg-white hover:border-amber-400' }} p-4 rounded-2xl border border-slate-200/80 shadow-xs transition block group">
-            <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-amber-600">Blocked / Hold</div>
+           class="{{ $viewTab === 'blocked' ? 'ring-2 ring-amber-600 bg-amber-50/70 border-amber-600' : 'bg-white hover:border-amber-400' }} p-3.5 rounded-2xl border border-slate-200/80 shadow-xs transition block group">
+            <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-amber-600">Blocked</div>
             <div class="text-2xl font-black text-amber-600 mt-1">{{ $blockedCount }}</div>
-            <div class="text-[11px] text-slate-400 mt-0.5">Parts or vendor hold</div>
+            <div class="text-[10px] text-slate-400 mt-0.5 truncate">Vendor / parts hold</div>
         </a>
 
-        <!-- 30m SLA Breaches -->
-        <div class="bg-white p-4 rounded-2xl border {{ $slaBreachCount > 0 ? 'border-red-300 bg-red-50/60 ring-2 ring-red-400' : 'border-slate-200/80' }} shadow-xs relative overflow-hidden">
-            <div class="text-[11px] font-bold uppercase tracking-wider {{ $slaBreachCount > 0 ? 'text-red-700' : 'text-slate-500' }}">30m SLA Breaches</div>
+        <!-- Pending Confirmation (Clickable Queue) -->
+        <a href="{{ route('portal.dashboard', ['view' => 'pending_confirmation', 'branch_id' => $branchFilter, 'priority' => $priorityFilter]) }}"
+           class="{{ $viewTab === 'pending_confirmation' ? 'ring-2 ring-emerald-600 bg-emerald-50/70 border-emerald-600' : 'bg-white hover:border-emerald-400' }} p-3.5 rounded-2xl border border-slate-200/80 shadow-xs transition block group">
+            <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-emerald-700">Sign-off Window</div>
+            <div class="text-2xl font-black text-emerald-600 mt-1">{{ $pendingConfirmCount }}</div>
+            <div class="text-[10px] text-slate-400 mt-0.5 truncate">Awaiting user check</div>
+        </a>
+
+        <!-- Solved / Closed Tickets (Clickable Queue) -->
+        <a href="{{ route('portal.dashboard', ['view' => 'solved', 'branch_id' => $branchFilter, 'priority' => $priorityFilter]) }}"
+           class="{{ $viewTab === 'solved' ? 'ring-2 ring-teal-600 bg-teal-50/70 border-teal-600' : 'bg-white hover:border-teal-400' }} p-3.5 rounded-2xl border border-slate-200/80 shadow-xs transition block group">
+            <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-teal-700">Solved / Closed</div>
+            <div class="text-2xl font-black text-teal-700 mt-1">{{ $solvedCount }}</div>
+            <div class="text-[10px] text-slate-400 mt-0.5 truncate">Completed tasks</div>
+        </a>
+
+        <!-- 30m SLA Breaches (Health Indicator) -->
+        <div class="bg-white p-3.5 rounded-2xl border {{ $slaBreachCount > 0 ? 'border-red-300 bg-red-50/60 ring-2 ring-red-400' : 'border-slate-200/80' }} shadow-xs relative overflow-hidden">
+            <div class="text-[10px] font-bold uppercase tracking-wider {{ $slaBreachCount > 0 ? 'text-red-700' : 'text-slate-500' }}">SLA Breaches</div>
             <div class="text-2xl font-black {{ $slaBreachCount > 0 ? 'text-red-600 animate-pulse' : 'text-slate-800' }} mt-1">
                 {{ $slaBreachCount }}
             </div>
-            <div class="text-[11px] text-slate-400 mt-0.5">Awaiting tech accept >30m</div>
+            <div class="text-[10px] text-slate-400 mt-0.5 truncate">>30m unaccepted</div>
             @if($slaBreachCount > 0)
-                <span class="absolute top-2.5 right-2.5 w-2.5 h-2.5 rounded-full bg-red-600 animate-ping"></span>
+                <span class="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-red-600 animate-ping"></span>
             @endif
-        </div>
-
-        <!-- Pending Confirmation -->
-        <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
-            <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Pending Sign-off</div>
-            <div class="text-2xl font-black text-emerald-600 mt-1">{{ $pendingConfirmCount }}</div>
-            <div class="text-[11px] text-slate-400 mt-0.5">Requester review window</div>
         </div>
     </div>
 
@@ -379,6 +388,12 @@
                                             <span class="bg-emerald-100 text-emerald-900 font-bold px-2 py-0.5 rounded text-[10px] uppercase">Pending Confirm</span>
                                         @elseif($t->status === 'reopened')
                                             <span class="bg-rose-100 text-rose-800 font-bold px-2 py-0.5 rounded text-[10px] uppercase">Reopened</span>
+                                        @elseif($t->status === 'resolved_confirmed')
+                                            <span class="bg-teal-100 text-teal-800 font-bold px-2 py-0.5 rounded text-[10px] uppercase">✔ Solved</span>
+                                        @elseif($t->status === 'resolved_auto_closed')
+                                            <span class="bg-teal-100 text-teal-800 font-bold px-2 py-0.5 rounded text-[10px] uppercase">✔ Auto Closed</span>
+                                        @elseif($t->status === 'closed')
+                                            <span class="bg-slate-100 text-slate-700 font-bold px-2 py-0.5 rounded text-[10px] uppercase">Closed</span>
                                         @else
                                             <span class="bg-slate-100 text-slate-700 font-bold px-2 py-0.5 rounded text-[10px] uppercase">{{ $t->status }}</span>
                                         @endif
