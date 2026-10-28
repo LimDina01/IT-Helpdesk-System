@@ -63,6 +63,26 @@
         this.copiedEmail = true;
         setTimeout(() => { this.copiedEmail = false; }, 2000);
     },
+    openLightbox(url, name, download) {
+        this.lightboxUrl = url;
+        this.lightboxName = name || 'Image Preview';
+        this.lightboxDownload = download || url;
+        this.lightbox = true;
+    },
+    getFileExtension(filename) {
+        if (!filename) return 'FILE';
+        const parts = filename.split('.');
+        const ext = parts.length > 1 ? parts.pop() : '';
+        return ext ? ext.slice(0, 4).toUpperCase() : 'FILE';
+    },
+    getFileBadgeClass(filename, isMe = false) {
+        const ext = (filename || '').split('.').pop().toLowerCase();
+        if (['pdf'].includes(ext)) return 'bg-rose-500 text-white';
+        if (['doc', 'docx'].includes(ext)) return 'bg-blue-600 text-white';
+        if (['xls', 'xlsx', 'csv'].includes(ext)) return 'bg-emerald-600 text-white';
+        if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) return 'bg-amber-600 text-white';
+        return isMe ? 'bg-blue-800 text-white' : 'bg-slate-700 text-white';
+    },
     handleFileSelect(event) {
         if (event.target.files) {
             this.messageFiles = [...this.messageFiles, ...Array.from(event.target.files)];
@@ -731,23 +751,24 @@
                     </div>
                 </div>
 
-                <!-- Contained Scrollable Chat Viewport -->
-                <div id="portalChatStream" class="flex-1 max-h-[540px] min-h-[360px] overflow-y-auto p-4 sm:p-5 bg-slate-50/40 space-y-3.5">
+                <!-- Contained Scrollable Chat Viewport (Modern Messenger Layout) -->
+                <div id="portalChatStream" class="flex-1 max-h-[560px] min-h-[380px] overflow-y-auto p-4 sm:p-5 space-y-3"
+                     style="background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);">
                     <template x-for="msg in chatMessages" :key="msg.id">
                         <div>
                             <!-- System Event: Compact Centered Pill -->
                             <template x-if="msg.visibility === 'system_event'">
-                                <div class="flex justify-center my-1.5">
-                                    <span class="bg-slate-200/80 text-slate-600 text-[10px] font-medium px-3 py-1 rounded-full shadow-2xs"
+                                <div class="flex justify-center my-2 select-none">
+                                    <span class="bg-slate-200/80 border border-slate-300/40 text-slate-600 text-[10px] font-medium px-3 py-1 rounded-full shadow-2xs"
                                           x-text="'⚙️ ' + msg.body + ' • ' + msg.created_at_human"></span>
                                 </div>
                             </template>
 
-                            <!-- Confidential Internal Note (Centered Distinct Card) -->
+                            <!-- Confidential Internal Note (Distinct Amber Card) -->
                             <template x-if="msg.visibility === 'internal_staff_only'">
-                                <div class="max-w-xl mx-auto my-2">
-                                    <div class="bg-amber-50/95 border-2 border-amber-300/80 rounded-2xl p-3.5 shadow-2xs space-y-1.5">
-                                        <div class="flex items-center justify-between text-xs border-b border-amber-200/70 pb-1">
+                                <div class="max-w-xl mx-auto my-2.5">
+                                    <div class="bg-amber-50/95 border-2 border-amber-300/80 rounded-2xl p-4 shadow-2xs space-y-2">
+                                        <div class="flex items-center justify-between text-xs border-b border-amber-200/70 pb-1.5">
                                             <div class="flex items-center space-x-1.5">
                                                 <span class="bg-amber-200 text-amber-900 font-black text-[9px] uppercase px-1.5 py-0.5 rounded tracking-wider flex items-center gap-1">
                                                     <span>🔒</span>
@@ -759,32 +780,40 @@
                                         </div>
                                         <p class="text-xs text-amber-950 font-medium leading-relaxed whitespace-pre-wrap" x-text="msg.body"></p>
 
-                                        <!-- Attachments -->
-                                        <template x-if="msg.attachments && msg.attachments.length > 0">
-                                            <div class="pt-1.5 space-y-1.5 border-t border-amber-200/60">
-                                                <div class="grid grid-cols-2 sm:grid-cols-3 gap-1.5" x-show="msg.attachments.some(a => a.is_image)">
-                                                    <template x-for="att in msg.attachments.filter(a => a.is_image)" :key="att.id">
-                                                        <div class="group relative rounded-xl overflow-hidden border border-amber-300/70 bg-amber-100/40 cursor-pointer aspect-square shadow-2xs"
-                                                             @click="lightbox = true; lightboxUrl = att.preview_url; lightboxName = att.original_filename; lightboxDownload = att.download_url">
-                                                            <img :src="att.preview_url" :alt="att.original_filename" class="w-full h-full object-cover group-hover:scale-105 transition duration-200">
-                                                            <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-1 flex items-center justify-between text-[9px] text-white">
-                                                                <span class="truncate max-w-[80px]" x-text="att.original_filename"></span>
-                                                                <span class="font-mono text-[8px] opacity-90" x-text="att.file_size"></span>
+                                        <!-- Photo Attachments (TMA Clean Style) -->
+                                        <template x-if="msg.attachments && msg.attachments.some(a => a.is_image)">
+                                            <div class="flex flex-wrap gap-2 pt-1">
+                                                <template x-for="att in msg.attachments.filter(a => a.is_image)" :key="att.id">
+                                                    <div class="relative group">
+                                                        <div class="relative rounded-2xl overflow-hidden cursor-pointer shadow-sm border border-amber-300/80 bg-amber-100/50 hover:shadow-md active:scale-[0.98] transition max-w-[280px] sm:max-w-[340px]"
+                                                             @click="openLightbox(att.preview_url, att.original_filename, att.download_url)">
+                                                            <img :src="att.preview_url" :alt="att.original_filename" loading="lazy" class="w-full max-h-72 object-cover block">
+                                                            <div class="absolute top-2 right-2 px-1.5 py-0.5 rounded-md bg-black/45 backdrop-blur-xs text-[9px] font-bold text-white tracking-wider uppercase select-none shadow-xs">HD</div>
+                                                            <div class="absolute bottom-2 right-2 px-2 py-0.5 rounded-full bg-black/50 backdrop-blur-xs text-[10px] text-white/90 font-mono select-none">
+                                                                <span x-text="att.file_size"></span>
                                                             </div>
                                                         </div>
-                                                    </template>
-                                                </div>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </template>
 
-                                                <div class="flex flex-wrap gap-1.5" x-show="msg.attachments.some(a => !a.is_image)">
-                                                    <template x-for="att in msg.attachments.filter(a => !a.is_image)" :key="att.id">
-                                                        <a :href="att.download_url"
-                                                           class="bg-amber-100 hover:bg-amber-200 text-amber-900 text-[11px] px-2 py-0.5 rounded-lg flex items-center space-x-1 transition">
-                                                            <span>📎</span>
-                                                            <span class="truncate max-w-[120px]" x-text="att.original_filename"></span>
-                                                            <span class="font-mono text-[9px] opacity-75" x-text="'(' + att.file_size + ')'"></span>
-                                                        </a>
-                                                    </template>
-                                                </div>
+                                        <!-- Document Attachments -->
+                                        <template x-if="msg.attachments && msg.attachments.some(a => !a.is_image)">
+                                            <div class="space-y-1.5 pt-1 max-w-sm">
+                                                <template x-for="att in msg.attachments.filter(a => !a.is_image)" :key="att.id">
+                                                    <a :href="att.download_url" target="_blank"
+                                                       class="flex items-center space-x-2.5 p-2 rounded-xl bg-amber-100/80 hover:bg-amber-100 border border-amber-300 text-amber-950 transition shadow-2xs">
+                                                        <div :class="getFileBadgeClass(att.original_filename, false)" class="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-[9px] shrink-0">
+                                                            <span x-text="getFileExtension(att.original_filename)"></span>
+                                                        </div>
+                                                        <div class="min-w-0 flex-1">
+                                                            <div class="text-xs font-semibold truncate" x-text="att.original_filename"></div>
+                                                            <div class="text-[10px] text-amber-700/80 font-mono" x-text="att.file_size"></div>
+                                                        </div>
+                                                        <svg class="w-3.5 h-3.5 text-amber-700 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                                                    </a>
+                                                </template>
                                             </div>
                                         </template>
 
@@ -795,103 +824,148 @@
                                 </div>
                             </template>
 
-                            <!-- Staff Message (Right-aligned sleek blue bubble) -->
+                            <!-- IT Staff Message (Right-aligned Modern Messenger Pill) -->
                             <template x-if="msg.visibility !== 'system_event' && msg.visibility !== 'internal_staff_only' && msg.is_staff">
-                                <div class="flex justify-end my-1">
-                                    <div class="max-w-[82%] sm:max-w-[70%] space-y-1">
-                                        <div class="flex items-center justify-end space-x-1.5 text-[10px] text-slate-400 px-1">
-                                            <span class="font-semibold text-blue-600" x-text="msg.sender_name"></span>
-                                            <span class="text-[8px] bg-blue-100 text-blue-700 font-bold px-1 rounded uppercase">IT Staff</span>
-                                            <span>•</span>
-                                            <span class="font-mono" x-text="msg.created_at_full"></span>
-                                        </div>
+                                <div class="flex flex-col items-end w-full my-2 space-y-1.5">
+                                    <!-- Sender & Timestamp -->
+                                    <div class="flex items-center space-x-1.5 text-[10px] text-slate-400 pr-1 select-none">
+                                        <span class="font-semibold text-blue-600" x-text="msg.sender_name"></span>
+                                        <span class="text-[8px] bg-blue-100 text-blue-700 font-bold px-1.5 py-0.2 rounded uppercase">IT Staff</span>
+                                        <span>•</span>
+                                        <span class="font-mono" x-text="msg.created_at_full"></span>
+                                    </div>
 
-                                        <div class="bg-blue-600 text-white rounded-2xl rounded-tr-xs px-4 py-2.5 shadow-xs space-y-2">
-                                            <p class="text-xs leading-relaxed whitespace-pre-wrap font-normal" x-text="msg.body"></p>
+                                    <!-- 1. Standalone Borderless Photo Card(s) with Generous Aspect & HD Badge (TMA Style) -->
+                                    <template x-if="msg.attachments && msg.attachments.some(a => a.is_image)">
+                                        <div class="flex flex-col items-end space-y-1.5">
+                                            <template x-for="att in msg.attachments.filter(a => a.is_image)" :key="att.id">
+                                                <div class="relative group">
+                                                    <div class="relative rounded-2xl rounded-tr-xs overflow-hidden cursor-pointer shadow-md border border-black/5 bg-slate-100 hover:shadow-lg active:scale-[0.98] transition max-w-[280px] sm:max-w-[360px]"
+                                                         @click="openLightbox(att.preview_url, att.original_filename, att.download_url)">
+                                                        <img :src="att.preview_url" :alt="att.original_filename"
+                                                             loading="lazy"
+                                                             class="w-full max-h-80 object-cover block">
+                                                        
+                                                        <!-- HD Badge in top right corner -->
+                                                        <div class="absolute top-2 right-2 px-1.5 py-0.5 rounded-md bg-black/45 backdrop-blur-xs text-[9px] font-bold text-white tracking-wider uppercase select-none shadow-xs">
+                                                            HD
+                                                        </div>
 
-                                            <!-- Attachments -->
-                                            <template x-if="msg.attachments && msg.attachments.length > 0">
-                                                <div class="pt-2 space-y-1.5 border-t border-white/20">
-                                                    <div class="grid grid-cols-2 gap-1.5" x-show="msg.attachments.some(a => a.is_image)">
-                                                        <template x-for="att in msg.attachments.filter(a => a.is_image)" :key="att.id">
-                                                            <div class="group relative rounded-xl overflow-hidden border border-white/20 bg-black/10 cursor-pointer aspect-square shadow-2xs"
-                                                                 @click="lightbox = true; lightboxUrl = att.preview_url; lightboxName = att.original_filename; lightboxDownload = att.download_url">
-                                                                <img :src="att.preview_url" :alt="att.original_filename" class="w-full h-full object-cover group-hover:scale-105 transition duration-200">
-                                                                <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-1 flex items-center justify-between text-[9px] text-white">
-                                                                    <span class="truncate max-w-[80px]" x-text="att.original_filename"></span>
-                                                                    <span class="font-mono text-[8px] opacity-90" x-text="att.file_size"></span>
-                                                                </div>
-                                                            </div>
-                                                        </template>
-                                                    </div>
-
-                                                    <div class="flex flex-wrap gap-1.5" x-show="msg.attachments.some(a => !a.is_image)">
-                                                        <template x-for="att in msg.attachments.filter(a => !a.is_image)" :key="att.id">
-                                                            <a :href="att.download_url"
-                                                               class="bg-blue-700/70 hover:bg-blue-700 text-white text-[11px] px-2.5 py-1 rounded-lg flex items-center space-x-1 transition">
-                                                                <span>📎</span>
-                                                                <span class="truncate max-w-[120px]" x-text="att.original_filename"></span>
-                                                                <span class="font-mono text-[9px] opacity-80" x-text="'(' + att.file_size + ')'"></span>
-                                                            </a>
-                                                        </template>
+                                                        <!-- Subtle bottom file size indicator -->
+                                                        <div class="absolute bottom-2 right-2 px-2 py-0.5 rounded-full bg-black/50 backdrop-blur-xs text-[10px] text-white/90 font-mono select-none">
+                                                            <span x-text="att.file_size"></span>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </template>
                                         </div>
-                                    </div>
+                                    </template>
+
+                                    <!-- 2. Standalone Text Message Bubble (Sleek Sapphire Messenger Pill) -->
+                                    <template x-if="msg.body && msg.body !== '(Attachment)' && msg.body.trim().length > 0">
+                                        <div class="max-w-[85%] sm:max-w-[75%] rounded-2xl rounded-tr-xs px-4 py-2.5 shadow-sm text-white select-text"
+                                             style="background: linear-gradient(135deg, #0084ff 0%, #0066f6 100%); box-shadow: 0 2px 8px -1px rgba(0, 132, 255, 0.35);">
+                                            <p class="text-[13px] leading-relaxed whitespace-pre-wrap font-normal" x-text="msg.body"></p>
+                                        </div>
+                                    </template>
+
+                                    <!-- 3. Non-Image Document Cards (PDFs, Docs, etc.) -->
+                                    <template x-if="msg.attachments && msg.attachments.some(a => !a.is_image)">
+                                        <div class="space-y-1.5 max-w-[85%] sm:max-w-[75%]">
+                                            <template x-for="att in msg.attachments.filter(a => !a.is_image)" :key="att.id">
+                                                <a :href="att.download_url" target="_blank"
+                                                   class="flex items-center space-x-2.5 p-2.5 rounded-2xl bg-white border border-slate-200/90 hover:bg-slate-50 transition shadow-xs">
+                                                    <div :class="getFileBadgeClass(att.original_filename, true)" class="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-[10px] shrink-0 shadow-2xs">
+                                                        <span x-text="getFileExtension(att.original_filename)"></span>
+                                                    </div>
+                                                    <div class="min-w-0 flex-1">
+                                                        <div class="text-xs font-semibold text-slate-800 truncate" x-text="att.original_filename"></div>
+                                                        <div class="text-[10px] text-slate-400 font-mono" x-text="att.file_size"></div>
+                                                    </div>
+                                                    <svg class="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                                                </a>
+                                            </template>
+                                        </div>
+                                    </template>
                                 </div>
                             </template>
 
-                            <!-- Requester (Employee) Message (Left-aligned clean white bubble) -->
+                            <!-- Requester (Employee) Message (Left-aligned Modern Messenger Pill) -->
                             <template x-if="msg.visibility !== 'system_event' && msg.visibility !== 'internal_staff_only' && !msg.is_staff">
-                                <div class="flex justify-start my-1">
-                                    <div class="max-w-[82%] sm:max-w-[70%] space-y-1">
-                                        <div class="flex items-center space-x-1.5 text-[10px] text-slate-400 px-1">
+                                <div class="flex items-start space-x-2.5 w-full my-2">
+                                    <!-- Avatar Initial Circle -->
+                                    <div class="w-7 h-7 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center text-xs font-bold shrink-0 mt-1 shadow-2xs select-none"
+                                         x-text="(msg.sender_name || 'U').charAt(0).toUpperCase()">
+                                    </div>
+
+                                    <!-- Content Column -->
+                                    <div class="flex flex-col items-start max-w-[85%] sm:max-w-[75%] space-y-1.5 min-w-0">
+                                        <!-- Sender Name & Requester Badge -->
+                                        <div class="flex items-center space-x-1.5 text-[10px] text-slate-400 pl-1 select-none">
                                             <span class="font-semibold text-slate-700" x-text="msg.sender_name"></span>
-                                            <span class="text-[8px] bg-slate-200 text-slate-700 font-bold px-1 rounded uppercase">Requester</span>
+                                            <span class="text-[8px] bg-slate-200 text-slate-700 font-bold px-1.5 py-0.2 rounded uppercase">Requester</span>
                                             <span>•</span>
                                             <span class="font-mono" x-text="msg.created_at_full"></span>
                                         </div>
 
-                                        <div class="bg-white border border-slate-200/90 text-slate-800 rounded-2xl rounded-tl-xs px-4 py-2.5 shadow-2xs space-y-2">
-                                            <p class="text-xs leading-relaxed whitespace-pre-wrap font-normal" x-text="msg.body"></p>
-
-                                            <!-- Attachments -->
-                                            <template x-if="msg.attachments && msg.attachments.length > 0">
-                                                <div class="pt-2 space-y-1.5 border-t border-slate-100">
-                                                    <div class="grid grid-cols-2 gap-1.5" x-show="msg.attachments.some(a => a.is_image)">
-                                                        <template x-for="att in msg.attachments.filter(a => a.is_image)" :key="att.id">
-                                                            <div class="group relative rounded-xl overflow-hidden border border-slate-200 bg-black/5 cursor-pointer aspect-square shadow-2xs"
-                                                                 @click="lightbox = true; lightboxUrl = att.preview_url; lightboxName = att.original_filename; lightboxDownload = att.download_url">
-                                                                <img :src="att.preview_url" :alt="att.original_filename" class="w-full h-full object-cover group-hover:scale-105 transition duration-200">
-                                                                <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-1 flex items-center justify-between text-[9px] text-white">
-                                                                    <span class="truncate max-w-[80px]" x-text="att.original_filename"></span>
-                                                                    <span class="font-mono text-[8px] opacity-90" x-text="att.file_size"></span>
-                                                                </div>
+                                        <!-- 1. Standalone Borderless Photo Card(s) with Generous Aspect & HD Badge (TMA Style) -->
+                                        <template x-if="msg.attachments && msg.attachments.some(a => a.is_image)">
+                                            <div class="flex flex-col items-start space-y-1.5">
+                                                <template x-for="att in msg.attachments.filter(a => a.is_image)" :key="att.id">
+                                                    <div class="relative group">
+                                                        <div class="relative rounded-2xl rounded-tl-xs overflow-hidden cursor-pointer shadow-md border border-slate-200/90 bg-slate-100 hover:shadow-lg active:scale-[0.98] transition max-w-[280px] sm:max-w-[360px]"
+                                                             @click="openLightbox(att.preview_url, att.original_filename, att.download_url)">
+                                                            <img :src="att.preview_url" :alt="att.original_filename"
+                                                                 loading="lazy"
+                                                                 class="w-full max-h-80 object-cover block">
+                                                            
+                                                            <!-- HD Badge in top right corner -->
+                                                            <div class="absolute top-2 right-2 px-1.5 py-0.5 rounded-md bg-black/45 backdrop-blur-xs text-[9px] font-bold text-white tracking-wider uppercase select-none shadow-xs">
+                                                                HD
                                                             </div>
-                                                        </template>
-                                                    </div>
 
-                                                    <div class="flex flex-wrap gap-1.5" x-show="msg.attachments.some(a => !a.is_image)">
-                                                        <template x-for="att in msg.attachments.filter(a => !a.is_image)" :key="att.id">
-                                                            <a :href="att.download_url"
-                                                               class="bg-slate-100 hover:bg-slate-200 text-slate-800 text-[11px] px-2.5 py-1 rounded-lg flex items-center space-x-1 transition">
-                                                                <span>📎</span>
-                                                                <span class="truncate max-w-[120px]" x-text="att.original_filename"></span>
-                                                                <span class="font-mono text-[9px] opacity-75" x-text="'(' + att.file_size + ')'"></span>
-                                                            </a>
-                                                        </template>
+                                                            <!-- Subtle bottom file size indicator -->
+                                                            <div class="absolute bottom-2 right-2 px-2 py-0.5 rounded-full bg-black/50 backdrop-blur-xs text-[10px] text-white/90 font-mono select-none">
+                                                                <span x-text="att.file_size"></span>
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            </template>
-                                        </div>
+                                                </template>
+                                            </div>
+                                        </template>
+
+                                        <!-- 2. Standalone Text Message Bubble (Sleek Clean Pill) -->
+                                        <template x-if="msg.body && msg.body !== '(Attachment)' && msg.body.trim().length > 0">
+                                            <div class="bg-white border border-slate-200/90 text-slate-800 rounded-2xl rounded-tl-xs px-4 py-2.5 shadow-2xs select-text">
+                                                <p class="text-[13px] leading-relaxed whitespace-pre-wrap font-normal" x-text="msg.body"></p>
+                                            </div>
+                                        </template>
+
+                                        <!-- 3. Non-Image Document Cards (PDFs, Docs, etc.) -->
+                                        <template x-if="msg.attachments && msg.attachments.some(a => !a.is_image)">
+                                            <div class="space-y-1.5 w-full">
+                                                <template x-for="att in msg.attachments.filter(a => !a.is_image)" :key="att.id">
+                                                    <a :href="att.download_url" target="_blank"
+                                                       class="flex items-center space-x-2.5 p-2.5 rounded-2xl bg-white border border-slate-200/90 hover:bg-slate-50 transition shadow-xs">
+                                                        <div :class="getFileBadgeClass(att.original_filename, false)" class="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-[10px] shrink-0 shadow-2xs">
+                                                            <span x-text="getFileExtension(att.original_filename)"></span>
+                                                        </div>
+                                                        <div class="min-w-0 flex-1">
+                                                            <div class="text-xs font-semibold text-slate-800 truncate" x-text="att.original_filename"></div>
+                                                            <div class="text-[10px] text-slate-400 font-mono" x-text="att.file_size"></div>
+                                                        </div>
+                                                        <svg class="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                                                    </a>
+                                                </template>
+                                            </div>
+                                        </template>
                                     </div>
                                 </div>
                             </template>
                         </div>
                     </template>
 
-                    <div x-show="chatMessages.length === 0" class="text-center py-10 text-xs text-slate-400">
+                    <div x-show="chatMessages.length === 0" class="text-center py-12 text-xs text-slate-400">
                         💬 No conversation messages yet. Send a reply or post a note below.
                     </div>
                 </div>
