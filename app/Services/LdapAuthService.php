@@ -52,8 +52,11 @@ class LdapAuthService
         }
 
         // Configure LDAP connection options (bypass self-signed/internal AD cert if configured)
-        if (!$this->validateCert && defined('LDAP_OPT_X_TLS_REQUIRE_CERT') && defined('LDAP_OPT_X_TLS_NEVER')) {
-            ldap_set_option(null, LDAP_OPT_X_TLS_REQUIRE_CERT, LDAP_OPT_X_TLS_NEVER);
+        if (!$this->validateCert) {
+            putenv('LDAPTLS_REQCERT=never');
+            if (defined('LDAP_OPT_X_TLS_REQUIRE_CERT') && defined('LDAP_OPT_X_TLS_NEVER')) {
+                ldap_set_option(null, LDAP_OPT_X_TLS_REQUIRE_CERT, LDAP_OPT_X_TLS_NEVER);
+            }
         }
 
         $conn = @ldap_connect($this->url);
@@ -64,7 +67,7 @@ class LdapAuthService
 
         ldap_set_option($conn, LDAP_OPT_PROTOCOL_VERSION, 3);
         ldap_set_option($conn, LDAP_OPT_REFERRALS, 0);
-        ldap_set_option($conn, LDAP_OPT_NETWORK_TIMEOUT, 3); // 3-second timeout
+        ldap_set_option($conn, LDAP_OPT_NETWORK_TIMEOUT, 5); // 5-second timeout
 
         try {
             // 1. Initial bind using Service Account
@@ -79,10 +82,19 @@ class LdapAuthService
                 return null;
             }
 
-            // 2. Search for the user in AD by sAMAccountName or mail
+            // 2. Parse username format and search for user in AD
             $cleanUser = ldap_escape($username, '', LDAP_ESCAPE_FILTER);
-            $filter = "(&(objectClass=user)(|(sAMAccountName={$cleanUser})(mail={$cleanUser})))";
-            $search = @ldap_search($conn, $this->searchBase, $filter, ['dn', 'sAMAccountName', 'mail', 'givenName', 'sn', 'displayName']);
+            $sAMAccountName = $cleanUser;
+            if (str_contains($cleanUser, '\\')) {
+                $parts = explode('\\', $cleanUser, 2);
+                $sAMAccountName = $parts[1];
+            } elseif (str_contains($cleanUser, '@')) {
+                $parts = explode('@', $cleanUser, 2);
+                $sAMAccountName = $parts[0];
+            }
+
+            $filter = "(&(objectClass=user)(!(objectClass=computer))(|(sAMAccountName={$sAMAccountName})(sAMAccountName={$cleanUser})(mail={$cleanUser})(userPrincipalName={$cleanUser})))";
+            $search = @ldap_search($conn, $this->searchBase, $filter, ['dn', 'sAMAccountName', 'mail', 'givenName', 'sn', 'displayName', 'userPrincipalName']);
 
             if (!$search) {
                 @ldap_unbind($conn);
@@ -97,9 +109,15 @@ class LdapAuthService
 
             $userEntry = $entries[0];
             $userDn = $userEntry['dn'];
+            $adUsername = $userEntry['samaccountname'][0] ?? $sAMAccountName;
 
-            // 3. Authenticate: Attempt user bind with their own password
+            // 3. Authenticate: Attempt user bind with DN first, fallback to UPN / Domain prefix
             $userBind = @ldap_bind($conn, $userDn, $password);
+            if (!$userBind) {
+                $upnBindUser = "{$this->domain}\\{$adUsername}";
+                $userBind = @ldap_bind($conn, $upnBindUser, $password);
+            }
+
             if (!$userBind) {
                 @ldap_unbind($conn);
                 return null; // Invalid credentials
@@ -107,7 +125,6 @@ class LdapAuthService
 
             // Extract AD user profile attributes
             $adEmail = $userEntry['mail'][0] ?? null;
-            $adUsername = $userEntry['samaccountname'][0] ?? $username;
             $firstName = $userEntry['givenname'][0] ?? '';
             $lastName = $userEntry['sn'][0] ?? '';
             $fullName = $userEntry['displayname'][0] ?? trim("{$firstName} {$lastName}");
@@ -121,7 +138,11 @@ class LdapAuthService
             }
 
             if (!$localUser) {
-                $localUser = User::where('name', $fullName)->orWhere('email', $username)->first();
+                $localUser = User::where('email', $username)
+                    ->orWhere('email', 'like', "{$adUsername}@%")
+                    ->orWhereHas('employee', fn($q) => $q->where('employee_code', $adUsername))
+                    ->orWhere('name', $fullName)
+                    ->first();
             }
 
             if ($localUser) {
@@ -140,5 +161,101 @@ class LdapAuthService
             }
             return null;
         }
+    }
+
+    /**
+     * Diagnostic tester for Active Directory connection and authentication.
+     */
+    public function testConnection(?string $testUser = null, ?string $testPassword = null): array
+    {
+        $result = [
+            'extension_loaded' => extension_loaded('ldap'),
+            'url' => $this->url,
+            'search_base' => $this->searchBase,
+            'connected' => false,
+            'service_bind' => false,
+            'user_found' => null,
+            'user_authenticated' => null,
+            'local_user_matched' => null,
+            'message' => '',
+        ];
+
+        if (!$result['extension_loaded']) {
+            $result['message'] = 'PHP LDAP extension is not installed or enabled.';
+            return $result;
+        }
+
+        if (!$this->validateCert) {
+            putenv('LDAPTLS_REQCERT=never');
+            if (defined('LDAP_OPT_X_TLS_REQUIRE_CERT') && defined('LDAP_OPT_X_TLS_NEVER')) {
+                ldap_set_option(null, LDAP_OPT_X_TLS_REQUIRE_CERT, LDAP_OPT_X_TLS_NEVER);
+            }
+        }
+
+        $conn = @ldap_connect($this->url);
+        if (!$conn) {
+            $result['message'] = "Cannot initialize connection to {$this->url}";
+            return $result;
+        }
+
+        ldap_set_option($conn, LDAP_OPT_PROTOCOL_VERSION, 3);
+        ldap_set_option($conn, LDAP_OPT_REFERRALS, 0);
+        ldap_set_option($conn, LDAP_OPT_NETWORK_TIMEOUT, 5);
+
+        $result['connected'] = true;
+
+        $serviceBindUser = str_contains($this->serviceUsername, '@') || str_contains($this->serviceUsername, '\\')
+            ? $this->serviceUsername
+            : "{$this->domain}\\{$this->serviceUsername}";
+
+        $serviceBind = @ldap_bind($conn, $serviceBindUser, $this->servicePassword);
+        if (!$serviceBind) {
+            $result['message'] = "Service account ({$serviceBindUser}) bind failed: " . ldap_error($conn);
+            @ldap_unbind($conn);
+            return $result;
+        }
+
+        $result['service_bind'] = true;
+
+        if ($testUser) {
+            $cleanUser = ldap_escape($testUser, '', LDAP_ESCAPE_FILTER);
+            $sAMAccountName = $cleanUser;
+            if (str_contains($cleanUser, '\\')) {
+                $parts = explode('\\', $cleanUser, 2);
+                $sAMAccountName = $parts[1];
+            } elseif (str_contains($cleanUser, '@')) {
+                $parts = explode('@', $cleanUser, 2);
+                $sAMAccountName = $parts[0];
+            }
+
+            $filter = "(&(objectClass=user)(!(objectClass=computer))(|(sAMAccountName={$sAMAccountName})(sAMAccountName={$cleanUser})(mail={$cleanUser})))";
+            $search = @ldap_search($conn, $this->searchBase, $filter, ['dn', 'sAMAccountName', 'mail', 'displayName']);
+
+            if ($search) {
+                $entries = @ldap_get_entries($conn, $search);
+                if ($entries && $entries['count'] > 0) {
+                    $entry = $entries[0];
+                    $result['user_found'] = [
+                        'dn' => $entry['dn'],
+                        'sAMAccountName' => $entry['samaccountname'][0] ?? null,
+                        'mail' => $entry['mail'][0] ?? null,
+                        'displayName' => $entry['displayname'][0] ?? null,
+                    ];
+
+                    if ($testPassword) {
+                        $auth = @ldap_bind($conn, $entry['dn'], $testPassword);
+                        if (!$auth) {
+                            $upn = "{$this->domain}\\" . ($entry['samaccountname'][0] ?? $sAMAccountName);
+                            $auth = @ldap_bind($conn, $upn, $testPassword);
+                        }
+                        $result['user_authenticated'] = (bool) $auth;
+                    }
+                }
+            }
+        }
+
+        @ldap_unbind($conn);
+        $result['message'] = 'Active Directory connection and service bind verified successfully!';
+        return $result;
     }
 }
