@@ -104,6 +104,13 @@ class PortalDashboardController extends Controller
                     ->orderByDesc('updated_at');
                 break;
 
+            case 'sla_breached':
+                $query->where('status', 'assigned')
+                    ->whereNull('acknowledged_at')
+                    ->where('assigned_at', '<', Carbon::now()->subMinutes(30))
+                    ->orderBy('assigned_at');
+                break;
+
             case 'triage':
             default:
                 $viewTab = 'triage';

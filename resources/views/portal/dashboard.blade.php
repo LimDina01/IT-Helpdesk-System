@@ -160,17 +160,18 @@
             <div class="text-[10px] text-slate-400 mt-0.5 truncate">Completed tasks</div>
         </a>
 
-        <!-- 30m SLA Breaches (Health Indicator) -->
-        <div class="bg-white p-3.5 rounded-2xl border {{ $slaBreachCount > 0 ? 'border-red-300 bg-red-50/60 ring-2 ring-red-400' : 'border-slate-200/80' }} shadow-xs relative overflow-hidden">
-            <div class="text-[10px] font-bold uppercase tracking-wider {{ $slaBreachCount > 0 ? 'text-red-700' : 'text-slate-500' }}">SLA Breaches</div>
-            <div class="text-2xl font-black {{ $slaBreachCount > 0 ? 'text-red-600 animate-pulse' : 'text-slate-800' }} mt-1">
+        <!-- 30m SLA Breaches (Clickable Queue) -->
+        <a href="{{ route('portal.dashboard', ['view' => 'sla_breached', 'branch_id' => $branchFilter, 'priority' => $priorityFilter]) }}"
+           class="{{ $viewTab === 'sla_breached' ? 'ring-2 ring-red-600 bg-red-100/90 border-red-600' : ($slaBreachCount > 0 ? 'border-red-300 bg-red-50/60 ring-1 ring-red-400 hover:border-red-500' : 'bg-white hover:border-red-400') }} p-3.5 rounded-2xl border border-slate-200/80 shadow-xs relative overflow-hidden block group transition">
+            <div class="text-[10px] font-bold uppercase tracking-wider {{ $slaBreachCount > 0 || $viewTab === 'sla_breached' ? 'text-red-700' : 'text-slate-500 group-hover:text-red-600' }}">SLA Breaches</div>
+            <div class="text-2xl font-black {{ $slaBreachCount > 0 || $viewTab === 'sla_breached' ? 'text-red-600 animate-pulse' : 'text-slate-800' }} mt-1">
                 {{ $slaBreachCount }}
             </div>
             <div class="text-[10px] text-slate-400 mt-0.5 truncate">>30m unaccepted</div>
             @if($slaBreachCount > 0)
                 <span class="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-red-600 animate-ping"></span>
             @endif
-        </div>
+        </a>
     </div>
 
     <!-- Main Workspace Container -->
@@ -255,6 +256,20 @@
                 </div>
             </div>
         </div>
+
+        <!-- SLA Breach Context Banner -->
+        @if($viewTab === 'sla_breached')
+            <div class="bg-red-50/90 border-b border-red-200 px-5 py-3 flex items-center justify-between text-xs text-red-900">
+                <div class="flex items-center space-x-2.5">
+                    <span class="text-lg">⚠️</span>
+                    <div>
+                        <span class="font-bold">SLA Breach Queue:</span>
+                        <span class="text-red-700">These assigned tickets have exceeded the 30-minute acknowledgement window without being accepted by the assigned technician.</span>
+                    </div>
+                </div>
+                <a href="{{ route('portal.dashboard') }}" class="text-red-700 hover:text-red-900 font-bold underline whitespace-nowrap ml-4">Back to Triage</a>
+            </div>
+        @endif
 
         <!-- Ticket Table Container (Dynamically Swappable via AJAX) -->
         <div id="ticketTableContainer" class="overflow-x-auto">
@@ -445,22 +460,22 @@
                             <td class="py-3.5 px-4 text-right whitespace-nowrap">
                                 <div class="flex items-center justify-end space-x-1.5">
                                     
-                                    <!-- Technician Quick Accept Button -->
-                                    @if($t->status === 'assigned' && $t->current_technician_id === Auth::id())
+                                    <!-- Technician or Admin Quick Accept Button -->
+                                    @if($t->status === 'assigned' && ($t->current_technician_id === Auth::id() || Auth::user()->hasAnyRole(['system_admin', 'hod'])))
                                         <form method="POST" action="{{ route('portal.tickets.accept', $t->id) }}">
                                             @csrf
-                                            <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-2.5 py-1.5 rounded-lg shadow-xs transition">
+                                            <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-2.5 py-1.5 rounded-lg shadow-xs transition" title="Accept & Start this ticket">
                                                 Accept & Start
                                             </button>
                                         </form>
                                     @endif
 
-                                    <!-- Assign Modal Button -->
+                                    <!-- Assign / Reassign Modal Button -->
                                     @if(Auth::user()->hasAnyRole(['helpdesk', 'system_admin', 'hod']))
                                         <button type="button"
                                                 @click="selectedTicket = { id: {{ $t->id }}, code: '{{ $t->ticket_code }}', priority: '{{ $t->priority }}' }; targetPriority = '{{ $t->priority }}'; assignModal = true"
                                                 class="bg-slate-100 hover:bg-blue-50 hover:text-blue-600 text-slate-700 font-semibold text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 transition">
-                                            Assign
+                                            {{ $t->current_technician_id ? 'Reassign' : 'Assign' }}
                                         </button>
                                     @endif
 
@@ -475,9 +490,15 @@
                     @empty
                         <tr>
                             <td colspan="6" class="py-12 text-center text-slate-400">
-                                <div class="text-2xl mb-2">🎉</div>
-                                <div class="font-semibold text-sm text-slate-600">No tickets found in this queue</div>
-                                <div class="text-xs text-slate-400">All submissions in this category have been triaged or addressed.</div>
+                                @if($viewTab === 'sla_breached')
+                                    <div class="text-2xl mb-2">🎉</div>
+                                    <div class="font-semibold text-sm text-emerald-700">No SLA Breaches</div>
+                                    <div class="text-xs text-slate-400">All assigned tickets have been accepted by technicians within the 30-minute window!</div>
+                                @else
+                                    <div class="text-2xl mb-2">🎉</div>
+                                    <div class="font-semibold text-sm text-slate-600">No tickets found in this queue</div>
+                                    <div class="text-xs text-slate-400">All submissions in this category have been triaged or addressed.</div>
+                                @endif
                             </td>
                         </tr>
                     @endforelse
