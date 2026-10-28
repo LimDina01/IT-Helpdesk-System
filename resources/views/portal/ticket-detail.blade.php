@@ -24,8 +24,8 @@
     requesterActive: {{ \Illuminate\Support\Facades\Cache::has("ticket_presence_{$ticket->id}_{$ticket->requester_id}") ? 'true' : 'false' }},
     chatMessages: {{ Js::from($messages->map(fn($m) => [
         'id' => $m->id,
-        'sender_name' => $m->sender->name,
-        'is_staff' => $m->sender->isStaff(),
+        'sender_name' => $m->sender?->name ?? 'System',
+        'is_staff' => $m->sender ? $m->sender->isStaff() : false,
         'visibility' => $m->visibility,
         'body' => $m->body,
         'created_at_human' => $m->created_at->diffForHumans(),
@@ -624,7 +624,7 @@
                         </div>
                         <div>
                             <div class="font-bold text-sm text-slate-800">{{ $ticket->requester->name }}</div>
-                            <div class="text-blue-600 font-mono font-medium text-[11px]">{{ $ticket->requester->employee->employee_code ?? 'EMP' }}</div>
+                            <div class="text-blue-600 font-mono font-medium text-[11px]">{{ $ticket->requester->employee?->employee_code ?? 'EMP' }}</div>
                         </div>
                     </div>
 
@@ -635,7 +635,7 @@
                         </div>
                         <div class="flex items-center space-x-2">
                             <span class="text-sm">📂</span>
-                            <span><strong>Department:</strong> {{ $ticket->requester->employee->department->name ?? 'General' }}</span>
+                            <span><strong>Department:</strong> {{ $ticket->requester->employee?->department?->name ?? 'General' }}</span>
                         </div>
                         <div class="flex items-center justify-between">
                             <div class="flex items-center space-x-2 truncate">
@@ -672,10 +672,10 @@
                     @forelse($ticket->assignments as $assign)
                         <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-[11px] space-y-0.5">
                             <div class="font-semibold text-slate-700">
-                                Assigned to <strong>{{ $assign->technician->name }}</strong>
+                                Assigned to <strong>{{ $assign->technician?->name ?? 'Technician' }}</strong>
                             </div>
                             <div class="text-slate-400 text-[10px]">
-                                by {{ $assign->assignedBy->name }} • {{ $assign->assigned_at->diffForHumans() }}
+                                by {{ $assign->assignedBy?->name ?? 'System' }} • {{ $assign->assigned_at ? $assign->assigned_at->diffForHumans() : '' }}
                             </div>
                             @if($assign->reassignment_reason)
                                 <div class="text-slate-500 italic text-[10px] bg-white p-1 rounded border border-slate-100">
