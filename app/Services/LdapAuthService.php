@@ -151,6 +151,15 @@ class LdapAuthService
                     'name' => $fullName ?: $localUser->name,
                     'is_active' => true,
                 ]);
+            } else {
+                // Auto-create local user profile from Active Directory
+                $email = $adEmail ?: (str_contains($username, '@') ? $username : "{$adUsername}@cbvh66.com");
+                $localUser = User::create([
+                    'name' => $fullName ?: $adUsername,
+                    'email' => strtolower($email),
+                    'password' => \Illuminate\Support\Facades\Hash::make(\Illuminate\Support\Str::random(32)),
+                    'is_active' => true,
+                ]);
             }
 
             return $localUser;
