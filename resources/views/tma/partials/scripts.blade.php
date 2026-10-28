@@ -81,19 +81,22 @@ function tmaApp() {
         },
 
         getCategoryName(cat) {
-            if (!cat || !cat.name) return '';
-            if (this.locale !== 'km') return cat.name;
-            const n = cat.name.toLowerCase();
-            if (n.includes('account') || n.includes('access')) return 'គណនី & សិទ្ធិចូលប្រព័ន្ធ';
-            if (n.includes('pos') || n.includes('cashier')) return 'ប្រព័ន្ធ POS & កុងទ័រគិតលុយ';
-            if (n.includes('hardware') || n.includes('equipment')) return 'កុំព្យូទ័រ & ឧបករណ៍បច្ចេកវិទ្យា';
-            if (n.includes('software') || n.includes('application')) return 'កម្មវិធីកុំព្យូទ័រ & អាជ្ញាប័ណ្ណ';
-            if (n.includes('email') || n.includes('collaboration')) return 'អ៊ីមែល & Microsoft 365';
-            if (n.includes('network') || n.includes('connectivity') || n.includes('internet')) return 'ប្រព័ន្ធបណ្តាញ & អ៊ីនធឺណិត';
-            if (n.includes('business') || n.includes('erp')) return 'ប្រព័ន្ធគ្រប់គ្រងអាជីវកម្ម (ERP)';
-            if (n.includes('facility') || n.includes('cctv') || n.includes('phone') || n.includes('other')) return 'សេវា IT ផ្សេងៗ & បន្ទប់ប្រជុំ';
-            if (n.includes('procurement') || n.includes('service request')) return 'សំណើស្នើសុំឧបករណ៍ & អាជ្ញាប័ណ្ណ';
-            return cat.name;
+            if (!cat) return '';
+            if (typeof cat === 'string') return cat;
+            if (this.locale === 'km') {
+                if (cat.name_km && cat.name_km.trim()) return cat.name_km.trim();
+                const n = (cat.name || '').toLowerCase();
+                if (n.includes('account') || n.includes('access')) return 'គណនី & សិទ្ធិចូលប្រព័ន្ធ';
+                if (n.includes('pos') || n.includes('cashier')) return 'ប្រព័ន្ធ POS & កុងទ័រគិតលុយ';
+                if (n.includes('hardware') || n.includes('equipment')) return 'កុំព្យូទ័រ & ឧបករណ៍បច្ចេកវិទ្យា';
+                if (n.includes('software') || n.includes('application')) return 'កម្មវិធីកុំព្យូទ័រ & អាជ្ញាប័ណ្ណ';
+                if (n.includes('email') || n.includes('collaboration')) return 'អ៊ីមែល & Microsoft 365';
+                if (n.includes('network') || n.includes('connectivity') || n.includes('internet')) return 'ប្រព័ន្ធបណ្តាញ & អ៊ីនធឺណិត';
+                if (n.includes('business') || n.includes('erp')) return 'ប្រព័ន្ធគ្រប់គ្រងអាជីវកម្ម (ERP)';
+                if (n.includes('facility') || n.includes('cctv') || n.includes('phone') || n.includes('other')) return 'សេវា IT ផ្សេងៗ & បន្ទប់ប្រជុំ';
+                if (n.includes('procurement') || n.includes('service request')) return 'សំណើស្នើសុំឧបករណ៍ & អាជ្ញាប័ណ្ណ';
+            }
+            return cat.name || '';
         },
 
         get isHod() {
@@ -217,9 +220,10 @@ function tmaApp() {
             const q = this.categorySearchQuery.toLowerCase().trim();
             return list.filter(c => {
                 const nameMatch = (c.name || '').toLowerCase().includes(q);
-                const subMatch = (c.children || []).some(sub => (sub.name || '').toLowerCase().includes(q));
+                const nameKmMatch = (c.name_km || '').toLowerCase().includes(q);
+                const subMatch = (c.children || []).some(sub => (sub.name || '').toLowerCase().includes(q) || (sub.name_km || '').toLowerCase().includes(q));
                 const subtitleMatch = this.getCategorySubtitle(c).toLowerCase().includes(q);
-                return nameMatch || subMatch || subtitleMatch;
+                return nameMatch || nameKmMatch || subMatch || subtitleMatch;
             });
         },
 

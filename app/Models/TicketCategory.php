@@ -14,6 +14,7 @@ class TicketCategory extends Model
     protected $fillable = [
         'parent_id',
         'name',
+        'name_km',
         'type',
         'requires_approval',
         'default_priority',

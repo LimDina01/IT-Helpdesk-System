@@ -164,7 +164,7 @@
                     <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2" x-text="t('specifications')">Specifications</h3>
                     <div class="flex items-center justify-between py-1.5 border-b border-slate-100">
                         <span class="text-slate-500" x-text="t('category')">Category</span>
-                        <span class="font-semibold text-slate-800" x-text="selectedTicket?.category_name || 'IT Support'"></span>
+                        <span class="font-semibold text-slate-800" x-text="(locale === 'km' && selectedTicket?.category_name_km) ? selectedTicket.category_name_km : (selectedTicket?.category_name || 'IT Support')"></span>
                     </div>
                     <div class="flex items-center justify-between py-1.5 border-b border-slate-100">
                         <span class="text-slate-500" x-text="t('branch')">Office / Branch</span>

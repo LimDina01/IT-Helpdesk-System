@@ -45,6 +45,7 @@ class PortalAdminController extends Controller
         $validated = $request->validate([
             'parent_id' => 'nullable|exists:ticket_categories,id',
             'name' => 'required|string|max:100',
+            'name_km' => 'nullable|string|max:150',
             'type' => 'required|in:incident_issue,service_request',
             'requires_approval' => 'nullable|boolean',
             'default_priority' => 'nullable|in:low,medium,high,critical',
@@ -74,6 +75,7 @@ class PortalAdminController extends Controller
         $validated = $request->validate([
             'parent_id' => 'nullable|exists:ticket_categories,id|not_in:' . $category->id,
             'name' => 'required|string|max:100',
+            'name_km' => 'nullable|string|max:150',
             'type' => 'required|in:incident_issue,service_request',
             'requires_approval' => 'nullable|boolean',
             'default_priority' => 'nullable|in:low,medium,high,critical',

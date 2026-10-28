@@ -35,11 +35,12 @@
         this.isEditingParent = isParent;
         this.deleteModal = true;
     },
-    matchesSearch(parentName, children = []) {
+    matchesSearch(parentName, parentNameKm, children = []) {
         if (!this.search.trim()) return true;
         const q = this.search.toLowerCase().trim();
-        if (parentName.toLowerCase().includes(q)) return true;
-        return children.some(c => c.name.toLowerCase().includes(q));
+        if ((parentName || '').toLowerCase().includes(q)) return true;
+        if ((parentNameKm || '').toLowerCase().includes(q)) return true;
+        return children.some(c => (c.name || '').toLowerCase().includes(q) || (c.name_km || '').toLowerCase().includes(q));
     }
 }" class="space-y-6">
 
@@ -123,7 +124,7 @@
         @endphp
 
         @forelse($categories as $parent)
-            <div x-show="matchesSearch('{{ addslashes($parent->name) }}', {{ json_encode($parent->children->map(fn($c) => ['name' => $c->name])) }})"
+            <div x-show="matchesSearch('{{ addslashes($parent->name) }}', '{{ addslashes($parent->name_km ?? '') }}', {{ json_encode($parent->children->map(fn($c) => ['name' => $c->name, 'name_km' => $c->name_km])) }})"
                  class="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden transition">
                 
                 <!-- Parent Header -->
@@ -135,6 +136,9 @@
                         <div>
                             <div class="flex items-center space-x-2">
                                 <span class="font-extrabold text-sm text-slate-900">{{ $parent->name }}</span>
+                                @if($parent->name_km)
+                                    <span class="text-xs font-semibold text-slate-600 bg-slate-200/80 px-2 py-0.5 rounded-lg">{{ $parent->name_km }}</span>
+                                @endif
                                 @if(!$parent->is_active)
                                     <span class="text-[9px] font-bold uppercase px-1.5 py-0.2 rounded bg-slate-200 text-slate-600">Disabled</span>
                                 @endif
@@ -209,10 +213,13 @@
                         <tbody class="divide-y divide-slate-100">
                             @forelse($parent->children as $child)
                                 <tr class="hover:bg-slate-50/70 transition"
-                                    x-show="!search.trim() || '{{ strtolower(addslashes($child->name)) }}'.includes(search.toLowerCase().trim()) || '{{ strtolower(addslashes($parent->name)) }}'.includes(search.toLowerCase().trim())">
+                                    x-show="!search.trim() || '{{ strtolower(addslashes($child->name)) }}'.includes(search.toLowerCase().trim()) || '{{ strtolower(addslashes($child->name_km ?? '')) }}'.includes(search.toLowerCase().trim()) || '{{ strtolower(addslashes($parent->name)) }}'.includes(search.toLowerCase().trim()) || '{{ strtolower(addslashes($parent->name_km ?? '')) }}'.includes(search.toLowerCase().trim())">
                                     <td class="py-3 px-6 font-bold text-slate-800 whitespace-nowrap">
                                         <div class="flex items-center space-x-1.5">
                                             <span>{{ $child->name }}</span>
+                                            @if($child->name_km)
+                                                <span class="text-[11px] font-medium text-slate-500">({{ $child->name_km }})</span>
+                                            @endif
                                             @if(!$child->is_active)
                                                 <span class="text-[9px] font-bold uppercase px-1.5 py-0.2 rounded bg-slate-200 text-slate-600">Disabled</span>
                                             @endif
@@ -316,7 +323,7 @@
     <!-- 1. CREATE PARENT GROUP MODAL               -->
     <!-- ========================================== -->
     <div x-show="createGroupModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4" x-cloak>
-        <div @click.away="createGroupModal = false" class="bg-white rounded-3xl max-w-md w-full shadow-2xl p-6 space-y-4">
+        <div @click.away="createGroupModal = false" class="bg-white rounded-3xl max-w-lg w-full shadow-2xl p-6 space-y-4">
             <div class="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div class="flex items-center space-x-2">
                     <span class="text-xl">📁</span>
@@ -329,9 +336,15 @@
                 @csrf
                 <input type="hidden" name="parent_id" value="">
 
-                <div>
-                    <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Group Name</label>
-                    <input type="text" name="name" required placeholder="e.g. Hardware & Devices, Network & Internet" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Group Name (EN)</label>
+                        <input type="text" name="name" required placeholder="e.g. Hardware & Devices" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Khmer Name (ឈ្មោះជាភាសាខ្មែរ)</label>
+                        <input type="text" name="name_km" placeholder="ឧ. កុំព្យូទ័រ & ឧបករណ៍បច្ចេកវិទ្យា" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-sans">
+                    </div>
                 </div>
 
                 <div>
@@ -380,9 +393,15 @@
                     </select>
                 </div>
 
-                <div>
-                    <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Subcategory Name</label>
-                    <input type="text" name="name" required placeholder="e.g. Dual Monitor Display Request, Paper Jam" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Subcategory Name (EN)</label>
+                        <input type="text" name="name" required placeholder="e.g. Dual Monitor Display Request" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Khmer Name (ឈ្មោះជាភាសាខ្មែរ)</label>
+                        <input type="text" name="name_km" placeholder="ឧ. ស្នើសុំបន្ថែមអេក្រង់កុំព្យូទ័រ" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-sans">
+                    </div>
                 </div>
 
                 <div class="grid grid-cols-2 gap-3">
@@ -465,9 +484,15 @@
                     <p class="text-[10px] text-slate-400 mt-1">You can move this subcategory to another parent group anytime.</p>
                 </div>
 
-                <div>
-                    <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Name</label>
-                    <input type="text" name="name" x-model="editCat.name" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Name (EN)</label>
+                        <input type="text" name="name" x-model="editCat.name" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Khmer Name (ឈ្មោះជាភាសាខ្មែរ)</label>
+                        <input type="text" name="name_km" x-model="editCat.name_km" placeholder="ឈ្មោះជាភាសាខ្មែរ..." class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-sans">
+                    </div>
                 </div>
 
                 <div class="grid grid-cols-2 gap-3">

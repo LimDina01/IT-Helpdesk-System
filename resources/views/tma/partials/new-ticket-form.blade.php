@@ -48,9 +48,9 @@
                             class="tma-select w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-slate-900 font-medium shadow-xs"
                             style="color: #0f172a !important; -webkit-text-fill-color: #0f172a !important; background-color: #ffffff !important;">
                         <template x-for="sub in filteredSubcategories" :key="sub.id">
-                            <option :value="sub.id" x-text="sub.name" style="color: #0f172a !important; background-color: #ffffff !important;"></option>
+                            <option :value="sub.id" x-text="(locale === 'km' && sub.name_km) ? sub.name_km : sub.name" style="color: #0f172a !important; background-color: #ffffff !important;"></option>
                         </template>
-                        <option x-show="filteredSubcategories.length === 0" :value="formParentCatId" style="color: #0f172a !important; background-color: #ffffff !important;">Other / General</option>
+                        <option x-show="filteredSubcategories.length === 0" :value="formParentCatId" x-text="locale === 'km' ? 'ផ្សេងៗ / ទូទៅ' : 'Other / General'" style="color: #0f172a !important; background-color: #ffffff !important;">Other / General</option>
                     </select>
                 </div>
 

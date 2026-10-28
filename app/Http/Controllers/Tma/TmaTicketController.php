@@ -139,7 +139,9 @@ class TmaTicketController extends Controller
             'priority' => $t->priority,
             'branch_name' => $t->branch->name ?? 'N/A',
             'category_name' => $t->category->name ?? 'N/A',
+            'category_name_km' => $t->category->name_km ?? null,
             'parent_category_name' => $t->category->parent->name ?? null,
+            'parent_category_name_km' => $t->category->parent->name_km ?? null,
             'technician_name' => $t->technician->name ?? 'Awaiting Assignment',
             'requester_name' => $t->requester->name ?? 'N/A',
             'requester_dept' => $t->requester->employee?->department?->name ?? 'N/A',
@@ -267,7 +269,9 @@ class TmaTicketController extends Controller
                 'priority' => $ticket->priority,
                 'branch_name' => $ticket->branch->name ?? 'N/A',
                 'category_name' => $ticket->category->name ?? 'N/A',
+                'category_name_km' => $ticket->category->name_km ?? null,
                 'parent_category_name' => $ticket->category->parent->name ?? null,
+                'parent_category_name_km' => $ticket->category->parent->name_km ?? null,
                 'category_type' => $ticket->category->type ?? 'incident_issue',
                 'technician_name' => $ticket->technician->name ?? 'Not Assigned Yet',
                 'helpdesk_name' => $ticket->helpdesk->name ?? null,
@@ -708,9 +712,9 @@ class TmaTicketController extends Controller
         $categories = TicketCategory::whereNull('parent_id')
             ->where('is_active', true)
             ->with(['children' => function ($query) {
-                $query->where('is_active', true)->select('id', 'parent_id', 'name', 'type', 'requires_approval', 'default_priority');
+                $query->where('is_active', true)->select('id', 'parent_id', 'name', 'name_km', 'type', 'requires_approval', 'default_priority');
             }])
-            ->select('id', 'name', 'type', 'requires_approval', 'default_priority')
+            ->select('id', 'name', 'name_km', 'type', 'requires_approval', 'default_priority')
             ->get();
 
         $user = Auth::user();

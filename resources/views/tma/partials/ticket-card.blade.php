@@ -90,7 +90,7 @@
     <!-- Footer: Category, Tech/Requester & Time -->
     <div class="flex items-center justify-between text-[11px] text-slate-500 pt-1 border-t border-slate-100">
         <div class="flex items-center space-x-1.5 truncate max-w-[200px]">
-            <span class="truncate" x-text="t.category_name"></span>
+            <span class="truncate" x-text="(locale === 'km' && t.category_name_km) ? t.category_name_km : t.category_name"></span>
         </div>
         <span x-text="t.created_at_human"></span>
     </div>
