@@ -271,17 +271,17 @@
             </div>
         @endif
 
-        <!-- Ticket Table Container (Dynamically Swappable via AJAX) -->
+        <!-- Ticket Table Container -->
         <div id="ticketTableContainer" class="overflow-x-auto">
             <table class="w-full text-left text-xs">
                 <thead class="bg-slate-50/80 text-slate-500 font-bold uppercase tracking-wider text-[10px] border-b border-slate-200">
                     <tr>
-                        <th class="py-3 px-4">Ticket</th>
-                        <th class="py-3 px-4">Subject & Details</th>
-                        <th class="py-3 px-4">Requester / Branch</th>
-                        <th class="py-3 px-4">Technician</th>
-                        <th class="py-3 px-4">Status & SLA</th>
-                        <th class="py-3 px-4 text-right">Actions</th>
+                        <th class="py-2.5 px-3">Ticket</th>
+                        <th class="py-2.5 px-3">Subject & Details</th>
+                        <th class="py-2.5 px-3">Requester / Branch</th>
+                        <th class="py-2.5 px-3">Technician</th>
+                        <th class="py-2.5 px-3">Status & SLA</th>
+                        <th class="py-2.5 px-3 text-right">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
@@ -291,9 +291,9 @@
                             x-show="matchesSearch($el)">
                             
                             <!-- Ticket Code & Priority -->
-                            <td class="py-3.5 px-4 whitespace-nowrap">
+                            <td class="py-2.5 px-3 whitespace-nowrap">
                                 <div class="flex items-center space-x-1">
-                                    <a href="{{ route('portal.tickets.show', $t->id) }}" class="font-mono font-bold text-blue-600 hover:underline">
+                                    <a href="{{ route('portal.tickets.show', $t->id) }}" class="font-mono font-bold text-blue-600 hover:underline text-xs">
                                         {{ $t->ticket_code }}
                                     </a>
                                     <button type="button"
@@ -303,7 +303,7 @@
                                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
                                     </button>
                                 </div>
-                                <div class="mt-1">
+                                <div class="mt-0.5">
                                     @if($t->priority === 'critical')
                                         <span class="bg-red-600 text-white font-bold text-[9px] uppercase px-1.5 py-0.5 rounded tracking-wider">Critical</span>
                                     @elseif($t->priority === 'high')
@@ -317,60 +317,56 @@
                             </td>
 
                             <!-- Subject & Category -->
-                            <td class="py-3.5 px-4 max-w-sm">
-                                <div class="flex items-center space-x-1.5 mb-1">
+                            <td class="py-2.5 px-3 min-w-[150px] max-w-[240px]">
+                                <div class="flex items-center space-x-1 mb-0.5">
                                     @if($t->isIncident())
-                                        <span class="text-[9px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-1.5 py-0.2 rounded">🔴 Incident</span>
+                                        <span class="text-[9px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-1 py-0.2 rounded leading-tight">🔴 Incident</span>
                                     @else
-                                        <span class="text-[9px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.2 rounded">🔵 Service Request</span>
+                                        <span class="text-[9px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-1 py-0.2 rounded leading-tight">🔵 Request</span>
                                     @endif
                                 </div>
-                                <a href="{{ route('portal.tickets.show', $t->id) }}" class="font-bold text-slate-800 hover:text-blue-600 line-clamp-1">
+                                <a href="{{ route('portal.tickets.show', $t->id) }}" class="font-bold text-slate-800 hover:text-blue-600 line-clamp-1 text-xs">
                                     {{ $t->subject }}
                                 </a>
-                                <div class="text-[11px] text-slate-500 flex items-center space-x-1.5 mt-0.5">
-                                    <span>{{ $t->category->name ?? 'Uncategorized' }}</span>
-                                    @if($t->category->parent)
-                                        <span class="text-slate-400">({{ $t->category->parent->name }})</span>
-                                    @endif
+                                <div class="text-[10px] text-slate-400 truncate mt-0.5">
+                                    {{ $t->category->name ?? 'Uncategorized' }}
                                 </div>
                             </td>
 
                             <!-- Requester & Location -->
-                            <td class="py-3.5 px-4 whitespace-nowrap">
-                                <div class="font-semibold text-slate-700">{{ $t->requester->name }}</div>
-                                <div class="text-[11px] text-slate-500 flex items-center space-x-1 mt-0.5">
-                                    <span class="font-medium text-slate-600">{{ $t->branch->code }}</span>
-                                    <span>•</span>
-                                    <span>{{ $t->branch->name }}</span>
+                            <td class="py-2.5 px-3">
+                                <div class="font-semibold text-slate-700 text-xs truncate max-w-[120px] 2xl:max-w-none" title="{{ $t->requester->name }}">{{ $t->requester->name }}</div>
+                                <div class="text-[10px] text-slate-500 flex items-center space-x-1 mt-0.5">
+                                    <span class="font-bold text-slate-700">{{ $t->branch->code }}</span>
+                                    <span class="text-slate-400 truncate max-w-[90px] 2xl:max-w-none" title="{{ $t->branch->name }}">• {{ $t->branch->name }}</span>
                                 </div>
                             </td>
 
                             <!-- Technician Assignment -->
-                            <td class="py-3.5 px-4 whitespace-nowrap">
+                            <td class="py-2.5 px-3">
                                 @if($t->technician)
-                                    <div class="font-semibold text-slate-800 flex items-center space-x-1">
-                                        <div class="w-2 h-2 rounded-full bg-emerald-500"></div>
-                                        <span>{{ $t->technician->name }}</span>
+                                    <div class="font-semibold text-slate-800 text-xs flex items-center space-x-1">
+                                        <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></div>
+                                        <span class="truncate max-w-[120px] 2xl:max-w-none" title="{{ $t->technician->name }}">{{ $t->technician->name }}</span>
                                     </div>
                                     <div class="text-[10px] text-slate-400 mt-0.5">
-                                        Assigned {{ $t->assigned_at ? $t->assigned_at->diffForHumans() : '' }}
+                                        Assigned {{ $t->assigned_at ? $t->assigned_at->diffForHumans(null, true) : '' }}
                                     </div>
                                 @else
-                                    <span class="text-amber-700 font-medium bg-amber-50 px-2 py-0.5 rounded text-[11px]">
+                                    <span class="text-amber-700 font-medium bg-amber-50 px-1.5 py-0.5 rounded text-[10px]">
                                         Unassigned
                                     </span>
                                 @endif
                             </td>
 
                             <!-- Status & Live SLA Tracking -->
-                            <td class="py-3.5 px-4 whitespace-nowrap">
+                            <td class="py-2.5 px-3">
                                 @php
                                     $ackBreached = false;
                                     $ackRemainingMins = null;
                                     $minsElapsed = 0;
                                     if ($t->status === 'assigned' && !$t->acknowledged_at && $t->assigned_at) {
-                                        $minsElapsed = (int) now()->diffInMinutes($t->assigned_at);
+                                        $minsElapsed = abs((int) now()->diffInMinutes($t->assigned_at));
                                         if ($minsElapsed > 30) {
                                             $ackBreached = true;
                                         } else {
@@ -379,73 +375,59 @@
                                     }
 
                                     $targetResolveHours = $t->category?->target_resolve_hours;
-                                    $hoursElapsed = (int) now()->diffInHours($t->created_at);
+                                    $hoursElapsed = abs((int) now()->diffInHours($t->created_at));
                                     $hoursRemaining = $targetResolveHours ? ($targetResolveHours - $hoursElapsed) : null;
                                 @endphp
 
-                                <div class="flex flex-col space-y-1">
-                                    <div class="flex items-center space-x-1.5">
+                                <div class="flex flex-col space-y-0.5">
+                                    <div class="flex items-center flex-wrap gap-1">
                                         @if($t->status === 'pending_approval')
-                                            <span class="bg-purple-100 text-purple-800 font-bold px-2 py-0.5 rounded text-[10px] uppercase animate-pulse">Pending Approval</span>
+                                            <span class="bg-purple-100 text-purple-800 font-bold px-1.5 py-0.5 rounded text-[9px] uppercase animate-pulse">Approval</span>
                                         @elseif($t->status === 'rejected')
-                                            <span class="bg-rose-100 text-rose-800 font-bold px-2 py-0.5 rounded text-[10px] uppercase">Rejected</span>
+                                            <span class="bg-rose-100 text-rose-800 font-bold px-1.5 py-0.5 rounded text-[9px] uppercase">Rejected</span>
                                         @elseif($t->status === 'submitted')
-                                            <span class="bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded text-[10px] uppercase">Triage</span>
+                                            <span class="bg-blue-100 text-blue-800 font-bold px-1.5 py-0.5 rounded text-[9px] uppercase">Triage</span>
                                         @elseif($t->status === 'assigned')
-                                            <span class="bg-purple-100 text-purple-800 font-bold px-2 py-0.5 rounded text-[10px] uppercase">Awaiting Accept</span>
+                                            <span class="bg-purple-100 text-purple-800 font-bold px-1.5 py-0.5 rounded text-[9px] uppercase">Awaiting Accept</span>
                                         @elseif($t->status === 'in_progress')
-                                            <span class="bg-indigo-100 text-indigo-800 font-bold px-2 py-0.5 rounded text-[10px] uppercase">In Progress</span>
+                                            <span class="bg-indigo-100 text-indigo-800 font-bold px-1.5 py-0.5 rounded text-[9px] uppercase">In Progress</span>
                                         @elseif($t->status === 'clarifying')
-                                            <span class="bg-amber-100 text-amber-900 font-bold px-2 py-0.5 rounded text-[10px] uppercase">Needs Info</span>
+                                            <span class="bg-amber-100 text-amber-900 font-bold px-1.5 py-0.5 rounded text-[9px] uppercase">Needs Info</span>
                                         @elseif($t->status === 'blocked')
-                                            <span class="bg-red-100 text-red-800 font-bold px-2 py-0.5 rounded text-[10px] uppercase">Blocked</span>
+                                            <span class="bg-red-100 text-red-800 font-bold px-1.5 py-0.5 rounded text-[9px] uppercase">Blocked</span>
                                         @elseif($t->status === 'pending_confirmation')
-                                            <span class="bg-emerald-100 text-emerald-900 font-bold px-2 py-0.5 rounded text-[10px] uppercase">Pending Confirm</span>
+                                            <span class="bg-emerald-100 text-emerald-900 font-bold px-1.5 py-0.5 rounded text-[9px] uppercase">Pending Confirm</span>
                                         @elseif($t->status === 'reopened')
-                                            <span class="bg-rose-100 text-rose-800 font-bold px-2 py-0.5 rounded text-[10px] uppercase">Reopened</span>
-                                        @elseif($t->status === 'resolved_confirmed')
-                                            <span class="bg-teal-100 text-teal-800 font-bold px-2 py-0.5 rounded text-[10px] uppercase">✔ Solved</span>
-                                        @elseif($t->status === 'resolved_auto_closed')
-                                            <span class="bg-teal-100 text-teal-800 font-bold px-2 py-0.5 rounded text-[10px] uppercase">✔ Auto Closed</span>
+                                            <span class="bg-rose-100 text-rose-800 font-bold px-1.5 py-0.5 rounded text-[9px] uppercase">Reopened</span>
+                                        @elseif($t->status === 'resolved_confirmed' || $t->status === 'resolved_auto_closed')
+                                            <span class="bg-teal-100 text-teal-800 font-bold px-1.5 py-0.5 rounded text-[9px] uppercase">✔ Solved</span>
                                         @elseif($t->status === 'closed')
-                                            <span class="bg-slate-100 text-slate-700 font-bold px-2 py-0.5 rounded text-[10px] uppercase">Closed</span>
+                                            <span class="bg-slate-100 text-slate-700 font-bold px-1.5 py-0.5 rounded text-[9px] uppercase">Closed</span>
                                         @else
-                                            <span class="bg-slate-100 text-slate-700 font-bold px-2 py-0.5 rounded text-[10px] uppercase">{{ $t->status }}</span>
+                                            <span class="bg-slate-100 text-slate-700 font-bold px-1.5 py-0.5 rounded text-[9px] uppercase">{{ $t->status }}</span>
                                         @endif
 
                                         <!-- Live 30m Ack SLA Badge -->
                                         @if($ackBreached)
-                                            <span class="bg-red-600 text-white font-extrabold text-[9px] uppercase px-2 py-0.5 rounded-full animate-pulse flex items-center space-x-1" title="30-minute tech acceptance SLA breached!">
+                                            <span class="bg-red-600 text-white font-extrabold text-[9px] uppercase px-1.5 py-0.5 rounded-full animate-pulse flex items-center space-x-0.5" title="30-minute tech acceptance SLA breached!">
                                                 <span>⚠️</span>
                                                 <span>Overdue Ack (+{{ $minsElapsed }}m)</span>
                                             </span>
                                         @elseif($ackRemainingMins !== null)
-                                            @if($ackRemainingMins <= 5)
-                                                <span class="bg-red-100 text-red-700 border border-red-300 font-extrabold text-[9px] uppercase px-2 py-0.5 rounded-full animate-pulse flex items-center space-x-1" title="Urgent: Less than 5 mins to accept!">
-                                                    <span>⚡</span>
-                                                    <span>{{ $ackRemainingMins }}m left</span>
-                                                </span>
-                                            @elseif($ackRemainingMins <= 15)
-                                                <span class="bg-amber-100 text-amber-800 border border-amber-300 font-bold text-[9px] uppercase px-2 py-0.5 rounded-full flex items-center space-x-1" title="Acknowledgement target deadline">
-                                                    <span>⏱️</span>
-                                                    <span>{{ $ackRemainingMins }}m left</span>
-                                                </span>
-                                            @else
-                                                <span class="bg-blue-50 text-blue-700 border border-blue-200 font-bold text-[9px] uppercase px-2 py-0.5 rounded-full flex items-center space-x-1" title="Acknowledgement target deadline">
-                                                    <span>⏱️</span>
-                                                    <span>{{ $ackRemainingMins }}m left</span>
-                                                </span>
-                                            @endif
+                                            <span class="bg-blue-50 text-blue-700 border border-blue-200 font-bold text-[9px] uppercase px-1.5 py-0.5 rounded-full flex items-center space-x-0.5" title="Acknowledgement target deadline">
+                                                <span>⏱️</span>
+                                                <span>{{ $ackRemainingMins }}m left</span>
+                                            </span>
                                         @endif
                                     </div>
 
                                     <!-- Target Resolution SLA Info -->
-                                    <div class="text-[10px] text-slate-400 flex items-center space-x-2">
+                                    <div class="text-[10px] text-slate-400 flex items-center space-x-1.5">
                                         <span>Age: {{ $t->created_at->diffForHumans(null, true) }}</span>
                                         @if($hoursRemaining !== null && in_array($t->status, ['assigned', 'in_progress', 'blocked']))
                                             <span>•</span>
                                             @if($hoursRemaining < 0)
-                                                <span class="text-rose-600 font-bold">Resolve Overdue (+{{ abs($hoursRemaining) }}h)</span>
+                                                <span class="text-rose-600 font-bold">Overdue (+{{ abs($hoursRemaining) }}h)</span>
                                             @elseif($hoursRemaining <= 8)
                                                 <span class="text-amber-600 font-bold">Due in {{ $hoursRemaining }}h</span>
                                             @else
@@ -457,15 +439,14 @@
                             </td>
 
                             <!-- Action Buttons -->
-                            <td class="py-3.5 px-4 text-right whitespace-nowrap">
-                                <div class="flex items-center justify-end space-x-1.5">
-                                    
+                            <td class="py-2.5 px-3 text-right whitespace-nowrap">
+                                <div class="flex items-center justify-end space-x-1">
                                     <!-- Technician or Admin Quick Accept Button -->
                                     @if($t->status === 'assigned' && ($t->current_technician_id === Auth::id() || Auth::user()->hasAnyRole(['system_admin', 'hod'])))
-                                        <form method="POST" action="{{ route('portal.tickets.accept', $t->id) }}">
+                                        <form method="POST" action="{{ route('portal.tickets.accept', $t->id) }}" class="inline">
                                             @csrf
-                                            <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-2.5 py-1.5 rounded-lg shadow-xs transition" title="Accept & Start this ticket">
-                                                Accept & Start
+                                            <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] px-2 py-1 rounded-lg shadow-2xs transition" title="Accept & Start this ticket">
+                                                Accept
                                             </button>
                                         </form>
                                     @endif
@@ -474,14 +455,14 @@
                                     @if(Auth::user()->hasAnyRole(['helpdesk', 'system_admin', 'hod']))
                                         <button type="button"
                                                 @click="selectedTicket = { id: {{ $t->id }}, code: '{{ $t->ticket_code }}', priority: '{{ $t->priority }}' }; targetPriority = '{{ $t->priority }}'; assignModal = true"
-                                                class="bg-slate-100 hover:bg-blue-50 hover:text-blue-600 text-slate-700 font-semibold text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 transition">
+                                                class="bg-slate-100 hover:bg-blue-50 hover:text-blue-600 text-slate-700 font-semibold text-[11px] px-2 py-1 rounded-lg border border-slate-200 transition">
                                             {{ $t->current_technician_id ? 'Reassign' : 'Assign' }}
                                         </button>
                                     @endif
 
                                     <!-- Open Workspace -->
                                     <a href="{{ route('portal.tickets.show', $t->id) }}"
-                                       class="bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs px-3 py-1.5 rounded-lg shadow-xs transition">
+                                       class="bg-blue-600 hover:bg-blue-700 text-white font-semibold text-[11px] px-2.5 py-1 rounded-lg shadow-2xs transition">
                                         View
                                     </a>
                                 </div>

@@ -24,7 +24,7 @@
 
     <!-- Top Navigation Bar -->
     <header class="bg-slate-900 text-white sticky top-0 z-30 shadow-md">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        <div class="max-w-7xl 2xl:max-w-screen-2xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
             
             <!-- Brand & Navigation Links -->
             <div class="flex items-center space-x-8">
@@ -104,7 +104,7 @@
 
     <!-- Flash Messages -->
     @if(session('status'))
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+        <div class="max-w-7xl 2xl:max-w-screen-2xl mx-auto px-4 sm:px-6 mt-4">
             <div class="bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded-xl text-xs font-semibold flex items-center justify-between shadow-xs">
                 <div class="flex items-center space-x-2">
                     <svg class="w-4 h-4 text-emerald-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
@@ -116,7 +116,7 @@
     @endif
 
     @if($errors->any())
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+        <div class="max-w-7xl 2xl:max-w-screen-2xl mx-auto px-4 sm:px-6 mt-4">
             <div class="bg-rose-50 border border-rose-200 text-rose-800 px-4 py-3 rounded-xl text-xs font-semibold shadow-xs space-y-1">
                 @foreach($errors->all() as $error)
                     <div class="flex items-center space-x-2">
@@ -129,7 +129,7 @@
     @endif
 
     <!-- Main Workspace Content -->
-    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <main class="flex-1 max-w-7xl 2xl:max-w-screen-2xl w-full mx-auto px-4 sm:px-6 py-6">
         @yield('content')
     </main>
 

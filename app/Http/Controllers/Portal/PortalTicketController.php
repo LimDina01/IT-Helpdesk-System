@@ -56,7 +56,7 @@ class PortalTicketController extends Controller
         // 30-min acknowledgement SLA status
         $isOverdueAcknowledgement = false;
         if ($ticket->status === 'assigned' && !$ticket->acknowledged_at && $ticket->assigned_at) {
-            $isOverdueAcknowledgement = Carbon::now()->diffInMinutes($ticket->assigned_at) > 30;
+            $isOverdueAcknowledgement = abs((int) now()->diffInMinutes($ticket->assigned_at)) > 30;
         }
 
         $approvalService = app(\App\Services\TicketApprovalService::class);
