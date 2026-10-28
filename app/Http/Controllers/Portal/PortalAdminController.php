@@ -47,40 +47,54 @@ class PortalAdminController extends Controller
             'name' => 'required|string|max:100',
             'type' => 'required|in:incident_issue,service_request',
             'requires_approval' => 'nullable|boolean',
-            'default_priority' => 'required|in:low,medium,high,critical',
-            'target_acknowledge_minutes' => 'required|integer|min:5|max:1440',
-            'target_resolve_hours' => 'required|integer|min:1|max:720',
+            'default_priority' => 'nullable|in:low,medium,high,critical',
+            'target_acknowledge_minutes' => 'nullable|integer|min:5|max:1440',
+            'target_resolve_hours' => 'nullable|integer|min:1|max:720',
         ]);
 
         $validated['requires_approval'] = $request->boolean('requires_approval');
+        $validated['default_priority'] = $validated['default_priority'] ?? 'medium';
+        $validated['target_acknowledge_minutes'] = $validated['target_acknowledge_minutes'] ?? 30;
+        $validated['target_resolve_hours'] = $validated['target_resolve_hours'] ?? 24;
         $validated['is_active'] = true;
 
-        TicketCategory::create($validated);
+        $created = TicketCategory::create($validated);
+        $typeLabel = $created->parent_id ? 'Subcategory' : 'Parent Category Group';
 
-        return back()->with('status', "Category '{$validated['name']}' created successfully!");
+        return back()->with('status', "{$typeLabel} '{$created->name}' created successfully!");
     }
 
     /**
-     * Update an existing category.
+     * Update an existing category or parent group.
      */
     public function updateCategory(Request $request, TicketCategory $category): RedirectResponse
     {
         abort_unless(Auth::user()->hasRole(['system_admin', 'hod']), 403);
 
         $validated = $request->validate([
+            'parent_id' => 'nullable|exists:ticket_categories,id|not_in:' . $category->id,
             'name' => 'required|string|max:100',
             'type' => 'required|in:incident_issue,service_request',
             'requires_approval' => 'nullable|boolean',
-            'default_priority' => 'required|in:low,medium,high,critical',
-            'target_acknowledge_minutes' => 'required|integer|min:5|max:1440',
-            'target_resolve_hours' => 'required|integer|min:1|max:720',
+            'default_priority' => 'nullable|in:low,medium,high,critical',
+            'target_acknowledge_minutes' => 'nullable|integer|min:5|max:1440',
+            'target_resolve_hours' => 'nullable|integer|min:1|max:720',
         ]);
 
         $validated['requires_approval'] = $request->boolean('requires_approval');
+        $validated['default_priority'] = $validated['default_priority'] ?? 'medium';
+        $validated['target_acknowledge_minutes'] = $validated['target_acknowledge_minutes'] ?? 30;
+        $validated['target_resolve_hours'] = $validated['target_resolve_hours'] ?? 24;
+
+        // If explicitly set empty, allow removing parent (promoting to root)
+        if ($request->has('parent_id') && empty($request->input('parent_id'))) {
+            $validated['parent_id'] = null;
+        }
 
         $category->update($validated);
 
-        return back()->with('status', "Category '{$category->name}' updated!");
+        $typeLabel = $category->parent_id ? 'Subcategory' : 'Parent Group';
+        return back()->with('status', "{$typeLabel} '{$category->name}' updated successfully!");
     }
 
     /**
@@ -94,6 +108,36 @@ class PortalAdminController extends Controller
 
         $statusStr = $category->is_active ? 'activated' : 'deactivated';
         return back()->with('status', "Category '{$category->name}' {$statusStr}.");
+    }
+
+    /**
+     * Delete an unused category or parent group.
+     */
+    public function destroyCategory(TicketCategory $category): RedirectResponse
+    {
+        abort_unless(Auth::user()->hasRole(['system_admin', 'hod']), 403);
+
+        // 1. Check if it has child subcategories
+        if ($category->children()->exists()) {
+            $childCount = $category->children()->count();
+            return back()->withErrors([
+                'error' => "Cannot delete group '{$category->name}' because it contains {$childCount} subcategories. Please delete or move them first."
+            ]);
+        }
+
+        // 2. Check if it has linked tickets
+        if ($category->tickets()->exists()) {
+            $ticketCount = $category->tickets()->count();
+            return back()->withErrors([
+                'error' => "Cannot delete '{$category->name}' because it has {$ticketCount} existing ticket(s). You can disable it instead to preserve historical records."
+            ]);
+        }
+
+        $name = $category->name;
+        $isParent = $category->parent_id === null;
+        $category->delete();
+
+        return back()->with('status', ($isParent ? 'Parent Group' : 'Subcategory') . " '{$name}' permanently deleted.");
     }
 
     /**

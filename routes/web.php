@@ -104,6 +104,7 @@ Route::prefix('portal')->group(function () {
             Route::post('/categories', [PortalAdminController::class, 'storeCategory'])->name('portal.admin.categories.store');
             Route::put('/categories/{category}', [PortalAdminController::class, 'updateCategory'])->name('portal.admin.categories.update');
             Route::post('/categories/{category}/toggle', [PortalAdminController::class, 'toggleCategory'])->name('portal.admin.categories.toggle');
+            Route::delete('/categories/{category}', [PortalAdminController::class, 'destroyCategory'])->name('portal.admin.categories.destroy');
 
             Route::get('/holidays', [PortalAdminController::class, 'holidays'])->name('portal.admin.holidays');
             Route::post('/holidays', [PortalAdminController::class, 'storeHoliday'])->name('portal.admin.holidays.store');
