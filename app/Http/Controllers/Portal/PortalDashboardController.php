@@ -24,6 +24,7 @@ class PortalDashboardController extends Controller
         $viewTab = $request->input('view', 'triage'); // 'triage', 'my_tasks', 'all_active', 'blocked'
         $branchFilter = $request->input('branch_id');
         $priorityFilter = $request->input('priority');
+        $searchQuery = $request->input('q');
 
         // 1. KPI Counts
         $triageCount = Ticket::where('status', 'submitted')->count();
@@ -50,6 +51,15 @@ class PortalDashboardController extends Controller
         }
         if ($priorityFilter) {
             $query->where('priority', $priorityFilter);
+        }
+        if ($searchQuery) {
+            $query->where(function ($q) use ($searchQuery) {
+                $q->where('ticket_code', 'like', "%{$searchQuery}%")
+                  ->orWhere('subject', 'like', "%{$searchQuery}%")
+                  ->orWhere('description', 'like', "%{$searchQuery}%")
+                  ->orWhereHas('requester', fn($rq) => $rq->where('name', 'like', "%{$searchQuery}%"))
+                  ->orWhereHas('branch', fn($bq) => $bq->where('name', 'like', "%{$searchQuery}%")->orWhere('code', 'like', "%{$searchQuery}%"));
+            });
         }
 
         switch ($viewTab) {
@@ -113,7 +123,8 @@ class PortalDashboardController extends Controller
             'branches',
             'categories',
             'branchFilter',
-            'priorityFilter'
+            'priorityFilter',
+            'searchQuery'
         ));
     }
 }

@@ -9,15 +9,100 @@
     targetTechId: '',
     targetPriority: '',
     assignNote: '',
-    initAutoRefresh() {
-        setInterval(() => {
-            if (!this.assignModal) window.location.reload();
-        }, 30000);
+    clientSearch: '{{ addslashes($searchQuery ?? '') }}',
+    autoRefreshSecs: 30,
+    timer: null,
+    isPaused: false,
+    isRefreshing: false,
+    toastMsg: '',
+    toastTimer: null,
+    init() {
+        this.startTimer();
+        window.addEventListener('keydown', (e) => {
+            if (e.key === '/' && !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) {
+                e.preventDefault();
+                this.$refs.searchInput?.focus();
+            }
+        });
+    },
+    startTimer() {
+        if (this.timer) clearInterval(this.timer);
+        this.timer = setInterval(() => {
+            if (this.isPaused || this.assignModal || this.isInputActive() || this.clientSearch) {
+                return;
+            }
+            if (this.autoRefreshSecs > 1) {
+                this.autoRefreshSecs--;
+            } else {
+                this.refreshLive(false);
+            }
+        }, 1000);
+    },
+    isInputActive() {
+        const active = document.activeElement;
+        return active && ['INPUT', 'TEXTAREA', 'SELECT'].includes(active.tagName);
+    },
+    togglePause() {
+        this.isPaused = !this.isPaused;
+        if (!this.isPaused) {
+            this.autoRefreshSecs = 30;
+        }
+        this.showToast(this.isPaused ? '⏸️ Auto-refresh paused' : '▶️ Auto-refresh resumed');
+    },
+    async refreshLive(showFeedback = false) {
+        if (this.isRefreshing) return;
+        this.isRefreshing = true;
+        try {
+            const url = new URL(window.location.href);
+            const res = await fetch(url.toString(), {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            if (res.ok) {
+                const html = await res.text();
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                
+                const newKpis = doc.getElementById('kpiCardsContainer');
+                const curKpis = document.getElementById('kpiCardsContainer');
+                if (newKpis && curKpis) curKpis.innerHTML = newKpis.innerHTML;
+                
+                const newTable = doc.getElementById('ticketTableContainer');
+                const curTable = document.getElementById('ticketTableContainer');
+                if (newTable && curTable) curTable.innerHTML = newTable.innerHTML;
+                
+                this.autoRefreshSecs = 30;
+                if (showFeedback) this.showToast('✅ Dashboard updated with latest data');
+            } else if (showFeedback) {
+                window.location.reload();
+            }
+        } catch (e) {
+            if (showFeedback) window.location.reload();
+        } finally {
+            this.isRefreshing = false;
+        }
+    },
+    matchesSearch(el) {
+        const q = (this.clientSearch || '').toLowerCase().trim();
+        if (!q) return true;
+        const haystack = (el.dataset.search || '').toLowerCase();
+        return haystack.includes(q);
+    },
+    copyCode(code) {
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(code).then(() => {
+                this.showToast('📋 Copied ' + code + ' to clipboard');
+            });
+        }
+    },
+    showToast(msg) {
+        this.toastMsg = msg;
+        if (this.toastTimer) clearTimeout(this.toastTimer);
+        this.toastTimer = setTimeout(() => { this.toastMsg = ''; }, 3000);
     }
-}" x-init="initAutoRefresh()" class="space-y-6">
+}" x-init="init()" class="space-y-6">
 
-    <!-- KPI Metric Cards -->
-    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+    <!-- KPI Metric Cards Container (Dynamically Swappable via AJAX) -->
+    <div id="kpiCardsContainer" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
         
         <!-- Triage Queue -->
         <a href="{{ route('portal.dashboard', ['view' => 'triage']) }}"
@@ -75,7 +160,7 @@
     <div class="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
 
         <!-- Tab & Filter Bar -->
-        <div class="p-4 sm:p-5 border-b border-slate-200/80 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div class="p-4 sm:p-5 border-b border-slate-200/80 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             
             <!-- Queue Tabs -->
             <div class="flex items-center space-x-1 bg-slate-100 p-1 rounded-xl text-xs font-semibold overflow-x-auto">
@@ -102,38 +187,85 @@
                 </a>
             </div>
 
-            <!-- Filter Controls -->
-            <form method="GET" action="{{ route('portal.dashboard') }}" class="flex items-center space-x-2">
-                <input type="hidden" name="view" value="{{ $viewTab }}">
+            <!-- Filter Controls & Live Controls -->
+            <div class="flex flex-wrap items-center gap-2.5">
+                
+                <!-- Instant Client & Server Search Bar -->
+                <form method="GET" action="{{ route('portal.dashboard') }}" class="relative flex-1 min-w-[200px] max-w-xs">
+                    <input type="hidden" name="view" value="{{ $viewTab }}">
+                    @if($branchFilter)<input type="hidden" name="branch_id" value="{{ $branchFilter }}">@endif
+                    @if($priorityFilter)<input type="hidden" name="priority" value="{{ $priorityFilter }}">@endif
+                    
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                    </div>
+                    <input type="text"
+                           name="q"
+                           x-ref="searchInput"
+                           x-model="clientSearch"
+                           placeholder="Filter tickets... (press /)"
+                           class="w-full text-xs pl-9 pr-7 py-1.5 rounded-xl border border-slate-300 bg-white placeholder-slate-400 font-medium focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition shadow-2xs">
+                    <button type="button"
+                            x-show="clientSearch"
+                            @click="clientSearch = ''; $nextTick(() => $refs.searchInput.focus())"
+                            class="absolute inset-y-0 right-0 pr-2 flex items-center text-slate-400 hover:text-slate-600"
+                            x-cloak>
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </form>
 
-                <select name="branch_id" onchange="this.form.submit()" class="text-xs px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white font-medium focus:ring-2 focus:ring-blue-500">
-                    <option value="">All Branches</option>
-                    @foreach($branches as $b)
-                        <option value="{{ $b->id }}" {{ $branchFilter == $b->id ? 'selected' : '' }}>{{ $b->code }} - {{ $b->name }}</option>
-                    @endforeach
-                </select>
+                <!-- Filter Dropdowns Form -->
+                <form method="GET" action="{{ route('portal.dashboard') }}" class="flex items-center space-x-2">
+                    <input type="hidden" name="view" value="{{ $viewTab }}">
+                    @if($searchQuery)<input type="hidden" name="q" value="{{ $searchQuery }}">@endif
 
-                <select name="priority" onchange="this.form.submit()" class="text-xs px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white font-medium focus:ring-2 focus:ring-blue-500">
-                    <option value="">All Priorities</option>
-                    <option value="critical" {{ $priorityFilter == 'critical' ? 'selected' : '' }}>Critical</option>
-                    <option value="high" {{ $priorityFilter == 'high' ? 'selected' : '' }}>High</option>
-                    <option value="medium" {{ $priorityFilter == 'medium' ? 'selected' : '' }}>Medium</option>
-                    <option value="low" {{ $priorityFilter == 'low' ? 'selected' : '' }}>Low</option>
-                </select>
+                    <select name="branch_id" onchange="this.form.submit()" class="text-xs px-2.5 py-1.5 rounded-xl border border-slate-300 bg-white font-medium focus:ring-2 focus:ring-blue-500 shadow-2xs">
+                        <option value="">All Branches</option>
+                        @foreach($branches as $b)
+                            <option value="{{ $b->id }}" {{ $branchFilter == $b->id ? 'selected' : '' }}>{{ $b->code }} - {{ $b->name }}</option>
+                        @endforeach
+                    </select>
 
-                @if($branchFilter || $priorityFilter)
-                    <a href="{{ route('portal.dashboard', ['view' => $viewTab]) }}" class="text-xs text-rose-600 hover:underline px-1 font-semibold">Clear</a>
-                @endif
+                    <select name="priority" onchange="this.form.submit()" class="text-xs px-2.5 py-1.5 rounded-xl border border-slate-300 bg-white font-medium focus:ring-2 focus:ring-blue-500 shadow-2xs">
+                        <option value="">All Priorities</option>
+                        <option value="critical" {{ $priorityFilter == 'critical' ? 'selected' : '' }}>Critical</option>
+                        <option value="high" {{ $priorityFilter == 'high' ? 'selected' : '' }}>High</option>
+                        <option value="medium" {{ $priorityFilter == 'medium' ? 'selected' : '' }}>Medium</option>
+                        <option value="low" {{ $priorityFilter == 'low' ? 'selected' : '' }}>Low</option>
+                    </select>
 
-                <div class="hidden sm:flex items-center space-x-1.5 text-[10px] text-slate-500 font-semibold px-2 py-1 bg-slate-100 rounded-lg" title="Live dashboard auto-refreshes every 30 seconds">
-                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                    <span>Live 30s</span>
+                    @if($branchFilter || $priorityFilter || $searchQuery)
+                        <a href="{{ route('portal.dashboard', ['view' => $viewTab]) }}" class="text-xs text-rose-600 hover:underline px-1 font-semibold">Clear</a>
+                    @endif
+                </form>
+
+                <!-- Live Auto-Refresh Controller (Countdown, Pause, Manual Refresh) -->
+                <div class="flex items-center space-x-1.5 bg-slate-100 border border-slate-200/80 px-2 py-1 rounded-xl shadow-2xs text-[11px] font-semibold text-slate-700">
+                    <button type="button"
+                            @click="refreshLive(true)"
+                            :disabled="isRefreshing"
+                            class="hover:text-blue-600 transition flex items-center space-x-1"
+                            title="Refresh now without reloading page">
+                        <svg class="w-3.5 h-3.5 text-slate-500" :class="{ 'animate-spin text-blue-600': isRefreshing }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                    </button>
+                    <div class="w-px h-3 bg-slate-300"></div>
+                    <button type="button"
+                            @click="togglePause()"
+                            class="flex items-center space-x-1 hover:text-slate-900 transition"
+                            :title="isPaused ? 'Auto-refresh is paused. Click to resume.' : 'Auto-refresh is active. Click to pause.'">
+                        <span class="w-2 h-2 rounded-full"
+                              :class="isPaused ? 'bg-amber-400' : 'bg-emerald-500 animate-pulse'"></span>
+                        <span x-show="!isPaused" x-text="autoRefreshSecs + 's'"></span>
+                        <span x-show="isPaused" class="text-amber-700 font-bold">Paused</span>
+                    </button>
                 </div>
-            </form>
+            </div>
         </div>
 
-        <!-- Ticket Table -->
-        <div class="overflow-x-auto">
+        <!-- Ticket Table Container (Dynamically Swappable via AJAX) -->
+        <div id="ticketTableContainer" class="overflow-x-auto">
             <table class="w-full text-left text-xs">
                 <thead class="bg-slate-50/80 text-slate-500 font-bold uppercase tracking-wider text-[10px] border-b border-slate-200">
                     <tr>
@@ -147,13 +279,23 @@
                 </thead>
                 <tbody class="divide-y divide-slate-100">
                     @forelse($tickets as $t)
-                        <tr class="hover:bg-slate-50/70 transition">
+                        <tr class="group hover:bg-slate-50/70 transition"
+                            data-search="{{ strtolower($t->ticket_code . ' ' . $t->subject . ' ' . $t->requester->name . ' ' . $t->branch->name . ' ' . $t->branch->code . ' ' . ($t->technician->name ?? '') . ' ' . ($t->category->name ?? '') . ' ' . $t->priority . ' ' . $t->status) }}"
+                            x-show="matchesSearch($el)">
                             
                             <!-- Ticket Code & Priority -->
                             <td class="py-3.5 px-4 whitespace-nowrap">
-                                <a href="{{ route('portal.tickets.show', $t->id) }}" class="font-mono font-bold text-blue-600 hover:underline">
-                                    {{ $t->ticket_code }}
-                                </a>
+                                <div class="flex items-center space-x-1">
+                                    <a href="{{ route('portal.tickets.show', $t->id) }}" class="font-mono font-bold text-blue-600 hover:underline">
+                                        {{ $t->ticket_code }}
+                                    </a>
+                                    <button type="button"
+                                            @click.prevent.stop="copyCode('{{ $t->ticket_code }}')"
+                                            class="opacity-0 group-hover:opacity-100 hover:text-blue-700 text-slate-400 transition"
+                                            title="Copy ticket code">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                                    </button>
+                                </div>
                                 <div class="mt-1">
                                     @if($t->priority === 'critical')
                                         <span class="bg-red-600 text-white font-bold text-[9px] uppercase px-1.5 py-0.5 rounded tracking-wider">Critical</span>
@@ -214,42 +356,91 @@
                                 @endif
                             </td>
 
-                            <!-- Status & 30m SLA -->
+                            <!-- Status & Live SLA Tracking -->
                             <td class="py-3.5 px-4 whitespace-nowrap">
                                 @php
-                                    $isBreached = $t->status === 'assigned' && !$t->acknowledged_at && $t->assigned_at && now()->diffInMinutes($t->assigned_at) > 30;
+                                    $ackBreached = false;
+                                    $ackRemainingMins = null;
+                                    $minsElapsed = 0;
+                                    if ($t->status === 'assigned' && !$t->acknowledged_at && $t->assigned_at) {
+                                        $minsElapsed = (int) now()->diffInMinutes($t->assigned_at);
+                                        if ($minsElapsed > 30) {
+                                            $ackBreached = true;
+                                        } else {
+                                            $ackRemainingMins = 30 - $minsElapsed;
+                                        }
+                                    }
+
+                                    $targetResolveHours = $t->category?->target_resolve_hours;
+                                    $hoursElapsed = (int) now()->diffInHours($t->created_at);
+                                    $hoursRemaining = $targetResolveHours ? ($targetResolveHours - $hoursElapsed) : null;
                                 @endphp
 
-                                <div class="flex items-center space-x-1.5">
-                                    @if($t->status === 'pending_approval')
-                                        <span class="bg-purple-100 text-purple-800 font-bold px-2 py-0.5 rounded text-[10px] uppercase animate-pulse">Pending Approval</span>
-                                    @elseif($t->status === 'rejected')
-                                        <span class="bg-rose-100 text-rose-800 font-bold px-2 py-0.5 rounded text-[10px] uppercase">Rejected</span>
-                                    @elseif($t->status === 'submitted')
-                                        <span class="bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded text-[10px] uppercase">Triage</span>
-                                    @elseif($t->status === 'assigned')
-                                        <span class="bg-purple-100 text-purple-800 font-bold px-2 py-0.5 rounded text-[10px] uppercase">Awaiting Accept</span>
-                                    @elseif($t->status === 'in_progress')
-                                        <span class="bg-indigo-100 text-indigo-800 font-bold px-2 py-0.5 rounded text-[10px] uppercase">In Progress</span>
-                                    @elseif($t->status === 'clarifying')
-                                        <span class="bg-amber-100 text-amber-900 font-bold px-2 py-0.5 rounded text-[10px] uppercase">Needs Info</span>
-                                    @elseif($t->status === 'blocked')
-                                        <span class="bg-red-100 text-red-800 font-bold px-2 py-0.5 rounded text-[10px] uppercase">Blocked</span>
-                                    @elseif($t->status === 'pending_confirmation')
-                                        <span class="bg-emerald-100 text-emerald-900 font-bold px-2 py-0.5 rounded text-[10px] uppercase">Pending Confirm</span>
-                                    @elseif($t->status === 'reopened')
-                                        <span class="bg-rose-100 text-rose-800 font-bold px-2 py-0.5 rounded text-[10px] uppercase">Reopened</span>
-                                    @else
-                                        <span class="bg-slate-100 text-slate-700 font-bold px-2 py-0.5 rounded text-[10px] uppercase">{{ $t->status }}</span>
-                                    @endif
+                                <div class="flex flex-col space-y-1">
+                                    <div class="flex items-center space-x-1.5">
+                                        @if($t->status === 'pending_approval')
+                                            <span class="bg-purple-100 text-purple-800 font-bold px-2 py-0.5 rounded text-[10px] uppercase animate-pulse">Pending Approval</span>
+                                        @elseif($t->status === 'rejected')
+                                            <span class="bg-rose-100 text-rose-800 font-bold px-2 py-0.5 rounded text-[10px] uppercase">Rejected</span>
+                                        @elseif($t->status === 'submitted')
+                                            <span class="bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded text-[10px] uppercase">Triage</span>
+                                        @elseif($t->status === 'assigned')
+                                            <span class="bg-purple-100 text-purple-800 font-bold px-2 py-0.5 rounded text-[10px] uppercase">Awaiting Accept</span>
+                                        @elseif($t->status === 'in_progress')
+                                            <span class="bg-indigo-100 text-indigo-800 font-bold px-2 py-0.5 rounded text-[10px] uppercase">In Progress</span>
+                                        @elseif($t->status === 'clarifying')
+                                            <span class="bg-amber-100 text-amber-900 font-bold px-2 py-0.5 rounded text-[10px] uppercase">Needs Info</span>
+                                        @elseif($t->status === 'blocked')
+                                            <span class="bg-red-100 text-red-800 font-bold px-2 py-0.5 rounded text-[10px] uppercase">Blocked</span>
+                                        @elseif($t->status === 'pending_confirmation')
+                                            <span class="bg-emerald-100 text-emerald-900 font-bold px-2 py-0.5 rounded text-[10px] uppercase">Pending Confirm</span>
+                                        @elseif($t->status === 'reopened')
+                                            <span class="bg-rose-100 text-rose-800 font-bold px-2 py-0.5 rounded text-[10px] uppercase">Reopened</span>
+                                        @else
+                                            <span class="bg-slate-100 text-slate-700 font-bold px-2 py-0.5 rounded text-[10px] uppercase">{{ $t->status }}</span>
+                                        @endif
 
-                                    @if($isBreached)
-                                        <span class="bg-red-600 text-white font-extrabold text-[9px] uppercase px-1.5 py-0.5 rounded animate-pulse" title="Acknowledgement target (30 min) breached!">
-                                            Overdue Ack ({{ now()->diffInMinutes($t->assigned_at) }}m)
-                                        </span>
-                                    @endif
+                                        <!-- Live 30m Ack SLA Badge -->
+                                        @if($ackBreached)
+                                            <span class="bg-red-600 text-white font-extrabold text-[9px] uppercase px-2 py-0.5 rounded-full animate-pulse flex items-center space-x-1" title="30-minute tech acceptance SLA breached!">
+                                                <span>⚠️</span>
+                                                <span>Overdue Ack (+{{ $minsElapsed }}m)</span>
+                                            </span>
+                                        @elseif($ackRemainingMins !== null)
+                                            @if($ackRemainingMins <= 5)
+                                                <span class="bg-red-100 text-red-700 border border-red-300 font-extrabold text-[9px] uppercase px-2 py-0.5 rounded-full animate-pulse flex items-center space-x-1" title="Urgent: Less than 5 mins to accept!">
+                                                    <span>⚡</span>
+                                                    <span>{{ $ackRemainingMins }}m left</span>
+                                                </span>
+                                            @elseif($ackRemainingMins <= 15)
+                                                <span class="bg-amber-100 text-amber-800 border border-amber-300 font-bold text-[9px] uppercase px-2 py-0.5 rounded-full flex items-center space-x-1" title="Acknowledgement target deadline">
+                                                    <span>⏱️</span>
+                                                    <span>{{ $ackRemainingMins }}m left</span>
+                                                </span>
+                                            @else
+                                                <span class="bg-blue-50 text-blue-700 border border-blue-200 font-bold text-[9px] uppercase px-2 py-0.5 rounded-full flex items-center space-x-1" title="Acknowledgement target deadline">
+                                                    <span>⏱️</span>
+                                                    <span>{{ $ackRemainingMins }}m left</span>
+                                                </span>
+                                            @endif
+                                        @endif
+                                    </div>
+
+                                    <!-- Target Resolution SLA Info -->
+                                    <div class="text-[10px] text-slate-400 flex items-center space-x-2">
+                                        <span>Age: {{ $t->created_at->diffForHumans(null, true) }}</span>
+                                        @if($hoursRemaining !== null && in_array($t->status, ['assigned', 'in_progress', 'blocked']))
+                                            <span>•</span>
+                                            @if($hoursRemaining < 0)
+                                                <span class="text-rose-600 font-bold">Resolve Overdue (+{{ abs($hoursRemaining) }}h)</span>
+                                            @elseif($hoursRemaining <= 8)
+                                                <span class="text-amber-600 font-bold">Due in {{ $hoursRemaining }}h</span>
+                                            @else
+                                                <span>Target: {{ $targetResolveHours }}h</span>
+                                            @endif
+                                        @endif
+                                    </div>
                                 </div>
-                                <div class="text-[10px] text-slate-400 mt-1">Age: {{ $t->created_at->diffForHumans() }}</div>
                             </td>
 
                             <!-- Action Buttons -->
@@ -358,6 +549,20 @@
                 </div>
             </form>
         </div>
+    </div>
+
+    <!-- FLOATING TOAST NOTIFICATION -->
+    <div x-show="toastMsg"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0 translate-y-3 scale-95"
+         x-transition:enter-end="opacity-100 translate-y-0 scale-100"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100 translate-y-0 scale-100"
+         x-transition:leave-end="opacity-0 translate-y-3 scale-95"
+         class="fixed bottom-6 right-6 z-50 bg-slate-900/95 text-white px-4 py-2.5 rounded-2xl shadow-2xl flex items-center space-x-2.5 text-xs font-semibold border border-slate-700/80 backdrop-blur-xs"
+         x-cloak>
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span x-text="toastMsg"></span>
     </div>
 
 </div>
