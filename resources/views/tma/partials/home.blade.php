@@ -62,9 +62,41 @@
                     <p class="text-xs font-medium text-slate-500 mt-0.5" x-text="locale === 'km' ? 'តើពួកយើងអាចជួយអ្វីដល់អ្នកនៅថ្ងៃនេះ?' : 'How can we help you today?'">How can we help you today?</p>
                 </div>
                 <template x-if="userDepartment">
-                    <div class="bg-blue-50/90 border border-blue-200/80 rounded-2xl px-3 py-1.5 text-right shrink-0 mt-0.5 shadow-2xs">
+                    <div class="bg-blue-50/90 border border-blue-200/80 rounded-2xl px-3 py-1.5 text-right shrink-0 mt-0.5 shadow-2xs select-none"
+                         :title="userDepartment"
+                         x-data="{
+                             isSliding: false,
+                             slideDist: 0,
+                             slideDuration: 5,
+                             checkMarquee() {
+                                 this.$nextTick(() => {
+                                     const text = this.$refs.deptText;
+                                     const box = this.$refs.deptBox;
+                                     if (!text || !box) return;
+                                     const overflow = text.scrollWidth - box.clientWidth;
+                                     if (overflow > 4) {
+                                         this.slideDist = overflow + 2;
+                                         this.slideDuration = Math.max(4, Math.min(9, 3 + overflow / 20));
+                                         this.isSliding = true;
+                                     } else {
+                                         this.slideDist = 0;
+                                         this.isSliding = false;
+                                     }
+                                 });
+                             }
+                         }"
+                         x-init="checkMarquee(); $watch('userDepartment', () => checkMarquee()); $watch('currentView', (v) => { if (v === 'home') checkMarquee(); }); if (document.fonts?.ready) { document.fonts.ready.then(() => checkMarquee()); } setTimeout(() => checkMarquee(), 350);"
+                         @resize.window.debounce.150ms="checkMarquee()">
                         <div class="text-[9px] font-bold uppercase tracking-wider text-blue-600" x-text="locale === 'km' ? 'ផ្នែក' : 'Department'">Department</div>
-                        <div class="text-xs font-bold text-slate-800 truncate max-w-[120px]" x-text="userDepartment"></div>
+                        <div x-ref="deptBox"
+                             class="overflow-hidden w-[120px] max-w-[120px]"
+                             :class="isSliding ? 'text-left' : 'text-right'">
+                            <span x-ref="deptText"
+                                  class="text-xs font-bold text-slate-800 whitespace-nowrap inline-block"
+                                  :class="{ 'animate-dept-slide': isSliding }"
+                                  :style="isSliding ? `--dept-slide-dist: -${slideDist}px; --dept-slide-duration: ${slideDuration}s;` : ''"
+                                  x-text="userDepartment"></span>
+                        </div>
                     </div>
                 </template>
             </div>

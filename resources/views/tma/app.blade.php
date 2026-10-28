@@ -126,6 +126,36 @@
             touch-action: manipulation;
         }
 
+        /* Department Pill Ping-Pong Sliding Ticker */
+        @keyframes deptMarqueeSlide {
+            0%, 20% {
+                transform: translateX(0);
+            }
+            45%, 70% {
+                transform: translateX(var(--dept-slide-dist, 0px));
+            }
+            95%, 100% {
+                transform: translateX(0);
+            }
+        }
+
+        .animate-dept-slide {
+            display: inline-block;
+            will-change: transform;
+            animation: deptMarqueeSlide var(--dept-slide-duration, 5s) cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+        }
+
+        .animate-dept-slide:hover,
+        .animate-dept-slide:active {
+            animation-play-state: paused;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .animate-dept-slide {
+                animation: none !important;
+            }
+        }
+
         [x-cloak] { display: none !important; }
     </style>
 </head>
