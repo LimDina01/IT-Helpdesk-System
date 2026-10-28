@@ -159,74 +159,91 @@
     <!-- Main Workspace Container -->
     <div class="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
 
-        <!-- Tab & Filter Bar -->
-        <div class="p-4 sm:p-5 border-b border-slate-200/80 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-            
-            <!-- Queue Tabs -->
-            <div class="flex items-center space-x-1 bg-slate-100 p-1 rounded-xl text-xs font-semibold overflow-x-auto">
+        <!-- Tier 1: Queue Tabs Bar (Full Width, Zero Horizontal Sliding) -->
+        <div class="px-5 pt-3.5 pb-0 border-b border-slate-200/80 bg-slate-50/50">
+            <nav class="flex items-center space-x-1 sm:space-x-2 -mb-px flex-wrap gap-y-1">
                 <a href="{{ route('portal.dashboard', ['view' => 'triage', 'branch_id' => $branchFilter, 'priority' => $priorityFilter]) }}"
-                   class="{{ $viewTab === 'triage' ? 'bg-white text-blue-600 shadow-xs' : 'text-slate-600 hover:text-slate-900' }} px-3 py-1.5 rounded-lg whitespace-nowrap transition">
-                    Triage Queue ({{ $triageCount }})
+                   class="{{ $viewTab === 'triage' ? 'border-blue-600 text-blue-600 font-bold bg-white shadow-xs' : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300' }} px-3.5 py-2.5 border-b-2 text-xs font-semibold rounded-t-xl transition flex items-center space-x-2">
+                    <span>Triage Queue</span>
+                    <span class="{{ $viewTab === 'triage' ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700' }} text-[10px] font-black px-1.5 py-0.5 rounded-full">
+                        {{ $triageCount }}
+                    </span>
                 </a>
+
                 <a href="{{ route('portal.dashboard', ['view' => 'pending_approvals', 'branch_id' => $branchFilter, 'priority' => $priorityFilter]) }}"
-                   class="{{ $viewTab === 'pending_approvals' ? 'bg-white text-purple-600 shadow-xs' : 'text-slate-600 hover:text-slate-900' }} px-3 py-1.5 rounded-lg whitespace-nowrap transition flex items-center space-x-1">
-                    <span>⏳</span>
-                    <span>Approvals ({{ $pendingApprovalsCount }})</span>
+                   class="{{ $viewTab === 'pending_approvals' ? 'border-purple-600 text-purple-700 font-bold bg-white shadow-xs' : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300' }} px-3.5 py-2.5 border-b-2 text-xs font-semibold rounded-t-xl transition flex items-center space-x-2">
+                    <span>⏳ Approvals</span>
+                    <span class="{{ $viewTab === 'pending_approvals' ? 'bg-purple-600 text-white' : 'bg-purple-100 text-purple-800' }} text-[10px] font-black px-1.5 py-0.5 rounded-full">
+                        {{ $pendingApprovalsCount }}
+                    </span>
                 </a>
+
                 <a href="{{ route('portal.dashboard', ['view' => 'my_tasks', 'branch_id' => $branchFilter, 'priority' => $priorityFilter]) }}"
-                   class="{{ $viewTab === 'my_tasks' ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-600 hover:text-slate-900' }} px-3 py-1.5 rounded-lg whitespace-nowrap transition">
-                    My Tasks ({{ $myTasksCount }})
+                   class="{{ $viewTab === 'my_tasks' ? 'border-indigo-600 text-indigo-600 font-bold bg-white shadow-xs' : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300' }} px-3.5 py-2.5 border-b-2 text-xs font-semibold rounded-t-xl transition flex items-center space-x-2">
+                    <span>My Tasks</span>
+                    <span class="{{ $viewTab === 'my_tasks' ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-700' }} text-[10px] font-black px-1.5 py-0.5 rounded-full">
+                        {{ $myTasksCount }}
+                    </span>
                 </a>
+
                 <a href="{{ route('portal.dashboard', ['view' => 'all_active', 'branch_id' => $branchFilter, 'priority' => $priorityFilter]) }}"
-                   class="{{ $viewTab === 'all_active' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900' }} px-3 py-1.5 rounded-lg whitespace-nowrap transition">
-                    All Active Tickets
+                   class="{{ $viewTab === 'all_active' ? 'border-slate-800 text-slate-900 font-bold bg-white shadow-xs' : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300' }} px-3.5 py-2.5 border-b-2 text-xs font-semibold rounded-t-xl transition flex items-center space-x-2">
+                    <span>All Active Tickets</span>
                 </a>
+
                 <a href="{{ route('portal.dashboard', ['view' => 'blocked', 'branch_id' => $branchFilter, 'priority' => $priorityFilter]) }}"
-                   class="{{ $viewTab === 'blocked' ? 'bg-white text-amber-600 shadow-xs' : 'text-slate-600 hover:text-slate-900' }} px-3 py-1.5 rounded-lg whitespace-nowrap transition">
-                    Blocked / On Hold
+                   class="{{ $viewTab === 'blocked' ? 'border-amber-500 text-amber-700 font-bold bg-white shadow-xs' : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300' }} px-3.5 py-2.5 border-b-2 text-xs font-semibold rounded-t-xl transition flex items-center space-x-2">
+                    <span>Blocked / On Hold</span>
+                    @if($blockedCount > 0)
+                        <span class="bg-amber-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">
+                            {{ $blockedCount }}
+                        </span>
+                    @endif
                 </a>
-            </div>
+            </nav>
+        </div>
 
-            <!-- Filter Controls & Live Controls -->
-            <div class="flex flex-wrap items-center gap-2.5">
+        <!-- Tier 2: Filter Controls & Live Controls Toolbar -->
+        <div class="px-5 py-3.5 border-b border-slate-200/80 bg-white flex flex-col md:flex-row md:items-center justify-between gap-3">
+            
+            <!-- Instant Client & Server Search Bar -->
+            <form method="GET" action="{{ route('portal.dashboard') }}" class="relative w-full md:w-80">
+                <input type="hidden" name="view" value="{{ $viewTab }}">
+                @if($branchFilter)<input type="hidden" name="branch_id" value="{{ $branchFilter }}">@endif
+                @if($priorityFilter)<input type="hidden" name="priority" value="{{ $priorityFilter }}">@endif
                 
-                <!-- Instant Client & Server Search Bar -->
-                <form method="GET" action="{{ route('portal.dashboard') }}" class="relative flex-1 min-w-[200px] max-w-xs">
-                    <input type="hidden" name="view" value="{{ $viewTab }}">
-                    @if($branchFilter)<input type="hidden" name="branch_id" value="{{ $branchFilter }}">@endif
-                    @if($priorityFilter)<input type="hidden" name="priority" value="{{ $priorityFilter }}">@endif
-                    
-                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                    </div>
-                    <input type="text"
-                           name="q"
-                           x-ref="searchInput"
-                           x-model="clientSearch"
-                           placeholder="Filter tickets... (press /)"
-                           class="w-full text-xs pl-9 pr-7 py-1.5 rounded-xl border border-slate-300 bg-white placeholder-slate-400 font-medium focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition shadow-2xs">
-                    <button type="button"
-                            x-show="clientSearch"
-                            @click="clientSearch = ''; $nextTick(() => $refs.searchInput.focus())"
-                            class="absolute inset-y-0 right-0 pr-2 flex items-center text-slate-400 hover:text-slate-600"
-                            x-cloak>
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                    </button>
-                </form>
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                </div>
+                <input type="text"
+                       name="q"
+                       x-ref="searchInput"
+                       x-model="clientSearch"
+                       placeholder="Filter tickets... (press /)"
+                       class="w-full text-xs pl-9 pr-7 py-2 rounded-xl border border-slate-200 bg-slate-50/70 placeholder-slate-400 font-medium focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                <button type="button"
+                        x-show="clientSearch"
+                        @click="clientSearch = ''; $nextTick(() => $refs.searchInput.focus())"
+                        class="absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-400 hover:text-slate-600"
+                        x-cloak>
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </form>
 
-                <!-- Filter Dropdowns Form -->
+            <!-- Dropdown Filters & Live Auto-Refresh Controller -->
+            <div class="flex items-center space-x-2.5 flex-wrap gap-y-2">
                 <form method="GET" action="{{ route('portal.dashboard') }}" class="flex items-center space-x-2">
                     <input type="hidden" name="view" value="{{ $viewTab }}">
                     @if($searchQuery)<input type="hidden" name="q" value="{{ $searchQuery }}">@endif
 
-                    <select name="branch_id" onchange="this.form.submit()" class="text-xs px-2.5 py-1.5 rounded-xl border border-slate-300 bg-white font-medium focus:ring-2 focus:ring-blue-500 shadow-2xs">
+                    <select name="branch_id" onchange="this.form.submit()" class="text-xs px-3 py-2 rounded-xl border border-slate-200 bg-slate-50/70 font-medium focus:bg-white focus:ring-2 focus:ring-blue-500 shadow-2xs">
                         <option value="">All Branches</option>
                         @foreach($branches as $b)
                             <option value="{{ $b->id }}" {{ $branchFilter == $b->id ? 'selected' : '' }}>{{ $b->code }} - {{ $b->name }}</option>
                         @endforeach
                     </select>
 
-                    <select name="priority" onchange="this.form.submit()" class="text-xs px-2.5 py-1.5 rounded-xl border border-slate-300 bg-white font-medium focus:ring-2 focus:ring-blue-500 shadow-2xs">
+                    <select name="priority" onchange="this.form.submit()" class="text-xs px-3 py-2 rounded-xl border border-slate-200 bg-slate-50/70 font-medium focus:bg-white focus:ring-2 focus:ring-blue-500 shadow-2xs">
                         <option value="">All Priorities</option>
                         <option value="critical" {{ $priorityFilter == 'critical' ? 'selected' : '' }}>Critical</option>
                         <option value="high" {{ $priorityFilter == 'high' ? 'selected' : '' }}>High</option>
@@ -235,12 +252,14 @@
                     </select>
 
                     @if($branchFilter || $priorityFilter || $searchQuery)
-                        <a href="{{ route('portal.dashboard', ['view' => $viewTab]) }}" class="text-xs text-rose-600 hover:underline px-1 font-semibold">Clear</a>
+                        <a href="{{ route('portal.dashboard', ['view' => $viewTab]) }}" class="text-xs text-rose-600 hover:underline px-1.5 font-semibold">Clear</a>
                     @endif
                 </form>
 
-                <!-- Live Auto-Refresh Controller (Countdown, Pause, Manual Refresh) -->
-                <div class="flex items-center space-x-1.5 bg-slate-100 border border-slate-200/80 px-2 py-1 rounded-xl shadow-2xs text-[11px] font-semibold text-slate-700">
+                <div class="w-px h-5 bg-slate-200 hidden sm:block"></div>
+
+                <!-- Live Auto-Refresh Controller -->
+                <div class="flex items-center space-x-1.5 bg-slate-100 border border-slate-200/80 px-2.5 py-1.5 rounded-xl shadow-2xs text-[11px] font-semibold text-slate-700">
                     <button type="button"
                             @click="refreshLive(true)"
                             :disabled="isRefreshing"
@@ -253,7 +272,7 @@
                     <div class="w-px h-3 bg-slate-300"></div>
                     <button type="button"
                             @click="togglePause()"
-                            class="flex items-center space-x-1 hover:text-slate-900 transition"
+                            class="flex items-center space-x-1.5 hover:text-slate-900 transition"
                             :title="isPaused ? 'Auto-refresh is paused. Click to resume.' : 'Auto-refresh is active. Click to pause.'">
                         <span class="w-2 h-2 rounded-full"
                               :class="isPaused ? 'bg-amber-400' : 'bg-emerald-500 animate-pulse'"></span>
