@@ -79,8 +79,8 @@
                             <path fill-rule="evenodd" d="M9.401 3.003c1.155-2 4.043-2 5.197 0l7.355 12.748c1.154 2-.29 4.5-2.599 4.5H4.645c-2.309 0-3.752-2.5-2.598-4.5L9.4 3.003zM12 8.25a.75.75 0 01.75.75v3.75a.75.75 0 01-1.5 0V9a.75.75 0 01.75-.75zm0 8.25a.75.75 0 100-1.5.75.75 0 000 1.5z" clip-rule="evenodd" />
                         </svg>
                     </div>
-                    <div class="font-extrabold text-sm leading-snug" x-text="t('report_issue')">Report an Incident</div>
-                    <p class="text-[10px] text-white/85 mt-1 leading-snug line-clamp-2" x-text="t('report_issue_desc')">System issue, error, cannot access, downtime, etc.</p>
+                    <div class="font-extrabold text-sm leading-snug" x-text="t('report_issue')">Incident</div>
+                    <p class="text-[10px] text-white/85 mt-1 leading-snug line-clamp-2" x-text="t('report_issue_desc')">Something is broken or malfunctioning</p>
                     <div class="w-8 h-8 rounded-full bg-white flex items-center justify-center mt-3 shadow-xs">
                         <svg class="w-4 h-4 text-[#EF4444]" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"/></svg>
                     </div>
@@ -95,7 +95,7 @@
                         </svg>
                     </div>
                     <div class="font-extrabold text-sm leading-snug" x-text="t('new_service_request')">Service Request</div>
-                    <p class="text-[10px] text-white/85 mt-1 leading-snug line-clamp-2" x-text="t('new_service_request_desc')">New account, access request, hardware/software, etc.</p>
+                    <p class="text-[10px] text-white/85 mt-1 leading-snug line-clamp-2" x-text="t('new_service_request_desc')">Hardware, software, access or setup</p>
                     <div class="w-8 h-8 rounded-full bg-white flex items-center justify-center mt-3 shadow-xs">
                         <svg class="w-4 h-4 text-[#2563EB]" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"/></svg>
                     </div>
