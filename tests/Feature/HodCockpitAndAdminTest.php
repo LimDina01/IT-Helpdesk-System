@@ -217,6 +217,87 @@ class HodCockpitAndAdminTest extends TestCase
         ]);
     }
 
+    public function test_category_priority_sla_assignment_and_ticket_deadline_calculation(): void
+    {
+        $this->actingAs($this->adminUser);
+
+        // 1. Create subcategory with manual SLA hours for every priority tier
+        $createResponse = $this->post(route('portal.admin.categories.store'), [
+            'name' => 'Hardware Failure (Boutique Devices)',
+            'name_km' => 'ការខូចខាតឧបករណ៍ផ្នែករឹង',
+            'type' => 'incident_issue',
+            'requires_approval' => 0,
+            'default_priority' => 'high',
+            'sla_critical_hours' => 2,
+            'sla_high_hours' => 6,
+            'sla_medium_hours' => 18,
+            'sla_low_hours' => 36,
+            'target_acknowledge_minutes' => 15,
+        ]);
+
+        $createResponse->assertSessionHasNoErrors();
+
+        $category = TicketCategory::where('name', 'Hardware Failure (Boutique Devices)')->firstOrFail();
+        $this->assertEquals(2, $category->sla_critical_hours);
+        $this->assertEquals(6, $category->sla_high_hours);
+        $this->assertEquals(18, $category->sla_medium_hours);
+        $this->assertEquals(36, $category->sla_low_hours);
+        $this->assertEquals('high', $category->default_priority);
+        // Verify default priority SLA synchronized to target_resolve_hours
+        $this->assertEquals(6, $category->target_resolve_hours);
+
+        // 2. Test helper getResolveHoursForPriority
+        $this->assertEquals(2, $category->getResolveHoursForPriority('critical'));
+        $this->assertEquals(6, $category->getResolveHoursForPriority('high'));
+        $this->assertEquals(18, $category->getResolveHoursForPriority('medium'));
+        $this->assertEquals(36, $category->getResolveHoursForPriority('low'));
+
+        // 3. Create tickets with different priorities under this category and verify target resolve hours
+        $requester = User::where('email', 'sokha.chan@cbvh.com.kh')->firstOrFail();
+        $branch = \App\Models\Branch::firstOrFail();
+
+        $ticketCrit = Ticket::create([
+            'ticket_code' => 'IT-TEST-CRIT-' . time(),
+            'requester_id' => $requester->id,
+            'branch_id' => $branch->id,
+            'category_id' => $category->id,
+            'priority' => 'critical',
+            'status' => 'submitted',
+            'subject' => 'Emergency POS crash',
+            'description' => 'Cannot checkout customers',
+        ]);
+        $this->assertEquals(2, $ticketCrit->getTargetResolveHours());
+
+        $ticketLow = Ticket::create([
+            'ticket_code' => 'IT-TEST-LOW-' . time(),
+            'requester_id' => $requester->id,
+            'branch_id' => $branch->id,
+            'category_id' => $category->id,
+            'priority' => 'low',
+            'status' => 'submitted',
+            'subject' => 'Cosmetic scratch on scanner stand',
+            'description' => 'Minor cosmetic issue',
+        ]);
+        $this->assertEquals(36, $ticketLow->getTargetResolveHours());
+
+        // 4. Update category: change default priority to critical and critical SLA to 1 hour
+        $updateResponse = $this->put(route('portal.admin.categories.update', $category->id), [
+            'name' => 'Hardware Failure (Boutique Devices)',
+            'type' => 'incident_issue',
+            'default_priority' => 'critical',
+            'sla_critical_hours' => 1,
+            'sla_high_hours' => 6,
+            'sla_medium_hours' => 18,
+            'sla_low_hours' => 36,
+            'target_acknowledge_minutes' => 10,
+        ]);
+        $updateResponse->assertSessionHasNoErrors();
+        $category->refresh();
+        $this->assertEquals(1, $category->sla_critical_hours);
+        $this->assertEquals('critical', $category->default_priority);
+        $this->assertEquals(1, $category->target_resolve_hours);
+    }
+
     public function test_admin_holidays_management(): void
     {
         $this->actingAs($this->adminUser);

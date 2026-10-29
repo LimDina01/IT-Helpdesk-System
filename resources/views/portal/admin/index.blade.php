@@ -110,9 +110,26 @@
         this.createGroupModal = true;
     },
     
+    subForm: {
+        sla_critical_hours: 4,
+        sla_high_hours: 8,
+        sla_medium_hours: 24,
+        sla_low_hours: 48,
+        default_priority: 'medium',
+        target_acknowledge_minutes: 30
+    },
+
     openAddSub(parentId = '', parentName = '') {
         this.selectedParentId = parentId ? String(parentId) : '';
         this.selectedParentName = parentName || '';
+        this.subForm = {
+            sla_critical_hours: 4,
+            sla_high_hours: 8,
+            sla_medium_hours: 24,
+            sla_low_hours: 48,
+            default_priority: 'medium',
+            target_acknowledge_minutes: 30
+        };
         this.createSubModal = true;
     },
     openEdit(cat, isParent = false) {
@@ -129,6 +146,12 @@
         this.editCat.iconPreview = this.editCat.icon_url || null;
         this.editCat.remove_icon_file = 0;
         this.editCat.previewLang = 'en';
+        this.editCat.default_priority = this.editCat.default_priority || 'medium';
+        this.editCat.sla_critical_hours = this.editCat.sla_critical_hours || 4;
+        this.editCat.sla_high_hours = this.editCat.sla_high_hours || 8;
+        this.editCat.sla_medium_hours = this.editCat.sla_medium_hours || 24;
+        this.editCat.sla_low_hours = this.editCat.sla_low_hours || 48;
+        this.editCat.target_acknowledge_minutes = this.editCat.target_acknowledge_minutes || 30;
         this.editModal = true;
     },
     getColorHex(colorVal) {
@@ -483,8 +506,13 @@
                                         {{ $child->target_acknowledge_minutes }} mins
                                     </td>
 
-                                    <td class="py-3 px-4 whitespace-nowrap font-mono text-slate-600">
-                                        {{ $child->target_resolve_hours }} hrs
+                                    <td class="py-3 px-4 whitespace-nowrap">
+                                        <div class="flex items-center space-x-1 text-[10px] font-mono">
+                                            <span class="px-1.5 py-0.5 rounded bg-red-50 text-red-700 font-bold border border-red-200/60" title="Critical Priority SLA">Crit: {{ $child->sla_critical_hours ?? 4 }}h</span>
+                                            <span class="px-1.5 py-0.5 rounded bg-orange-50 text-orange-700 font-bold border border-orange-200/60" title="High Priority SLA">High: {{ $child->sla_high_hours ?? 8 }}h</span>
+                                            <span class="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 font-bold border border-blue-200/60" title="Medium Priority SLA">Med: {{ $child->sla_medium_hours ?? 24 }}h</span>
+                                            <span class="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 font-bold border border-emerald-200/60" title="Low Priority SLA">Low: {{ $child->sla_low_hours ?? 48 }}h</span>
+                                        </div>
                                     </td>
 
                                     <td class="py-3 px-4 whitespace-nowrap font-mono font-bold text-blue-600">
@@ -774,23 +802,18 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-2 gap-3">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                         <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Workflow Type</label>
-                        <select name="type" required class="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 bg-white">
+                        <select name="type" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white">
                             <option value="incident_issue">Incident / Fault (Broken)</option>
                             <option value="service_request">Service Request (Request)</option>
                         </select>
                     </div>
 
                     <div>
-                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Default Priority</label>
-                        <select name="default_priority" required class="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 bg-white">
-                            <option value="low">Low</option>
-                            <option value="medium" selected>Medium</option>
-                            <option value="high">High</option>
-                            <option value="critical">Critical</option>
-                        </select>
+                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Target Ack SLA (Minutes)</label>
+                        <input type="number" name="target_acknowledge_minutes" x-model="subForm.target_acknowledge_minutes" value="30" min="5" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300">
                     </div>
                 </div>
 
@@ -802,15 +825,121 @@
                     <p class="text-[10px] text-purple-700 mt-1">If checked, requests will enter 'pending_approval' before dispatching to Help Desk.</p>
                 </div>
 
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Target Ack SLA (Minutes)</label>
-                        <input type="number" name="target_acknowledge_minutes" value="30" min="5" required class="w-full text-xs px-3 py-2 rounded-xl border border-slate-300">
+                <!-- Resolution SLA Hours by Priority Card -->
+                <div class="p-3.5 bg-slate-50/90 rounded-2xl border border-slate-200/90 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-700 uppercase tracking-wide">
+                                Resolution SLAs by Priority
+                            </label>
+                            <p class="text-[10px] text-slate-500">Set target hours to complete for every priority tier</p>
+                        </div>
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-mono">Multi-Tier SLA</span>
                     </div>
 
-                    <div>
-                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Target Resolve SLA (Hours)</label>
-                        <input type="number" name="target_resolve_hours" value="24" min="1" required class="w-full text-xs px-3 py-2 rounded-xl border border-slate-300">
+                    <!-- 4 Priority SLA Inputs Grid -->
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                        <!-- Critical Tier -->
+                        <div class="p-2.5 bg-red-50/70 rounded-xl border border-red-200/80">
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="text-[10px] font-extrabold uppercase text-red-700 flex items-center space-x-1">
+                                    <span>🔴</span>
+                                    <span>Critical</span>
+                                </span>
+                                <span class="text-[9px] text-red-500 font-medium">Emergency</span>
+                            </div>
+                            <div class="flex items-center bg-white rounded-lg border border-red-200 px-2 py-1">
+                                <input type="number" name="sla_critical_hours" x-model="subForm.sla_critical_hours" min="1" max="720" required class="w-full text-xs font-bold text-slate-800 focus:outline-none text-right">
+                                <span class="text-[11px] font-semibold text-slate-500 ml-1">hrs</span>
+                            </div>
+                        </div>
+
+                        <!-- High Tier -->
+                        <div class="p-2.5 bg-orange-50/70 rounded-xl border border-orange-200/80">
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="text-[10px] font-extrabold uppercase text-orange-700 flex items-center space-x-1">
+                                    <span>🟠</span>
+                                    <span>High</span>
+                                </span>
+                                <span class="text-[9px] text-orange-500 font-medium">Urgent</span>
+                            </div>
+                            <div class="flex items-center bg-white rounded-lg border border-orange-200 px-2 py-1">
+                                <input type="number" name="sla_high_hours" x-model="subForm.sla_high_hours" min="1" max="720" required class="w-full text-xs font-bold text-slate-800 focus:outline-none text-right">
+                                <span class="text-[11px] font-semibold text-slate-500 ml-1">hrs</span>
+                            </div>
+                        </div>
+
+                        <!-- Medium Tier -->
+                        <div class="p-2.5 bg-blue-50/70 rounded-xl border border-blue-200/80">
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="text-[10px] font-extrabold uppercase text-blue-700 flex items-center space-x-1">
+                                    <span>🔵</span>
+                                    <span>Medium</span>
+                                </span>
+                                <span class="text-[9px] text-blue-500 font-medium">Standard</span>
+                            </div>
+                            <div class="flex items-center bg-white rounded-lg border border-blue-200 px-2 py-1">
+                                <input type="number" name="sla_medium_hours" x-model="subForm.sla_medium_hours" min="1" max="720" required class="w-full text-xs font-bold text-slate-800 focus:outline-none text-right">
+                                <span class="text-[11px] font-semibold text-slate-500 ml-1">hrs</span>
+                            </div>
+                        </div>
+
+                        <!-- Low Tier -->
+                        <div class="p-2.5 bg-emerald-50/70 rounded-xl border border-emerald-200/80">
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="text-[10px] font-extrabold uppercase text-emerald-700 flex items-center space-x-1">
+                                    <span>🟢</span>
+                                    <span>Low</span>
+                                </span>
+                                <span class="text-[9px] text-emerald-500 font-medium">Normal</span>
+                            </div>
+                            <div class="flex items-center bg-white rounded-lg border border-emerald-200 px-2 py-1">
+                                <input type="number" name="sla_low_hours" x-model="subForm.sla_low_hours" min="1" max="720" required class="w-full text-xs font-bold text-slate-800 focus:outline-none text-right">
+                                <span class="text-[11px] font-semibold text-slate-500 ml-1">hrs</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Default Priority Selector for this Subcategory -->
+                    <div class="pt-2 border-t border-slate-200/60">
+                        <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1.5">
+                            Default Priority
+                            <span class="text-slate-400 font-normal lowercase">(choose which default priority fits this subcategory)</span>
+                        </label>
+                        <div class="grid grid-cols-4 gap-2">
+                            <!-- Low Button -->
+                            <button type="button" @click="subForm.default_priority = 'low'"
+                                    :class="subForm.default_priority === 'low' ? 'border-emerald-500 bg-emerald-50 text-emerald-800 ring-2 ring-emerald-500/20 font-bold' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 font-medium'"
+                                    class="py-1.5 px-2 rounded-xl border text-xs flex flex-col items-center justify-center transition cursor-pointer">
+                                <span class="flex items-center space-x-1"><span>🟢</span><span>Low</span></span>
+                                <span class="text-[9px] opacity-80 mt-0.5" x-text="(subForm.sla_low_hours || 48) + ' hrs'"></span>
+                            </button>
+
+                            <!-- Medium Button -->
+                            <button type="button" @click="subForm.default_priority = 'medium'"
+                                    :class="subForm.default_priority === 'medium' ? 'border-blue-500 bg-blue-50 text-blue-800 ring-2 ring-blue-500/20 font-bold' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 font-medium'"
+                                    class="py-1.5 px-2 rounded-xl border text-xs flex flex-col items-center justify-center transition cursor-pointer">
+                                <span class="flex items-center space-x-1"><span>🔵</span><span>Medium</span></span>
+                                <span class="text-[9px] opacity-80 mt-0.5" x-text="(subForm.sla_medium_hours || 24) + ' hrs'"></span>
+                            </button>
+
+                            <!-- High Button -->
+                            <button type="button" @click="subForm.default_priority = 'high'"
+                                    :class="subForm.default_priority === 'high' ? 'border-orange-500 bg-orange-50 text-orange-800 ring-2 ring-orange-500/20 font-bold' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 font-medium'"
+                                    class="py-1.5 px-2 rounded-xl border text-xs flex flex-col items-center justify-center transition cursor-pointer">
+                                <span class="flex items-center space-x-1"><span>🟠</span><span>High</span></span>
+                                <span class="text-[9px] opacity-80 mt-0.5" x-text="(subForm.sla_high_hours || 8) + ' hrs'"></span>
+                            </button>
+
+                            <!-- Critical Button -->
+                            <button type="button" @click="subForm.default_priority = 'critical'"
+                                    :class="subForm.default_priority === 'critical' ? 'border-red-500 bg-red-50 text-red-800 ring-2 ring-red-500/20 font-bold' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 font-medium'"
+                                    class="py-1.5 px-2 rounded-xl border text-xs flex flex-col items-center justify-center transition cursor-pointer">
+                                <span class="flex items-center space-x-1"><span>🔴</span><span>Critical</span></span>
+                                <span class="text-[9px] opacity-80 mt-0.5" x-text="(subForm.sla_critical_hours || 4) + ' hrs'"></span>
+                            </button>
+                        </div>
+                        <input type="hidden" name="default_priority" :value="subForm.default_priority">
                     </div>
                 </div>
 
@@ -885,7 +1014,7 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-2 gap-3">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                         <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Workflow Type</label>
                         <select name="type" x-model="editCat.type" required class="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 bg-white">
@@ -895,13 +1024,8 @@
                     </div>
 
                     <div x-show="!isEditingParent">
-                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Default Priority</label>
-                        <select name="default_priority" x-model="editCat.default_priority" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 bg-white">
-                            <option value="low">Low</option>
-                            <option value="medium">Medium</option>
-                            <option value="high">High</option>
-                            <option value="critical">Critical</option>
-                        </select>
+                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Target Ack SLA (Minutes)</label>
+                        <input type="number" name="target_acknowledge_minutes" x-model="editCat.target_acknowledge_minutes" min="5" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-300">
                     </div>
                 </div>
 
@@ -1045,15 +1169,121 @@
                             </label>
                         </div>
 
-                        <div class="grid grid-cols-2 gap-3">
-                            <div>
-                                <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Target Ack SLA (Minutes)</label>
-                                <input type="number" name="target_acknowledge_minutes" x-model="editCat.target_acknowledge_minutes" min="5" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-300">
+                        <!-- Resolution SLA Hours by Priority Card -->
+                        <div class="p-3.5 bg-slate-50/90 rounded-2xl border border-slate-200/90 space-y-3">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <label class="block text-[11px] font-bold text-slate-700 uppercase tracking-wide">
+                                        Resolution SLAs by Priority
+                                    </label>
+                                    <p class="text-[10px] text-slate-500">Set target hours to complete for every priority tier</p>
+                                </div>
+                                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-mono">Multi-Tier SLA</span>
                             </div>
 
-                            <div>
-                                <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Target Resolve SLA (Hours)</label>
-                                <input type="number" name="target_resolve_hours" x-model="editCat.target_resolve_hours" min="1" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-300">
+                            <!-- 4 Priority SLA Inputs Grid -->
+                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                                <!-- Critical Tier -->
+                                <div class="p-2.5 bg-red-50/70 rounded-xl border border-red-200/80">
+                                    <div class="flex items-center justify-between mb-1">
+                                        <span class="text-[10px] font-extrabold uppercase text-red-700 flex items-center space-x-1">
+                                            <span>🔴</span>
+                                            <span>Critical</span>
+                                        </span>
+                                        <span class="text-[9px] text-red-500 font-medium">Emergency</span>
+                                    </div>
+                                    <div class="flex items-center bg-white rounded-lg border border-red-200 px-2 py-1">
+                                        <input type="number" name="sla_critical_hours" x-model="editCat.sla_critical_hours" min="1" max="720" required class="w-full text-xs font-bold text-slate-800 focus:outline-none text-right">
+                                        <span class="text-[11px] font-semibold text-slate-500 ml-1">hrs</span>
+                                    </div>
+                                </div>
+
+                                <!-- High Tier -->
+                                <div class="p-2.5 bg-orange-50/70 rounded-xl border border-orange-200/80">
+                                    <div class="flex items-center justify-between mb-1">
+                                        <span class="text-[10px] font-extrabold uppercase text-orange-700 flex items-center space-x-1">
+                                            <span>🟠</span>
+                                            <span>High</span>
+                                        </span>
+                                        <span class="text-[9px] text-orange-500 font-medium">Urgent</span>
+                                    </div>
+                                    <div class="flex items-center bg-white rounded-lg border border-orange-200 px-2 py-1">
+                                        <input type="number" name="sla_high_hours" x-model="editCat.sla_high_hours" min="1" max="720" required class="w-full text-xs font-bold text-slate-800 focus:outline-none text-right">
+                                        <span class="text-[11px] font-semibold text-slate-500 ml-1">hrs</span>
+                                    </div>
+                                </div>
+
+                                <!-- Medium Tier -->
+                                <div class="p-2.5 bg-blue-50/70 rounded-xl border border-blue-200/80">
+                                    <div class="flex items-center justify-between mb-1">
+                                        <span class="text-[10px] font-extrabold uppercase text-blue-700 flex items-center space-x-1">
+                                            <span>🔵</span>
+                                            <span>Medium</span>
+                                        </span>
+                                        <span class="text-[9px] text-blue-500 font-medium">Standard</span>
+                                    </div>
+                                    <div class="flex items-center bg-white rounded-lg border border-blue-200 px-2 py-1">
+                                        <input type="number" name="sla_medium_hours" x-model="editCat.sla_medium_hours" min="1" max="720" required class="w-full text-xs font-bold text-slate-800 focus:outline-none text-right">
+                                        <span class="text-[11px] font-semibold text-slate-500 ml-1">hrs</span>
+                                    </div>
+                                </div>
+
+                                <!-- Low Tier -->
+                                <div class="p-2.5 bg-emerald-50/70 rounded-xl border border-emerald-200/80">
+                                    <div class="flex items-center justify-between mb-1">
+                                        <span class="text-[10px] font-extrabold uppercase text-emerald-700 flex items-center space-x-1">
+                                            <span>🟢</span>
+                                            <span>Low</span>
+                                        </span>
+                                        <span class="text-[9px] text-emerald-500 font-medium">Normal</span>
+                                    </div>
+                                    <div class="flex items-center bg-white rounded-lg border border-emerald-200 px-2 py-1">
+                                        <input type="number" name="sla_low_hours" x-model="editCat.sla_low_hours" min="1" max="720" required class="w-full text-xs font-bold text-slate-800 focus:outline-none text-right">
+                                        <span class="text-[11px] font-semibold text-slate-500 ml-1">hrs</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Default Priority Selector for this Subcategory -->
+                            <div class="pt-2 border-t border-slate-200/60">
+                                <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1.5">
+                                    Default Priority
+                                    <span class="text-slate-400 font-normal lowercase">(choose which default priority fits this subcategory)</span>
+                                </label>
+                                <div class="grid grid-cols-4 gap-2">
+                                    <!-- Low Button -->
+                                    <button type="button" @click="editCat.default_priority = 'low'"
+                                            :class="editCat.default_priority === 'low' ? 'border-emerald-500 bg-emerald-50 text-emerald-800 ring-2 ring-emerald-500/20 font-bold' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 font-medium'"
+                                            class="py-1.5 px-2 rounded-xl border text-xs flex flex-col items-center justify-center transition cursor-pointer">
+                                        <span class="flex items-center space-x-1"><span>🟢</span><span>Low</span></span>
+                                        <span class="text-[9px] opacity-80 mt-0.5" x-text="(editCat.sla_low_hours || 48) + ' hrs'"></span>
+                                    </button>
+
+                                    <!-- Medium Button -->
+                                    <button type="button" @click="editCat.default_priority = 'medium'"
+                                            :class="editCat.default_priority === 'medium' ? 'border-blue-500 bg-blue-50 text-blue-800 ring-2 ring-blue-500/20 font-bold' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 font-medium'"
+                                            class="py-1.5 px-2 rounded-xl border text-xs flex flex-col items-center justify-center transition cursor-pointer">
+                                        <span class="flex items-center space-x-1"><span>🔵</span><span>Medium</span></span>
+                                        <span class="text-[9px] opacity-80 mt-0.5" x-text="(editCat.sla_medium_hours || 24) + ' hrs'"></span>
+                                    </button>
+
+                                    <!-- High Button -->
+                                    <button type="button" @click="editCat.default_priority = 'high'"
+                                            :class="editCat.default_priority === 'high' ? 'border-orange-500 bg-orange-50 text-orange-800 ring-2 ring-orange-500/20 font-bold' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 font-medium'"
+                                            class="py-1.5 px-2 rounded-xl border text-xs flex flex-col items-center justify-center transition cursor-pointer">
+                                        <span class="flex items-center space-x-1"><span>🟠</span><span>High</span></span>
+                                        <span class="text-[9px] opacity-80 mt-0.5" x-text="(editCat.sla_high_hours || 8) + ' hrs'"></span>
+                                    </button>
+
+                                    <!-- Critical Button -->
+                                    <button type="button" @click="editCat.default_priority = 'critical'"
+                                            :class="editCat.default_priority === 'critical' ? 'border-red-500 bg-red-50 text-red-800 ring-2 ring-red-500/20 font-bold' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 font-medium'"
+                                            class="py-1.5 px-2 rounded-xl border text-xs flex flex-col items-center justify-center transition cursor-pointer">
+                                        <span class="flex items-center space-x-1"><span>🔴</span><span>Critical</span></span>
+                                        <span class="text-[9px] opacity-80 mt-0.5" x-text="(editCat.sla_critical_hours || 4) + ' hrs'"></span>
+                                    </button>
+                                </div>
+                                <input type="hidden" name="default_priority" :value="editCat.default_priority">
                             </div>
                         </div>
                     </div>

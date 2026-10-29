@@ -712,9 +712,9 @@ class TmaTicketController extends Controller
         $categories = TicketCategory::whereNull('parent_id')
             ->where('is_active', true)
             ->with(['children' => function ($query) {
-                $query->where('is_active', true)->select('id', 'parent_id', 'name', 'name_km', 'description', 'description_km', 'icon', 'icon_url', 'icon_color', 'type', 'requires_approval', 'default_priority');
+                $query->where('is_active', true)->select('id', 'parent_id', 'name', 'name_km', 'description', 'description_km', 'icon', 'icon_url', 'icon_color', 'type', 'requires_approval', 'default_priority', 'sla_critical_hours', 'sla_high_hours', 'sla_medium_hours', 'sla_low_hours');
             }])
-            ->select('id', 'name', 'name_km', 'description', 'description_km', 'icon', 'icon_url', 'icon_color', 'type', 'requires_approval', 'default_priority')
+            ->select('id', 'name', 'name_km', 'description', 'description_km', 'icon', 'icon_url', 'icon_color', 'type', 'requires_approval', 'default_priority', 'sla_critical_hours', 'sla_high_hours', 'sla_medium_hours', 'sla_low_hours')
             ->get();
 
         $user = Auth::user();

@@ -56,14 +56,30 @@ class PortalAdminController extends Controller
             'type' => 'required|in:incident_issue,service_request',
             'requires_approval' => 'nullable|boolean',
             'default_priority' => 'nullable|in:low,medium,high,critical',
+            'sla_critical_hours' => 'nullable|integer|min:1|max:720',
+            'sla_high_hours' => 'nullable|integer|min:1|max:720',
+            'sla_medium_hours' => 'nullable|integer|min:1|max:720',
+            'sla_low_hours' => 'nullable|integer|min:1|max:720',
             'target_acknowledge_minutes' => 'nullable|integer|min:5|max:1440',
             'target_resolve_hours' => 'nullable|integer|min:1|max:720',
         ]);
 
         $validated['requires_approval'] = $request->boolean('requires_approval');
         $validated['default_priority'] = $validated['default_priority'] ?? 'medium';
+        $validated['sla_critical_hours'] = $validated['sla_critical_hours'] ?? 4;
+        $validated['sla_high_hours'] = $validated['sla_high_hours'] ?? 8;
+        $validated['sla_medium_hours'] = $validated['sla_medium_hours'] ?? 24;
+        $validated['sla_low_hours'] = $validated['sla_low_hours'] ?? 48;
+
+        $defaultPriority = $validated['default_priority'];
+        $priorityMap = [
+            'critical' => $validated['sla_critical_hours'],
+            'high' => $validated['sla_high_hours'],
+            'medium' => $validated['sla_medium_hours'],
+            'low' => $validated['sla_low_hours'],
+        ];
+        $validated['target_resolve_hours'] = $priorityMap[$defaultPriority] ?? ($validated['target_resolve_hours'] ?? 24);
         $validated['target_acknowledge_minutes'] = $validated['target_acknowledge_minutes'] ?? 30;
-        $validated['target_resolve_hours'] = $validated['target_resolve_hours'] ?? 24;
         $validated['is_active'] = true;
 
         if ($request->hasFile('icon_file')) {
@@ -103,14 +119,31 @@ class PortalAdminController extends Controller
             'type' => 'required|in:incident_issue,service_request',
             'requires_approval' => 'nullable|boolean',
             'default_priority' => 'nullable|in:low,medium,high,critical',
+            'sla_critical_hours' => 'nullable|integer|min:1|max:720',
+            'sla_high_hours' => 'nullable|integer|min:1|max:720',
+            'sla_medium_hours' => 'nullable|integer|min:1|max:720',
+            'sla_low_hours' => 'nullable|integer|min:1|max:720',
             'target_acknowledge_minutes' => 'nullable|integer|min:5|max:1440',
             'target_resolve_hours' => 'nullable|integer|min:1|max:720',
         ]);
 
         $validated['requires_approval'] = $request->boolean('requires_approval');
-        $validated['default_priority'] = $validated['default_priority'] ?? 'medium';
-        $validated['target_acknowledge_minutes'] = $validated['target_acknowledge_minutes'] ?? 30;
-        $validated['target_resolve_hours'] = $validated['target_resolve_hours'] ?? 24;
+        $validated['default_priority'] = $validated['default_priority'] ?? $category->default_priority ?? 'medium';
+        $validated['target_acknowledge_minutes'] = $validated['target_acknowledge_minutes'] ?? $category->target_acknowledge_minutes ?? 30;
+
+        $crit = $validated['sla_critical_hours'] ?? $category->sla_critical_hours ?? 4;
+        $high = $validated['sla_high_hours'] ?? $category->sla_high_hours ?? 8;
+        $med  = $validated['sla_medium_hours'] ?? $category->sla_medium_hours ?? 24;
+        $low  = $validated['sla_low_hours'] ?? $category->sla_low_hours ?? 48;
+        $defaultPriority = $validated['default_priority'];
+
+        $priorityMap = [
+            'critical' => $crit,
+            'high' => $high,
+            'medium' => $med,
+            'low' => $low,
+        ];
+        $validated['target_resolve_hours'] = $priorityMap[$defaultPriority] ?? ($validated['target_resolve_hours'] ?? $category->target_resolve_hours ?? 24);
 
         if ($request->boolean('remove_icon_file')) {
             if ($category->icon_url && file_exists(public_path(ltrim($category->icon_url, '/')))) {

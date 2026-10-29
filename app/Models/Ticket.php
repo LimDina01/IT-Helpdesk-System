@@ -238,11 +238,23 @@ class Ticket extends Model
     }
 
     /**
+     * Target resolution SLA hours based on the ticket's category and priority level.
+     */
+    public function getTargetResolveHours(): ?int
+    {
+        if (!$this->category) {
+            return null;
+        }
+
+        return $this->category->getResolveHoursForPriority($this->priority);
+    }
+
+    /**
      * Remaining SLA target hours after factoring out paused hold duration and off-hours.
      */
     public function getSlaRemainingHours(): ?int
     {
-        $targetHours = $this->category?->target_resolve_hours;
+        $targetHours = $this->getTargetResolveHours();
         if (!$targetHours) {
             return null;
         }
@@ -255,7 +267,7 @@ class Ticket extends Model
      */
     public function getSlaDeadline(): ?\Carbon\Carbon
     {
-        $targetHours = $this->category?->target_resolve_hours;
+        $targetHours = $this->getTargetResolveHours();
         if (!$targetHours) {
             return null;
         }
