@@ -250,9 +250,9 @@ class PortalTicketController extends Controller
                 'acknowledged_at' => $ticket->acknowledged_at ?? $now,
             ];
 
-            // If resuming from Blocked/Hold, accumulate paused minutes
+            // If resuming from Blocked/Hold, accumulate paused working minutes
             if ($oldStatus === 'blocked' && $ticket->blocked_at) {
-                $additionalPauseMinutes = abs((int) $now->diffInMinutes($ticket->blocked_at));
+                $additionalPauseMinutes = app(\App\Services\BusinessHoursService::class)->getWorkingMinutesBetween($ticket->blocked_at, $now);
                 $updateData['paused_minutes'] = ($ticket->paused_minutes ?? 0) + $additionalPauseMinutes;
                 $updateData['blocked_at'] = null;
             }
@@ -367,7 +367,7 @@ class PortalTicketController extends Controller
             ];
 
             if ($ticket->status === 'blocked' && $ticket->blocked_at) {
-                $additionalPauseMinutes = abs((int) $now->diffInMinutes($ticket->blocked_at));
+                $additionalPauseMinutes = app(\App\Services\BusinessHoursService::class)->getWorkingMinutesBetween($ticket->blocked_at, $now);
                 $updateData['paused_minutes'] = ($ticket->paused_minutes ?? 0) + $additionalPauseMinutes;
                 $updateData['blocked_at'] = null;
             }

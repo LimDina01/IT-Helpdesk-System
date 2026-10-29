@@ -731,10 +731,19 @@
                         <span class="font-bold text-blue-700">{{ $ticket->getActiveHoursElapsed() }} hours</span>
                     </div>
 
+                    @if($ticket->getSlaDeadline())
+                        <div class="flex justify-between items-center text-slate-600">
+                            <span class="text-slate-400">Target Deadline:</span>
+                            <span class="font-bold text-slate-800">{{ $ticket->getSlaDeadline()->format('D, d-M h:i A') }}</span>
+                        </div>
+                    @endif
+
                     <div class="pt-2 border-t border-slate-100 flex justify-between items-center">
                         <span class="text-slate-400">SLA Status:</span>
                         @if($ticket->isSlaPaused())
                             <span class="font-bold text-amber-600">Clock Frozen (Vendor Hold)</span>
+                        @elseif($ticket->isOutsideBusinessHours() && !in_array($ticket->status, ['resolved_confirmed', 'resolved_auto_closed', 'closed']))
+                            <span class="font-bold text-indigo-600">🌙 Off-Hours (Frozen until 08:00 AM)</span>
                         @elseif($ticket->getSlaRemainingHours() !== null)
                             @if($ticket->getSlaRemainingHours() < 0)
                                 <span class="font-bold text-rose-600">Overdue (+{{ abs($ticket->getSlaRemainingHours()) }}h)</span>

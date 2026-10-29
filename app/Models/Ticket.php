@@ -195,13 +195,14 @@ class Ticket extends Model
     }
 
     /**
-     * Total minutes this ticket has been on hold / paused.
+     * Total minutes this ticket has been on hold / paused (within business working hours).
      */
     public function getPausedMinutes(): int
     {
         $minutes = (int) ($this->paused_minutes ?? 0);
         if ($this->status === 'blocked' && $this->blocked_at) {
-            $minutes += abs((int) now()->diffInMinutes($this->blocked_at));
+            $businessService = app(\App\Services\BusinessHoursService::class);
+            $minutes += $businessService->getWorkingMinutesBetween($this->blocked_at, now());
         }
         return $minutes;
     }
@@ -215,15 +216,17 @@ class Ticket extends Model
     }
 
     /**
-     * Active fulfillment minutes elapsed (wall-clock time minus paused hold duration).
+     * Active fulfillment minutes elapsed (CBVH working hours minus paused hold duration).
+     * Automatically freezes outside banking hours (Mon-Sat 08:00-17:00), Sundays, and holidays.
      */
     public function getActiveMinutesElapsed(): int
     {
         $referenceEnd = $this->resolved_at ?? $this->closed_at ?? now();
-        $totalWallMinutes = abs((int) $referenceEnd->diffInMinutes($this->created_at));
+        $businessService = app(\App\Services\BusinessHoursService::class);
+        $totalWorkingMinutes = $businessService->getWorkingMinutesBetween($this->created_at, $referenceEnd);
         $paused = $this->getPausedMinutes();
 
-        return max(0, $totalWallMinutes - $paused);
+        return max(0, $totalWorkingMinutes - $paused);
     }
 
     /**
@@ -235,7 +238,7 @@ class Ticket extends Model
     }
 
     /**
-     * Remaining SLA target hours after factoring out paused hold duration.
+     * Remaining SLA target hours after factoring out paused hold duration and off-hours.
      */
     public function getSlaRemainingHours(): ?int
     {
@@ -248,11 +251,36 @@ class Ticket extends Model
     }
 
     /**
-     * Check if the SLA clock is currently paused on hold.
+     * Exact date and time when the resolution SLA target will be reached during business hours.
+     */
+    public function getSlaDeadline(): ?\Carbon\Carbon
+    {
+        $targetHours = $this->category?->target_resolve_hours;
+        if (!$targetHours) {
+            return null;
+        }
+
+        $businessService = app(\App\Services\BusinessHoursService::class);
+        $pausedMinutes = $this->getPausedMinutes();
+        $totalMinutesNeeded = (int) round(($targetHours * 60) + $pausedMinutes);
+
+        return $businessService->addWorkingMinutes($this->created_at, $totalMinutesNeeded);
+    }
+
+    /**
+     * Check if the SLA clock is currently paused on manual hold.
      */
     public function isSlaPaused(): bool
     {
         return $this->status === 'blocked';
+    }
+
+    /**
+     * Check if current time is outside active banking business hours.
+     */
+    public function isOutsideBusinessHours(): bool
+    {
+        return !app(\App\Services\BusinessHoursService::class)->isWorkingTime();
     }
 
     /**

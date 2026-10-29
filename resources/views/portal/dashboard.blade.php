@@ -373,7 +373,7 @@
                                     $ackRemainingMins = null;
                                     $minsElapsed = 0;
                                     if ($t->status === 'assigned' && !$t->acknowledged_at && $t->assigned_at) {
-                                        $minsElapsed = abs((int) now()->diffInMinutes($t->assigned_at));
+                                        $minsElapsed = app(\App\Services\BusinessHoursService::class)->getWorkingMinutesBetween($t->assigned_at, now());
                                         if ($minsElapsed > 30) {
                                             $ackBreached = true;
                                         } else {
@@ -385,6 +385,8 @@
                                     $hoursRemaining = $t->getSlaRemainingHours();
                                     $isSlaPaused = $t->isSlaPaused();
                                     $pausedHours = $t->getPausedHours();
+                                    $slaDeadline = $t->getSlaDeadline();
+                                    $isOffHours = $t->isOutsideBusinessHours();
                                 @endphp
 
                                 <div class="flex flex-col space-y-0.5">
@@ -445,10 +447,12 @@
                                             <span>•</span>
                                             @if($hoursRemaining < 0)
                                                 <span class="text-rose-600 font-bold">Overdue (+{{ abs($hoursRemaining) }}h)</span>
+                                            @elseif($isOffHours)
+                                                <span class="text-indigo-600 font-semibold" title="CBVH is currently closed. SLA clock frozen until next working day 08:00 AM.">🌙 Off-Hours ({{ $hoursRemaining }}h left)</span>
                                             @elseif($hoursRemaining <= 8)
-                                                <span class="text-amber-600 font-bold">Due in {{ $hoursRemaining }}h</span>
+                                                <span class="text-amber-600 font-bold" title="{{ $slaDeadline ? 'Deadline: ' . $slaDeadline->format('D, d-M h:i A') : '' }}">Due in {{ $hoursRemaining }}h{{ $slaDeadline ? ' (' . $slaDeadline->format('D h:i A') . ')' : '' }}</span>
                                             @else
-                                                <span>Target: {{ $targetResolveHours }}h</span>
+                                                <span title="{{ $slaDeadline ? 'Deadline: ' . $slaDeadline->format('D, d-M h:i A') : '' }}">Target: {{ $targetResolveHours }}h</span>
                                             @endif
                                             @if($pausedHours > 0)
                                                 <span class="text-slate-400 font-normal">({{ $pausedHours }}h paused)</span>
