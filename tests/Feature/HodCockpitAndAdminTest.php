@@ -186,7 +186,7 @@ class HodCockpitAndAdminTest extends TestCase
             @unlink($localFilePath);
         }
 
-        // 2. Update category to preset icon and remove custom file
+        // 2. Update category to preset icon, custom hex brand color, and remove custom file
         $updateResponse = $this->put(route('portal.admin.categories.update', $category->id), [
             'name' => 'Boutique Scales & Tag Scanners',
             'name_km' => 'ជញ្ជីងពេជ្រ & ម៉ាស៊ីនស្កេនស្លាក',
@@ -194,7 +194,7 @@ class HodCockpitAndAdminTest extends TestCase
             'description_km' => 'ជញ្ជីងថ្លឹងពេជ្រដែលបានកែប្រែ',
             'type' => 'incident_issue',
             'icon' => 'other',
-            'icon_color' => 'slate',
+            'icon_color' => '#A16B54',
             'remove_icon_file' => 1,
         ]);
 
@@ -202,7 +202,7 @@ class HodCockpitAndAdminTest extends TestCase
         $category->refresh();
         $this->assertEquals('Updated precision jewelry scales and tools', $category->description);
         $this->assertEquals('other', $category->icon);
-        $this->assertEquals('slate', $category->icon_color);
+        $this->assertEquals('#A16B54', $category->icon_color);
         $this->assertNull($category->icon_url);
 
         // 3. Verify TMA getFormData includes these fields
@@ -213,7 +213,7 @@ class HodCockpitAndAdminTest extends TestCase
             'name' => 'Boutique Scales & Tag Scanners',
             'description' => 'Updated precision jewelry scales and tools',
             'icon' => 'other',
-            'icon_color' => 'slate',
+            'icon_color' => '#A16B54',
         ]);
     }
 

@@ -34,14 +34,53 @@
 
     // Color Swatches Reference
     colorPalette: [
-        { id: 'emerald', name: 'Emerald', bgClass: 'bg-emerald-500' },
-        { id: 'blue', name: 'Blue', bgClass: 'bg-blue-600' },
-        { id: 'sky', name: 'Sky', bgClass: 'bg-sky-600' },
-        { id: 'indigo', name: 'Indigo', bgClass: 'bg-indigo-600' },
-        { id: 'purple', name: 'Purple', bgClass: 'bg-purple-600' },
-        { id: 'amber', name: 'Amber', bgClass: 'bg-amber-500' },
-        { id: 'rose', name: 'Rose', bgClass: 'bg-rose-500' },
-        { id: 'slate', name: 'Slate', bgClass: 'bg-slate-600' }
+        // CBVH Jewelry & Luxury
+        { id: '#A16B54', name: 'CBVH Brown', hex: '#A16B54' },
+        { id: '#8C6239', name: 'Deep Bronze', hex: '#8C6239' },
+        { id: '#B76E79', name: 'Rose Gold', hex: '#B76E79' },
+        { id: '#D4AF37', name: 'Luxury Gold', hex: '#D4AF37' },
+        { id: '#C5A059', name: 'Champagne Gold', hex: '#C5A059' },
+        { id: '#FAF4E3', name: 'Silk Champagne', hex: '#FAF4E3' },
+        { id: '#FCF8ED', name: 'Cream Pearl', hex: '#FCF8ED' },
+
+        // Blues & Cyans
+        { id: '#2563EB', name: 'Royal Blue', hex: '#2563EB' },
+        { id: '#1D4ED8', name: 'Navy Blue', hex: '#1D4ED8' },
+        { id: '#0284C7', name: 'Sky Blue', hex: '#0284C7' },
+        { id: '#06B6D4', name: 'Cyan Ocean', hex: '#06B6D4' },
+        { id: '#0891B2', name: 'Deep Cyan', hex: '#0891B2' },
+
+        // Emeralds & Greens
+        { id: '#10B981', name: 'Emerald', hex: '#10B981' },
+        { id: '#059669', name: 'Forest Green', hex: '#059669' },
+        { id: '#16A34A', name: 'Vibrant Green', hex: '#16A34A' },
+        { id: '#14B8A6', name: 'Teal Jade', hex: '#14B8A6' },
+        { id: '#84CC16', name: 'Lime Olive', hex: '#84CC16' },
+
+        // Purples & Violets
+        { id: '#4F46E5', name: 'Royal Indigo', hex: '#4F46E5' },
+        { id: '#7C3AED', name: 'Violet', hex: '#7C3AED' },
+        { id: '#9333EA', name: 'Amethyst Purple', hex: '#9333EA' },
+        { id: '#C026D3', name: 'Fuchsia', hex: '#C026D3' },
+
+        // Reds, Pinks, Oranges & Yellows
+        { id: '#EC4899', name: 'Ruby Pink', hex: '#EC4899' },
+        { id: '#F43F5E', name: 'Rose', hex: '#F43F5E' },
+        { id: '#DC2626', name: 'Crimson Red', hex: '#DC2626' },
+        { id: '#B91C1C', name: 'Garnet Red', hex: '#B91C1C' },
+        { id: '#EA580C', name: 'Burnt Orange', hex: '#EA580C' },
+        { id: '#F97316', name: 'Vivid Orange', hex: '#F97316' },
+        { id: '#F59E0B', name: 'Amber Topaz', hex: '#F59E0B' },
+        { id: '#EAB308', name: 'Yellow Gold', hex: '#EAB308' },
+
+        // Neutrals & Darks
+        { id: '#475569', name: 'Slate Grey', hex: '#475569' },
+        { id: '#334155', name: 'Steel Blue', hex: '#334155' },
+        { id: '#1E293B', name: 'Dark Slate', hex: '#1E293B' },
+        { id: '#0F172A', name: 'Midnight Navy', hex: '#0F172A' },
+        { id: '#27272A', name: 'Charcoal Zinc', hex: '#27272A' },
+        { id: '#18181B', name: 'Pitch Black', hex: '#18181B' },
+        { id: '#FFFFFF', name: 'Pure White', hex: '#FFFFFF' }
     ],
 
     newGroup: {
@@ -50,7 +89,7 @@
         description: '',
         description_km: '',
         icon: 'other',
-        icon_color: 'blue',
+        icon_color: '#2563EB',
         icon_tab: 'upload',
         iconPreview: null,
         previewLang: 'en'
@@ -63,7 +102,7 @@
             description: '',
             description_km: '',
             icon: 'other',
-            icon_color: 'blue',
+            icon_color: '#2563EB',
             icon_tab: 'upload',
             iconPreview: null,
             previewLang: 'en'
@@ -85,16 +124,64 @@
             this.editCat.parent_id = '';
         }
         this.editCat.icon = this.editCat.icon || 'other';
-        this.editCat.icon_color = this.editCat.icon_color || 'blue';
+        this.editCat.icon_color = this.editCat.icon_color || '#2563EB';
         this.editCat.icon_tab = this.editCat.icon_url ? 'upload' : 'preset';
         this.editCat.iconPreview = this.editCat.icon_url || null;
         this.editCat.remove_icon_file = 0;
         this.editCat.previewLang = 'en';
         this.editModal = true;
     },
+    getColorHex(colorVal) {
+        if (!colorVal) return '#2563EB';
+        if (colorVal.startsWith('#')) return colorVal;
+        const nameMap = {
+            'cbvh-brown': '#A16B54',
+            'gold': '#D4AF37',
+            'champagne': '#FAF4E3',
+            'cream': '#FCF8ED',
+            'rose-gold': '#B76E79',
+            'bronze': '#8C6239',
+            'emerald': '#10B981',
+            'teal': '#14B8A6',
+            'cyan': '#06B6D4',
+            'sky': '#0284C7',
+            'blue': '#2563EB',
+            'indigo': '#4F46E5',
+            'violet': '#7C3AED',
+            'purple': '#9333EA',
+            'fuchsia': '#C026D3',
+            'pink': '#EC4899',
+            'rose': '#F43F5E',
+            'red': '#DC2626',
+            'orange': '#EA580C',
+            'amber': '#F59E0B',
+            'yellow': '#EAB308',
+            'lime': '#84CC16',
+            'green': '#16A34A',
+            'slate': '#475569',
+            'zinc': '#27272A',
+            'dark-navy': '#0F172A',
+            'white': '#FFFFFF',
+        };
+        return nameMap[colorVal.toLowerCase()] || '#2563EB';
+    },
+    getColorStyle(colorVal) {
+        const hex = this.getColorHex(colorVal);
+        return `background-color: ${hex} !important;`;
+    },
+    isLightColor(colorVal) {
+        const hex = this.getColorHex(colorVal).replace('#', '');
+        if (hex.length === 6) {
+            const r = parseInt(hex.substring(0, 2), 16);
+            const g = parseInt(hex.substring(2, 4), 16);
+            const b = parseInt(hex.substring(4, 6), 16);
+            const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+            return luminance > 0.65;
+        }
+        return false;
+    },
     getColorClass(colorId) {
-        const found = this.colorPalette.find(c => c.id === colorId);
-        return found ? found.bgClass : 'bg-blue-600';
+        return '';
     },
     getEmojiForIcon(iconId) {
         const found = this.presetIcons.find(i => i.id === iconId);
@@ -204,7 +291,42 @@
                 <!-- Parent Header -->
                 <div class="bg-slate-50/90 px-6 py-4 border-b border-slate-200/80 flex flex-col md:flex-row md:items-center justify-between gap-3">
                     <div class="flex items-center space-x-3">
-                        <div class="w-10 h-10 rounded-xl {{ $parent->icon_color ? 'bg-' . $parent->icon_color . '-500 text-white' : ($parent->type === 'service_request' ? 'bg-indigo-100 text-indigo-700' : 'bg-rose-100 text-rose-700') }} flex items-center justify-center font-bold text-sm shadow-2xs overflow-hidden shrink-0">
+                        @php
+                            $cVal = $parent->icon_color;
+                            $hexMap = [
+                                'cbvh-brown' => '#A16B54',
+                                'gold' => '#D4AF37',
+                                'champagne' => '#FAF4E3',
+                                'cream' => '#FCF8ED',
+                                'rose-gold' => '#B76E79',
+                                'bronze' => '#8C6239',
+                                'emerald' => '#10B981',
+                                'teal' => '#14B8A6',
+                                'cyan' => '#06B6D4',
+                                'sky' => '#0284C7',
+                                'blue' => '#2563EB',
+                                'indigo' => '#4F46E5',
+                                'violet' => '#7C3AED',
+                                'purple' => '#9333EA',
+                                'fuchsia' => '#C026D3',
+                                'pink' => '#EC4899',
+                                'rose' => '#F43F5E',
+                                'red' => '#DC2626',
+                                'orange' => '#EA580C',
+                                'amber' => '#F59E0B',
+                                'yellow' => '#EAB308',
+                                'lime' => '#84CC16',
+                                'green' => '#16A34A',
+                                'slate' => '#475569',
+                                'zinc' => '#27272A',
+                                'dark-navy' => '#0F172A',
+                                'white' => '#FFFFFF',
+                            ];
+                            $tileHex = $hexMap[strtolower($cVal ?? '')] ?? ($cVal && str_starts_with($cVal, '#') ? $cVal : ($parent->type === 'service_request' ? '#4F46E5' : '#2563EB'));
+                            $isLightTile = in_array(strtolower($tileHex), ['#ffffff', '#faf4e3', '#fcf8ed', '#f1f5f9', '#eab308']);
+                        @endphp
+                        <div style="background-color: {{ $tileHex }} !important;"
+                             class="w-10 h-10 rounded-xl {{ $isLightTile ? 'text-slate-800 border border-slate-200' : 'text-white' }} flex items-center justify-center font-bold text-sm shadow-2xs overflow-hidden shrink-0">
                             @if($parent->icon_url)
                                 <img src="{{ $parent->icon_url }}" alt="" class="w-6 h-6 object-contain" />
                             @else
@@ -530,17 +652,45 @@
                         </div>
                     </div>
 
-                    <!-- Color Swatches -->
+                    <!-- Color Swatches & Custom Color Picker -->
                     <div>
-                        <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1.5">Tile Background Color</label>
-                        <div class="flex items-center flex-wrap gap-2">
-                            <template x-for="c in colorPalette" :key="c.id">
-                                <button type="button" @click="newGroup.icon_color = c.id"
-                                        :class="[c.bgClass, newGroup.icon_color === c.id ? 'ring-2 ring-offset-2 ring-indigo-600 scale-110' : 'opacity-80 hover:opacity-100']"
-                                        class="w-6 h-6 rounded-full transition-all duration-150 shadow-2xs"
-                                        :title="c.name">
-                                </button>
-                            </template>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <label class="block text-[10px] font-bold text-slate-500 uppercase">Tile Background Color</label>
+                            <span class="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700" x-text="newGroup.icon_color"></span>
+                        </div>
+
+                        <div class="p-2.5 bg-slate-50/80 rounded-2xl border border-slate-200/80 space-y-2">
+                            <!-- Curated Palette Swatches (36 Shades) -->
+                            <div class="flex items-center flex-wrap gap-1.5 max-h-36 overflow-y-auto p-1 bg-white rounded-xl border border-slate-200/60">
+                                <template x-for="c in colorPalette" :key="c.id">
+                                    <button type="button" @click="newGroup.icon_color = c.hex"
+                                            :style="`background-color: ${c.hex};`"
+                                            :class="(newGroup.icon_color && (newGroup.icon_color.toLowerCase() === c.hex.toLowerCase() || newGroup.icon_color.toLowerCase() === c.id.toLowerCase())) ? 'ring-2 ring-offset-2 ring-indigo-600 scale-110 z-10' : 'opacity-85 hover:opacity-100 hover:scale-105'"
+                                            class="w-6 h-6 rounded-full transition-all duration-150 shadow-2xs shrink-0 border border-black/10 cursor-pointer"
+                                            :title="c.name + ' (' + c.hex + ')'">
+                                    </button>
+                                </template>
+                            </div>
+
+                            <!-- Custom Color Picker + Hex Input Row -->
+                            <div class="flex items-center space-x-2 pt-1 border-t border-slate-200/60">
+                                <label class="flex items-center space-x-1.5 cursor-pointer bg-white px-2 py-1 rounded-lg border border-slate-200 hover:bg-slate-50 transition shrink-0">
+                                    <input type="color"
+                                           :value="getColorHex(newGroup.icon_color)"
+                                           @input="newGroup.icon_color = $event.target.value"
+                                           class="w-5 h-5 rounded cursor-pointer p-0 border-0 bg-transparent" />
+                                    <span class="text-[11px] font-semibold text-slate-600">Custom Picker</span>
+                                </label>
+                                <div class="flex-1 flex items-center bg-white border border-slate-200 rounded-lg px-2 py-1">
+                                    <span class="text-xs text-slate-400 font-mono font-bold mr-1">#</span>
+                                    <input type="text"
+                                           :value="(newGroup.icon_color || '').replace('#', '')"
+                                           @input="newGroup.icon_color = '#' + $event.target.value.replace(/[^0-9A-Fa-f]/g, '')"
+                                           placeholder="A16B54"
+                                           maxlength="6"
+                                           class="w-full text-xs font-mono font-semibold text-slate-800 focus:outline-none uppercase" />
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -555,7 +705,9 @@
                         </div>
 
                         <div class="bg-white border border-slate-200 rounded-2xl p-3 flex items-center space-x-3">
-                            <div :class="getColorClass(newGroup.icon_color)" class="w-12 h-12 rounded-2xl text-white flex items-center justify-center shrink-0 shadow-xs overflow-hidden">
+                            <div :style="getColorStyle(newGroup.icon_color)"
+                                 :class="isLightColor(newGroup.icon_color) ? 'text-slate-800 border border-slate-200' : 'text-white'"
+                                 class="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-xs overflow-hidden transition-colors">
                                 <template x-if="newGroup.iconPreview">
                                     <img :src="newGroup.iconPreview" class="w-7 h-7 object-contain">
                                 </template>
@@ -809,17 +961,45 @@
                         </div>
                     </div>
 
-                    <!-- Color Swatches -->
+                    <!-- Color Swatches & Custom Color Picker -->
                     <div>
-                        <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1.5">Tile Background Color</label>
-                        <div class="flex items-center flex-wrap gap-2">
-                            <template x-for="c in colorPalette" :key="c.id">
-                                <button type="button" @click="editCat.icon_color = c.id"
-                                        :class="[c.bgClass, editCat.icon_color === c.id ? 'ring-2 ring-offset-2 ring-indigo-600 scale-110' : 'opacity-80 hover:opacity-100']"
-                                        class="w-6 h-6 rounded-full transition-all duration-150 shadow-2xs"
-                                        :title="c.name">
-                                </button>
-                            </template>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <label class="block text-[10px] font-bold text-slate-500 uppercase">Tile Background Color</label>
+                            <span class="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700" x-text="editCat.icon_color"></span>
+                        </div>
+
+                        <div class="p-2.5 bg-slate-50/80 rounded-2xl border border-slate-200/80 space-y-2">
+                            <!-- Curated Palette Swatches (36 Shades) -->
+                            <div class="flex items-center flex-wrap gap-1.5 max-h-36 overflow-y-auto p-1 bg-white rounded-xl border border-slate-200/60">
+                                <template x-for="c in colorPalette" :key="c.id">
+                                    <button type="button" @click="editCat.icon_color = c.hex"
+                                            :style="`background-color: ${c.hex};`"
+                                            :class="(editCat.icon_color && (editCat.icon_color.toLowerCase() === c.hex.toLowerCase() || editCat.icon_color.toLowerCase() === c.id.toLowerCase())) ? 'ring-2 ring-offset-2 ring-indigo-600 scale-110 z-10' : 'opacity-85 hover:opacity-100 hover:scale-105'"
+                                            class="w-6 h-6 rounded-full transition-all duration-150 shadow-2xs shrink-0 border border-black/10 cursor-pointer"
+                                            :title="c.name + ' (' + c.hex + ')'">
+                                    </button>
+                                </template>
+                            </div>
+
+                            <!-- Custom Color Picker + Hex Input Row -->
+                            <div class="flex items-center space-x-2 pt-1 border-t border-slate-200/60">
+                                <label class="flex items-center space-x-1.5 cursor-pointer bg-white px-2 py-1 rounded-lg border border-slate-200 hover:bg-slate-50 transition shrink-0">
+                                    <input type="color"
+                                           :value="getColorHex(editCat.icon_color)"
+                                           @input="editCat.icon_color = $event.target.value"
+                                           class="w-5 h-5 rounded cursor-pointer p-0 border-0 bg-transparent" />
+                                    <span class="text-[11px] font-semibold text-slate-600">Custom Picker</span>
+                                </label>
+                                <div class="flex-1 flex items-center bg-white border border-slate-200 rounded-lg px-2 py-1">
+                                    <span class="text-xs text-slate-400 font-mono font-bold mr-1">#</span>
+                                    <input type="text"
+                                           :value="(editCat.icon_color || '').replace('#', '')"
+                                           @input="editCat.icon_color = '#' + $event.target.value.replace(/[^0-9A-Fa-f]/g, '')"
+                                           placeholder="A16B54"
+                                           maxlength="6"
+                                           class="w-full text-xs font-mono font-semibold text-slate-800 focus:outline-none uppercase" />
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -834,7 +1014,9 @@
                         </div>
 
                         <div class="bg-white border border-slate-200 rounded-2xl p-3 flex items-center space-x-3">
-                            <div :class="getColorClass(editCat.icon_color)" class="w-12 h-12 rounded-2xl text-white flex items-center justify-center shrink-0 shadow-xs overflow-hidden">
+                            <div :style="getColorStyle(editCat.icon_color)"
+                                 :class="isLightColor(editCat.icon_color) ? 'text-slate-800 border border-slate-200' : 'text-white'"
+                                 class="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-xs overflow-hidden transition-colors">
                                 <template x-if="editCat.iconPreview">
                                     <img :src="editCat.iconPreview" class="w-7 h-7 object-contain">
                                 </template>

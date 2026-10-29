@@ -394,9 +394,74 @@ function tmaApp() {
             return 'Select category and proceed';
         },
 
+        getCategoryIconStyle(cat) {
+            const c = cat?.icon_color;
+            if (!c) return '';
+            if (c.startsWith('#') || c.startsWith('rgb') || c.startsWith('hsl')) {
+                return `background-color: ${c} !important;`;
+            }
+            const hexMap = {
+                'cbvh-brown': '#A16B54',
+                'gold': '#D4AF37',
+                'champagne': '#FAF4E3',
+                'cream': '#FCF8ED',
+                'rose-gold': '#B76E79',
+                'bronze': '#8C6239',
+                'emerald': '#10B981',
+                'teal': '#14B8A6',
+                'cyan': '#06B6D4',
+                'sky': '#0284C7',
+                'blue': '#2563EB',
+                'indigo': '#4F46E5',
+                'violet': '#7C3AED',
+                'purple': '#9333EA',
+                'fuchsia': '#C026D3',
+                'pink': '#EC4899',
+                'rose': '#F43F5E',
+                'red': '#DC2626',
+                'orange': '#EA580C',
+                'amber': '#F59E0B',
+                'yellow': '#EAB308',
+                'lime': '#84CC16',
+                'green': '#16A34A',
+                'slate': '#475569',
+                'zinc': '#27272A',
+                'dark-navy': '#0F172A',
+                'white': '#FFFFFF',
+            };
+            if (hexMap[c.toLowerCase()]) {
+                return `background-color: ${hexMap[c.toLowerCase()]} !important;`;
+            }
+            return '';
+        },
+
+        getCategoryIconTextColor(cat) {
+            const c = cat?.icon_color;
+            if (!c) return 'text-white';
+            const light = ['#ffffff', '#faf4e3', '#fcf8ed', '#f1f5f9', '#eab308', 'white', 'champagne', 'cream', 'yellow'];
+            if (light.includes(c.toLowerCase())) {
+                return 'text-slate-800 border border-slate-200';
+            }
+            if (c.startsWith('#') && (c.length === 7 || c.length === 4)) {
+                let hex = c.slice(1);
+                if (hex.length === 3) hex = hex.split('').map(x => x + x).join('');
+                const r = parseInt(hex.substring(0, 2), 16);
+                const g = parseInt(hex.substring(2, 4), 16);
+                const b = parseInt(hex.substring(4, 6), 16);
+                const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+                if (lum > 0.65) {
+                    return 'text-slate-800 border border-slate-200';
+                }
+            }
+            return 'text-white';
+        },
+
         getCategoryIconBg(cat) {
-            // 1. If custom color specified
-            if (cat?.icon_color) {
+            const c = cat?.icon_color;
+            if (c) {
+                if (c.startsWith('#') || c.startsWith('rgb') || c.startsWith('hsl')) {
+                    return '';
+                }
                 const colorMap = {
                     emerald: 'bg-emerald-500',
                     blue: 'bg-blue-600',
@@ -407,7 +472,9 @@ function tmaApp() {
                     rose: 'bg-rose-500',
                     slate: 'bg-slate-600',
                 };
-                return colorMap[cat.icon_color] || (cat.icon_color.startsWith('bg-') ? cat.icon_color : 'bg-blue-600');
+                if (colorMap[c]) return colorMap[c];
+                if (c.startsWith('bg-')) return c;
+                return '';
             }
 
             // 2. Intelligent fallback

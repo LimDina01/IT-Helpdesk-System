@@ -39,8 +39,9 @@
                          class="bg-white border border-slate-200/80 hover:border-blue-400 rounded-2xl p-3.5 shadow-xs flex items-center space-x-3.5 cursor-pointer active:scale-[0.97] active:bg-slate-50 transition-all duration-150 ease-out">
                         
                         <!-- Colored Square Icon (Custom Uploaded Image OR Preset Icon) -->
-                        <div :class="getCategoryIconBg(cat)"
-                             class="w-12 h-12 rounded-2xl text-white flex items-center justify-center shrink-0 shadow-xs overflow-hidden">
+                        <div :class="[getCategoryIconBg(cat), getCategoryIconTextColor(cat)]"
+                             :style="getCategoryIconStyle(cat)"
+                             class="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-xs overflow-hidden">
                             <!-- 1. Custom Uploaded Image Icon -->
                             <template x-if="cat.icon_url">
                                 <img :src="cat.icon_url" alt="" class="w-7 h-7 object-contain select-none" />
