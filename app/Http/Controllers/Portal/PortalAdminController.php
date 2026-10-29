@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Branch;
 use App\Models\CompanyHoliday;
 use App\Models\Department;
+use App\Models\Employee;
 use App\Models\Role;
 use App\Models\TicketCategory;
 use App\Models\User;
@@ -191,18 +192,45 @@ class PortalAdminController extends Controller
     /**
      * User & Role Management view.
      */
-    public function users(): View
+    public function users(Request $request): View
     {
         abort_unless(Auth::user()->hasRole(['system_admin', 'hod']), 403);
 
-        $users = User::with(['roles', 'employee.department', 'employee.branch'])
-            ->orderBy('name')
-            ->paginate(25);
+        $filter = $request->input('filter', 'all');
 
-        // Operational IT Staff roles
+        $query = User::with(['roles', 'employee.department', 'employee.branch'])
+            ->orderBy('name');
+
+        if ($filter === 'portal') {
+            $query->whereHas('roles', fn($q) => $q->whereIn('name', ['technician', 'helpdesk', 'system_admin']));
+        } elseif ($filter === 'tma') {
+            $query->whereHas('roles', fn($q) => $q->where('name', 'requester'));
+        }
+
+        $users = $query->paginate(25)->withQueryString();
+
+        $totalCount = User::count();
+        $staffCount = User::whereHas('roles', fn($q) => $q->whereIn('name', ['technician', 'helpdesk', 'system_admin']))->count();
+        $tmaCount = User::whereHas('roles', fn($q) => $q->where('name', 'requester'))->count();
+
+        // Operational IT Staff roles (for staff modal)
         $roles = Role::whereIn('name', ['technician', 'helpdesk', 'system_admin', 'hod'])->get();
+        // All roles (for role assignment modal)
+        $allRoles = Role::orderBy('id')->get();
+        $departments = Department::where('is_active', true)->orderBy('name')->get();
+        $branches = Branch::where('is_active', true)->orderBy('name')->get();
 
-        return view('portal.admin.users', compact('users', 'roles'));
+        return view('portal.admin.users', compact(
+            'users',
+            'roles',
+            'allRoles',
+            'departments',
+            'branches',
+            'totalCount',
+            'staffCount',
+            'tmaCount',
+            'filter'
+        ));
     }
 
     /**
@@ -271,6 +299,87 @@ class PortalAdminController extends Controller
         $newUser->roles()->sync($validated['roles']);
 
         return back()->with('status', "IT Staff user '{$newUser->name}' ({$newUser->email}) registered successfully.");
+    }
+
+    /**
+     * Create or update a Bank Employee & TMA Requester / Department HOD.
+     */
+    public function storeTmaUser(Request $request): RedirectResponse
+    {
+        abort_unless(Auth::user()->hasRole(['system_admin', 'hod']), 403);
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:100',
+            'email' => 'required|email|max:150',
+            'employee_code' => 'required|string|max:50',
+            'department_id' => 'required|exists:departments,id',
+            'branch_id' => 'required|exists:branches,id',
+            'phone' => 'nullable|string|max:50',
+            'role' => 'required|in:requester,hod',
+            'password' => 'nullable|string|min:6',
+            'telegram_username' => 'nullable|string|max:100',
+        ]);
+
+        $employeeCode = strtoupper(trim($validated['employee_code']));
+        $email = strtolower(trim($validated['email']));
+
+        // 1. Create or update Employee record with Department & Branch
+        $employee = Employee::firstOrNew(['employee_code' => $employeeCode]);
+        $employee->full_name = $validated['name'];
+        $employee->email = $email;
+        $employee->department_id = $validated['department_id'];
+        $employee->branch_id = $validated['branch_id'];
+        if (!empty($validated['phone'])) {
+            $employee->phone = $validated['phone'];
+        }
+        $employee->is_active = true;
+        $employee->save();
+
+        // 2. Create or update User record
+        $user = User::where('employee_id', $employee->id)->orWhere('email', $email)->first();
+        $passwordInput = !empty($validated['password']) ? $validated['password'] : 'Password123!';
+
+        if ($user) {
+            $updateData = [
+                'name' => $validated['name'],
+                'email' => $email,
+                'employee_id' => $employee->id,
+                'is_active' => true,
+            ];
+            if (!empty($validated['telegram_username'])) {
+                $updateData['telegram_username'] = ltrim($validated['telegram_username'], '@');
+            }
+            if (!empty($validated['password'])) {
+                $updateData['password'] = \Illuminate\Support\Facades\Hash::make($passwordInput);
+            }
+            $user->update($updateData);
+        } else {
+            $user = User::create([
+                'name' => $validated['name'],
+                'email' => $email,
+                'employee_id' => $employee->id,
+                'password' => \Illuminate\Support\Facades\Hash::make($passwordInput),
+                'telegram_username' => !empty($validated['telegram_username']) ? ltrim($validated['telegram_username'], '@') : null,
+                'is_active' => true,
+            ]);
+        }
+
+        // 3. Assign role
+        $roleModel = Role::firstOrCreate(['name' => $validated['role']], [
+            'label' => $validated['role'] === 'hod' ? 'Head of Department' : 'Requester',
+        ]);
+
+        if ($validated['role'] === 'hod') {
+            $requesterRole = Role::firstOrCreate(['name' => 'requester'], ['label' => 'Requester']);
+            $user->roles()->syncWithoutDetaching([$roleModel->id, $requesterRole->id]);
+        } else {
+            $user->roles()->syncWithoutDetaching([$roleModel->id]);
+        }
+
+        $deptName = $employee->department?->name ?? 'Department';
+        $roleLabel = $validated['role'] === 'hod' ? 'Department HOD' : 'Requester';
+
+        return back()->with('status', "TMA User '{$user->name}' ({$employee->employee_code}) registered as {$roleLabel} in {$deptName}. Web login & Telegram link ready!");
     }
 
     /**

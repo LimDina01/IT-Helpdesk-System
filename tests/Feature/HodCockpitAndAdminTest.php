@@ -239,5 +239,44 @@ class HodCockpitAndAdminTest extends TestCase
         $createdUser->refresh();
         $this->assertEquals('Boran Sem Test Promoted', $createdUser->name);
         $this->assertTrue($createdUser->hasRole('helpdesk'));
+
+        // 7. Register new TMA Requester Employee
+        $dept = \App\Models\Department::firstOrFail();
+        $branch = \App\Models\Branch::firstOrFail();
+
+        $tmaRequesterResponse = $this->post(route('portal.admin.users.tma.store'), [
+            'name' => 'Dina Requester Test',
+            'email' => 'dina.requester@cbvh.com.kh',
+            'employee_code' => 'EMP-9901',
+            'department_id' => $dept->id,
+            'branch_id' => $branch->id,
+            'role' => 'requester',
+            'password' => 'Password123!',
+            'telegram_username' => 'dina_requester_test',
+        ]);
+        $tmaRequesterResponse->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('employees', [
+            'employee_code' => 'EMP-9901',
+            'full_name' => 'Dina Requester Test',
+            'department_id' => $dept->id,
+        ]);
+        $tmaUser = User::where('email', 'dina.requester@cbvh.com.kh')->firstOrFail();
+        $this->assertTrue($tmaUser->hasRole('requester'));
+        $this->assertEquals($dept->id, $tmaUser->employee->department_id);
+
+        // 8. Register new TMA Department HOD Employee
+        $tmaHodResponse = $this->post(route('portal.admin.users.tma.store'), [
+            'name' => 'Finance HOD Test',
+            'email' => 'finance.hod.test@cbvh.com.kh',
+            'employee_code' => 'EMP-9902',
+            'department_id' => $dept->id,
+            'branch_id' => $branch->id,
+            'role' => 'hod',
+            'password' => 'Password123!',
+        ]);
+        $tmaHodResponse->assertSessionHasNoErrors();
+        $tmaHodUser = User::where('email', 'finance.hod.test@cbvh.com.kh')->firstOrFail();
+        $this->assertTrue($tmaHodUser->hasRole('hod'));
+        $this->assertTrue($tmaHodUser->hasRole('requester'));
     }
 }

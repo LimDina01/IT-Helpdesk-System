@@ -3,24 +3,32 @@
 @section('title', 'System Administration - Users & Roles')
 
 @section('content')
-<div x-data="{ roleModal: false, createUserModal: false, search: '', targetUser: {}, userRoles: [] }" class="space-y-6">
+<div x-data="{ roleModal: false, createUserModal: false, createTmaModal: false, search: '', targetUser: {}, userRoles: [] }" class="space-y-6">
 
     <!-- Top Admin Header -->
     <div class="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
             <div class="text-xs text-indigo-600 font-extrabold uppercase tracking-wider">System Administration</div>
-            <h1 class="text-xl sm:text-2xl font-black text-slate-900 mt-1">Staff Roster & Role Permissions</h1>
-            <p class="text-xs text-slate-500 mt-0.5">Manage Help Desk specialists, field technicians, HOD department executives, and system administrators.</p>
+            <h1 class="text-xl sm:text-2xl font-black text-slate-900 mt-1">Staff Roster & User Management</h1>
+            <p class="text-xs text-slate-500 mt-0.5">Manage Web Portal IT technical staff as well as bank employees and department approvers for Telegram Mini App.</p>
         </div>
 
-        <button type="button" @click="createUserModal = true" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-xs transition flex items-center space-x-1.5 self-start sm:self-auto">
-            <span>➕</span>
-            <span>Add Staff User</span>
-        </button>
+        <!-- 2 Distinct Creation Actions -->
+        <div class="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+            <button type="button" @click="createUserModal = true" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3.5 py-2.5 rounded-xl shadow-xs transition flex items-center space-x-1.5">
+                <span>🛠️</span>
+                <span>Add IT Staff User</span>
+            </button>
+            <button type="button" @click="createTmaModal = true" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-3.5 py-2.5 rounded-xl shadow-xs transition flex items-center space-x-1.5">
+                <span>📱</span>
+                <span>Add TMA Employee</span>
+            </button>
+        </div>
     </div>
 
-    <!-- Admin Navigation Tabs & Live Search -->
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+    <!-- Admin Navigation Tabs & Filter Pills & Live Search -->
+    <div class="space-y-3">
+        <!-- Top Navigation -->
         <div class="flex items-center space-x-2 bg-slate-100 p-1 rounded-2xl text-xs font-semibold overflow-x-auto w-fit">
             <a href="{{ route('portal.admin.index') }}" class="text-slate-600 hover:text-slate-900 px-4 py-2 rounded-xl transition flex items-center space-x-1.5">
                 <span>📁</span>
@@ -36,14 +44,35 @@
             </a>
         </div>
 
-        <!-- Live Instant Search Filter -->
-        <div class="relative w-full sm:w-72">
-            <input type="text"
-                   x-model="search"
-                   placeholder="Filter users by name, email, code..."
-                   class="w-full text-xs pl-9 pr-3 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-2xs">
-            <span class="absolute left-3 top-2.5 text-slate-400 text-xs">🔍</span>
-            <button x-show="search" @click="search = ''" class="absolute right-3 top-2 text-slate-400 hover:text-slate-600 text-xs">✕</button>
+        <!-- Filter Pills & Search -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+            <div class="flex items-center space-x-1.5 bg-slate-100 p-1 rounded-2xl text-xs font-semibold overflow-x-auto">
+                <a href="{{ route('portal.admin.users', ['filter' => 'all']) }}" class="px-3.5 py-1.5 rounded-xl transition flex items-center space-x-1.5 {{ $filter === 'all' ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-600 hover:text-slate-900' }}">
+                    <span>👥</span>
+                    <span>All Accounts</span>
+                    <span class="text-[10px] px-1.5 py-0.2 rounded-full {{ $filter === 'all' ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-200 text-slate-600' }}">{{ $totalCount }}</span>
+                </a>
+                <a href="{{ route('portal.admin.users', ['filter' => 'portal']) }}" class="px-3.5 py-1.5 rounded-xl transition flex items-center space-x-1.5 {{ $filter === 'portal' ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-600 hover:text-slate-900' }}">
+                    <span>🛠️</span>
+                    <span>IT Staff Portal</span>
+                    <span class="text-[10px] px-1.5 py-0.2 rounded-full {{ $filter === 'portal' ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-200 text-slate-600' }}">{{ $staffCount }}</span>
+                </a>
+                <a href="{{ route('portal.admin.users', ['filter' => 'tma']) }}" class="px-3.5 py-1.5 rounded-xl transition flex items-center space-x-1.5 {{ $filter === 'tma' ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-600 hover:text-slate-900' }}">
+                    <span>📱</span>
+                    <span>TMA Requesters</span>
+                    <span class="text-[10px] px-1.5 py-0.2 rounded-full {{ $filter === 'tma' ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-200 text-slate-600' }}">{{ $tmaCount }}</span>
+                </a>
+            </div>
+
+            <!-- Live Instant Search Filter -->
+            <div class="relative w-full sm:w-72">
+                <input type="text"
+                       x-model="search"
+                       placeholder="Filter by name, email, code, dept..."
+                       class="w-full text-xs pl-9 pr-3 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-2xs">
+                <span class="absolute left-3 top-2.5 text-slate-400 text-xs">🔍</span>
+                <button x-show="search" @click="search = ''" class="absolute right-3 top-2 text-slate-400 hover:text-slate-600 text-xs">✕</button>
+            </div>
         </div>
     </div>
 
@@ -79,7 +108,7 @@
                 <tbody class="divide-y divide-slate-100">
                     @forelse($users as $user)
                         <tr class="hover:bg-slate-50/70 transition"
-                            x-show="!search.trim() || '{{ strtolower(addslashes($user->name)) }}'.includes(search.toLowerCase().trim()) || '{{ strtolower(addslashes($user->email ?? '')) }}'.includes(search.toLowerCase().trim()) || '{{ strtolower(addslashes($user->telegram_username ?? '')) }}'.includes(search.toLowerCase().trim()) || '{{ strtolower(addslashes($user->employee?->employee_code ?? '')) }}'.includes(search.toLowerCase().trim())">
+                            x-show="!search.trim() || '{{ strtolower(addslashes($user->name)) }}'.includes(search.toLowerCase().trim()) || '{{ strtolower(addslashes($user->email ?? '')) }}'.includes(search.toLowerCase().trim()) || '{{ strtolower(addslashes($user->telegram_username ?? '')) }}'.includes(search.toLowerCase().trim()) || '{{ strtolower(addslashes($user->employee?->employee_code ?? '')) }}'.includes(search.toLowerCase().trim()) || '{{ strtolower(addslashes($user->employee?->department?->name ?? '')) }}'.includes(search.toLowerCase().trim())">
                             <td class="py-3.5 px-6 whitespace-nowrap">
                                 <div class="flex items-center space-x-2">
                                     <div class="font-bold text-slate-900">{{ $user->name }}</div>
@@ -90,14 +119,14 @@
                                 <div class="text-[10px] text-slate-400">
                                     {{ $user->email ?? 'No email' }}
                                     @if($user->employee)
-                                        &bull; <span class="font-mono text-indigo-600">{{ $user->employee->employee_code }}</span>
+                                        &bull; <span class="font-mono text-indigo-600 font-bold">{{ $user->employee->employee_code }}</span>
                                     @endif
                                 </div>
                             </td>
 
                             <td class="py-3.5 px-4 whitespace-nowrap">
-                                <div class="font-semibold text-slate-700">{{ $user->employee?->department?->name ?? 'Standalone Account' }}</div>
-                                <div class="text-[10px] text-slate-400">{{ $user->employee?->branch?->name ?? 'HQ' }}</div>
+                                <div class="font-semibold text-slate-700">{{ $user->employee?->department?->name ?? 'Standalone IT Account' }}</div>
+                                <div class="text-[10px] text-slate-400">{{ $user->employee?->branch?->name ?? 'Head Office' }}</div>
                             </td>
 
                             <td class="py-3.5 px-4 whitespace-nowrap">
@@ -174,7 +203,7 @@
     </div>
 
     <!-- ========================================== -->
-    <!-- 1. CREATE STAFF USER MODAL                 -->
+    <!-- 1. CREATE IT STAFF USER MODAL              -->
     <!-- ========================================== -->
     <div x-show="createUserModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4" x-cloak>
         <div @click.away="createUserModal = false" class="bg-white rounded-3xl max-w-lg w-full shadow-2xl p-6 space-y-4">
@@ -245,19 +274,115 @@
     </div>
 
     <!-- ========================================== -->
-    <!-- 2. EDIT ROLES MODAL                        -->
+    <!-- 2. CREATE TMA EMPLOYEE MODAL               -->
+    <!-- ========================================== -->
+    <div x-show="createTmaModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4" x-cloak>
+        <div @click.away="createTmaModal = false" class="bg-white rounded-3xl max-w-lg w-full shadow-2xl p-6 space-y-4 max-h-[92vh] overflow-y-auto">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div class="flex items-center space-x-2">
+                    <span class="text-xl">📱</span>
+                    <div>
+                        <h3 class="text-base font-bold text-slate-900">Register TMA Employee / Requester</h3>
+                        <p class="text-[11px] text-slate-500">Pre-register bank employee for Telegram Mini App & department approval routing.</p>
+                    </div>
+                </div>
+                <button type="button" @click="createTmaModal = false" class="text-slate-400 hover:text-slate-600 text-sm font-bold">✕</button>
+            </div>
+            
+            <form method="POST" action="{{ route('portal.admin.users.tma.store') }}" class="space-y-3.5">
+                @csrf
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Full Name</label>
+                        <input type="text" name="name" required placeholder="e.g. Sokha Chan" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Corporate Email</label>
+                        <input type="email" name="email" required placeholder="e.g. sokha.chan@cbvh.com.kh" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Employee ID Code</label>
+                        <input type="text" name="employee_code" required placeholder="e.g. EMP-1009" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Department</label>
+                        <select name="department_id" required class="w-full text-xs px-3 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                            @foreach($departments as $dept)
+                                <option value="{{ $dept->id }}">{{ $dept->name }} ({{ $dept->code }})</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Branch</label>
+                        <select name="branch_id" required class="w-full text-xs px-3 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                            @foreach($branches as $branch)
+                                <option value="{{ $branch->id }}">{{ $branch->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Role Selection in TMA -->
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1.5">TMA Account Role</label>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <label class="flex items-start space-x-2.5 p-3 rounded-2xl border border-slate-200 hover:bg-slate-50 cursor-pointer transition">
+                            <input type="radio" name="role" value="requester" checked class="mt-0.5 text-blue-600 focus:ring-blue-500">
+                            <div>
+                                <div class="text-xs font-bold text-slate-900">👤 Requester (Employee)</div>
+                                <div class="text-[10px] text-slate-500 mt-0.5">Standard staff member. Can submit tickets and chat with support.</div>
+                            </div>
+                        </label>
+
+                        <label class="flex items-start space-x-2.5 p-3 rounded-2xl border border-slate-200 hover:bg-slate-50 cursor-pointer transition">
+                            <input type="radio" name="role" value="hod" class="mt-0.5 text-blue-600 focus:ring-blue-500">
+                            <div>
+                                <div class="text-xs font-bold text-slate-900">👔 Department HOD</div>
+                                <div class="text-[10px] text-slate-500 mt-0.5">Department Head. Approves Step 1 service requests for this department.</div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Web Login Password</label>
+                        <input type="text" name="password" placeholder="Default: Password123!" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <p class="text-[10px] text-slate-400 mt-0.5">Used for TMA web login if Telegram is down.</p>
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Telegram Username (Optional)</label>
+                        <input type="text" name="telegram_username" placeholder="e.g. chan_sokha" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <p class="text-[10px] text-slate-400 mt-0.5">Pre-binds Telegram account.</p>
+                    </div>
+                </div>
+
+                <div class="flex justify-end space-x-2 pt-3 border-t border-slate-100">
+                    <button type="button" @click="createTmaModal = false" class="px-4 py-2 text-xs text-slate-600 font-semibold hover:bg-slate-100 rounded-xl transition">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition">Save TMA Employee</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 3. EDIT ROLES MODAL                        -->
     <!-- ========================================== -->
     <div x-show="roleModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4" x-cloak>
         <div @click.away="roleModal = false" class="bg-white rounded-3xl max-w-md w-full shadow-2xl p-6 space-y-4">
             <h3 class="text-base font-bold text-slate-800">
                 Assign Roles: <span class="text-indigo-600" x-text="targetUser.name"></span>
             </h3>
-            <p class="text-xs text-slate-500">Users can hold multiple operational roles simultaneously (e.g. Technician + Help Desk).</p>
+            <p class="text-xs text-slate-500">Users can hold multiple operational roles simultaneously (e.g. Technician + Help Desk, or Requester + HOD).</p>
             
             <form :action="'{{ url('portal/admin/users') }}/' + targetUser.id + '/roles'" method="POST" class="space-y-4">
                 @csrf
                 <div class="space-y-2">
-                    @foreach($roles as $role)
+                    @foreach($allRoles as $role)
                         <label class="flex items-center space-x-3 p-3 rounded-2xl border border-slate-200 hover:bg-slate-50 cursor-pointer transition">
                             <input type="checkbox" name="roles[]" value="{{ $role->id }}" :checked="userRoles.includes({{ $role->id }})" class="rounded text-indigo-600 focus:ring-indigo-500">
                             <div>
