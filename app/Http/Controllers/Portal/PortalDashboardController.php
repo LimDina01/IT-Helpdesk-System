@@ -24,6 +24,7 @@ class PortalDashboardController extends Controller
         $viewTab = $request->input('view', 'triage'); // 'triage', 'my_tasks', 'all_active', 'blocked'
         $branchFilter = $request->input('branch_id');
         $priorityFilter = $request->input('priority');
+        $statusFilter = $request->input('status');
         $searchQuery = $request->input('q');
 
         // 1. KPI Counts
@@ -55,7 +56,14 @@ class PortalDashboardController extends Controller
             $query->where('branch_id', $branchFilter);
         }
         if ($priorityFilter) {
-            $query->where('priority', $priorityFilter);
+            if (in_array($priorityFilter, ['critical_high', 'high_critical'], true)) {
+                $query->whereIn('priority', ['critical', 'high']);
+            } else {
+                $query->where('priority', $priorityFilter);
+            }
+        }
+        if ($statusFilter) {
+            $query->where('status', $statusFilter);
         }
         if ($searchQuery) {
             $query->where(function ($q) use ($searchQuery) {
@@ -111,6 +119,13 @@ class PortalDashboardController extends Controller
                     ->whereNull('acknowledged_at')
                     ->where('assigned_at', '<', Carbon::now()->subMinutes(30))
                     ->orderBy('assigned_at');
+                break;
+
+            case 'reopened':
+                $viewTab = 'triage';
+                $query->where('status', 'reopened')
+                    ->orderByRaw("CASE priority WHEN 'critical' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END")
+                    ->orderBy('created_at');
                 break;
 
             case 'triage':

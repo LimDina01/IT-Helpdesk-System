@@ -32,55 +32,79 @@
         </div>
     </div>
 
-    <!-- Executive Intervention KPIs -->
+    <!-- Executive Intervention KPIs (Clickable Drill-Down) -->
     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
         
         <!-- 30m SLA Breaches -->
-        <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs relative overflow-hidden">
-            <div class="text-[11px] font-extrabold uppercase tracking-wider text-rose-600">30m SLA Breaches</div>
+        <a href="{{ route('portal.dashboard', ['view' => 'sla_breached']) }}" 
+           class="group bg-white hover:bg-rose-50/50 rounded-2xl p-4 border {{ $slaBreachCount > 0 ? 'border-rose-300 ring-1 ring-rose-200' : 'border-slate-200/80' }} hover:border-rose-400 hover:shadow-md transition-all duration-150 relative overflow-hidden block">
+            <div class="flex items-center justify-between">
+                <div class="text-[11px] font-extrabold uppercase tracking-wider text-rose-600">30m SLA Breaches</div>
+                <span class="text-xs text-rose-400 group-hover:translate-x-0.5 transition-transform font-bold">→</span>
+            </div>
             <div class="text-3xl font-black {{ $slaBreachCount > 0 ? 'text-rose-600 animate-pulse' : 'text-slate-800' }} mt-1">
                 {{ $slaBreachCount }}
             </div>
-            <div class="text-[10px] text-slate-400 mt-0.5">Awaiting tech accept >30m</div>
+            <div class="text-[10px] text-slate-400 group-hover:text-rose-700 mt-0.5">Awaiting tech accept >30m</div>
             @if($slaBreachCount > 0)
-                <span class="absolute top-2 right-2 w-2 h-2 rounded-full bg-rose-600"></span>
+                <span class="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-rose-600 animate-ping"></span>
             @endif
-        </div>
+        </a>
 
         <!-- Blocked / Hold -->
-        <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs">
-            <div class="text-[11px] font-extrabold uppercase tracking-wider text-amber-600">Blocked / Hold</div>
+        <a href="{{ route('portal.dashboard', ['view' => 'blocked']) }}" 
+           class="group bg-white hover:bg-amber-50/50 rounded-2xl p-4 border border-slate-200/80 hover:border-amber-400 hover:shadow-md transition-all duration-150 block">
+            <div class="flex items-center justify-between">
+                <div class="text-[11px] font-extrabold uppercase tracking-wider text-amber-600">Blocked / Hold</div>
+                <span class="text-xs text-amber-400 group-hover:translate-x-0.5 transition-transform font-bold">→</span>
+            </div>
             <div class="text-3xl font-black text-amber-600 mt-1">{{ $blockedCount }}</div>
-            <div class="text-[10px] text-slate-400 mt-0.5">Vendor or procurement hold</div>
-        </div>
+            <div class="text-[10px] text-slate-400 group-hover:text-amber-700 mt-0.5">Vendor or procurement hold</div>
+        </a>
 
         <!-- Pending Approvals -->
-        <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs">
-            <div class="text-[11px] font-extrabold uppercase tracking-wider text-purple-700">Pending Approvals</div>
+        <a href="{{ route('portal.dashboard', ['view' => 'pending_approvals']) }}" 
+           class="group bg-white hover:bg-purple-50/50 rounded-2xl p-4 border border-slate-200/80 hover:border-purple-400 hover:shadow-md transition-all duration-150 block">
+            <div class="flex items-center justify-between">
+                <div class="text-[11px] font-extrabold uppercase tracking-wider text-purple-700">Pending Approvals</div>
+                <span class="text-xs text-purple-400 group-hover:translate-x-0.5 transition-transform font-bold">→</span>
+            </div>
             <div class="text-3xl font-black text-purple-700 mt-1">{{ $pendingApprovalsCount }}</div>
-            <div class="text-[10px] text-slate-400 mt-0.5">HOD & IT sign-off chain</div>
-        </div>
+            <div class="text-[10px] text-slate-400 group-hover:text-purple-700 mt-0.5">HOD & IT sign-off chain</div>
+        </a>
 
         <!-- Escalated / Critical -->
-        <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs">
-            <div class="text-[11px] font-extrabold uppercase tracking-wider text-red-700">Critical / High</div>
+        <a href="{{ route('portal.dashboard', ['view' => 'all_active', 'priority' => 'critical_high']) }}" 
+           class="group bg-white hover:bg-red-50/50 rounded-2xl p-4 border border-slate-200/80 hover:border-red-400 hover:shadow-md transition-all duration-150 block">
+            <div class="flex items-center justify-between">
+                <div class="text-[11px] font-extrabold uppercase tracking-wider text-red-700">Critical / High</div>
+                <span class="text-xs text-red-400 group-hover:translate-x-0.5 transition-transform font-bold">→</span>
+            </div>
             <div class="text-3xl font-black text-red-700 mt-1">{{ $escalatedCount }}</div>
-            <div class="text-[10px] text-slate-400 mt-0.5">Severe operational impact</div>
-        </div>
+            <div class="text-[10px] text-slate-400 group-hover:text-red-700 mt-0.5">Severe operational impact</div>
+        </a>
 
         <!-- Reopened -->
-        <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs">
-            <div class="text-[11px] font-extrabold uppercase tracking-wider text-indigo-700">Reopened Fixes</div>
+        <a href="{{ route('portal.dashboard', ['view' => 'reopened']) }}" 
+           class="group bg-white hover:bg-indigo-50/50 rounded-2xl p-4 border border-slate-200/80 hover:border-indigo-400 hover:shadow-md transition-all duration-150 block">
+            <div class="flex items-center justify-between">
+                <div class="text-[11px] font-extrabold uppercase tracking-wider text-indigo-700">Reopened Fixes</div>
+                <span class="text-xs text-indigo-400 group-hover:translate-x-0.5 transition-transform font-bold">→</span>
+            </div>
             <div class="text-3xl font-black text-indigo-700 mt-1">{{ $reopenedCount }}</div>
-            <div class="text-[10px] text-slate-400 mt-0.5">Requester rejected resolution</div>
-        </div>
+            <div class="text-[10px] text-slate-400 group-hover:text-indigo-700 mt-0.5">Requester rejected resolution</div>
+        </a>
 
         <!-- Unassigned Triage -->
-        <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs">
-            <div class="text-[11px] font-extrabold uppercase tracking-wider text-blue-600">Unassigned Backlog</div>
+        <a href="{{ route('portal.dashboard', ['view' => 'triage']) }}" 
+           class="group bg-white hover:bg-blue-50/50 rounded-2xl p-4 border border-slate-200/80 hover:border-blue-400 hover:shadow-md transition-all duration-150 block">
+            <div class="flex items-center justify-between">
+                <div class="text-[11px] font-extrabold uppercase tracking-wider text-blue-600">Unassigned Backlog</div>
+                <span class="text-xs text-blue-400 group-hover:translate-x-0.5 transition-transform font-bold">→</span>
+            </div>
             <div class="text-3xl font-black text-blue-600 mt-1">{{ $unassignedTriageCount }}</div>
-            <div class="text-[10px] text-slate-400 mt-0.5">New tickets needing tech</div>
-        </div>
+            <div class="text-[10px] text-slate-400 group-hover:text-blue-700 mt-0.5">New tickets needing tech</div>
+        </a>
     </div>
 
     <!-- Live Technician Workload Distribution Board -->

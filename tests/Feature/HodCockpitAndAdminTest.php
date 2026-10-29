@@ -52,6 +52,10 @@ class HodCockpitAndAdminTest extends TestCase
         $response->assertSee('High-Attention Incident');
         $response->assertSee('System Audit Trail');
         $response->assertSee('Dara Sam'); // seeded technician
+        $response->assertSee(route('portal.dashboard', ['view' => 'sla_breached']));
+        $response->assertSee(route('portal.dashboard', ['view' => 'blocked']));
+        $response->assertSee(route('portal.dashboard', ['view' => 'pending_approvals']));
+        $response->assertSee(route('portal.dashboard', ['view' => 'reopened']));
     }
 
     public function test_executive_priority_override_action(): void
