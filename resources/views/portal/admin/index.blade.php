@@ -766,7 +766,7 @@
     <!-- 2. CREATE SUBCATEGORY MODAL               -->
     <!-- ========================================== -->
     <div x-show="createSubModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4" x-cloak>
-        <div @click.away="createSubModal = false" class="bg-white rounded-3xl max-w-lg w-full shadow-2xl p-6 space-y-4">
+        <div @click.away="createSubModal = false" class="bg-white rounded-3xl max-w-xl w-full shadow-2xl p-6 space-y-4">
             <div class="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div class="flex items-center space-x-2">
                     <span class="text-xl">➕</span>
@@ -840,62 +840,50 @@
                     <!-- 4 Priority SLA Inputs Grid -->
                     <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                         <!-- Critical Tier -->
-                        <div class="p-2.5 bg-red-50/70 rounded-xl border border-red-200/80">
-                            <div class="flex items-center justify-between mb-1">
-                                <span class="text-[10px] font-extrabold uppercase text-red-700 flex items-center space-x-1">
-                                    <span>🔴</span>
-                                    <span>Critical</span>
-                                </span>
-                                <span class="text-[9px] text-red-500 font-medium">Emergency</span>
+                        <div class="p-2.5 bg-red-50/70 rounded-xl border border-red-200/80 flex flex-col justify-between">
+                            <div class="flex items-center space-x-1.5 mb-1.5">
+                                <span class="text-xs">🔴</span>
+                                <span class="text-[11px] font-extrabold uppercase text-red-700 tracking-wide">Critical</span>
                             </div>
-                            <div class="flex items-center bg-white rounded-lg border border-red-200 px-2 py-1">
+                            <div class="flex items-center bg-white rounded-lg border border-red-200 px-2 py-1 shadow-2xs">
                                 <input type="number" name="sla_critical_hours" x-model="subForm.sla_critical_hours" min="1" max="720" required class="w-full text-xs font-bold text-slate-800 focus:outline-none text-right">
-                                <span class="text-[11px] font-semibold text-slate-500 ml-1">hrs</span>
+                                <span class="text-[11px] font-bold text-slate-400 ml-1">hrs</span>
                             </div>
                         </div>
 
                         <!-- High Tier -->
-                        <div class="p-2.5 bg-orange-50/70 rounded-xl border border-orange-200/80">
-                            <div class="flex items-center justify-between mb-1">
-                                <span class="text-[10px] font-extrabold uppercase text-orange-700 flex items-center space-x-1">
-                                    <span>🟠</span>
-                                    <span>High</span>
-                                </span>
-                                <span class="text-[9px] text-orange-500 font-medium">Urgent</span>
+                        <div class="p-2.5 bg-orange-50/70 rounded-xl border border-orange-200/80 flex flex-col justify-between">
+                            <div class="flex items-center space-x-1.5 mb-1.5">
+                                <span class="text-xs">🟠</span>
+                                <span class="text-[11px] font-extrabold uppercase text-orange-700 tracking-wide">High</span>
                             </div>
-                            <div class="flex items-center bg-white rounded-lg border border-orange-200 px-2 py-1">
+                            <div class="flex items-center bg-white rounded-lg border border-orange-200 px-2 py-1 shadow-2xs">
                                 <input type="number" name="sla_high_hours" x-model="subForm.sla_high_hours" min="1" max="720" required class="w-full text-xs font-bold text-slate-800 focus:outline-none text-right">
-                                <span class="text-[11px] font-semibold text-slate-500 ml-1">hrs</span>
+                                <span class="text-[11px] font-bold text-slate-400 ml-1">hrs</span>
                             </div>
                         </div>
 
                         <!-- Medium Tier -->
-                        <div class="p-2.5 bg-blue-50/70 rounded-xl border border-blue-200/80">
-                            <div class="flex items-center justify-between mb-1">
-                                <span class="text-[10px] font-extrabold uppercase text-blue-700 flex items-center space-x-1">
-                                    <span>🔵</span>
-                                    <span>Medium</span>
-                                </span>
-                                <span class="text-[9px] text-blue-500 font-medium">Standard</span>
+                        <div class="p-2.5 bg-blue-50/70 rounded-xl border border-blue-200/80 flex flex-col justify-between">
+                            <div class="flex items-center space-x-1.5 mb-1.5">
+                                <span class="text-xs">🔵</span>
+                                <span class="text-[11px] font-extrabold uppercase text-blue-700 tracking-wide">Medium</span>
                             </div>
-                            <div class="flex items-center bg-white rounded-lg border border-blue-200 px-2 py-1">
+                            <div class="flex items-center bg-white rounded-lg border border-blue-200 px-2 py-1 shadow-2xs">
                                 <input type="number" name="sla_medium_hours" x-model="subForm.sla_medium_hours" min="1" max="720" required class="w-full text-xs font-bold text-slate-800 focus:outline-none text-right">
-                                <span class="text-[11px] font-semibold text-slate-500 ml-1">hrs</span>
+                                <span class="text-[11px] font-bold text-slate-400 ml-1">hrs</span>
                             </div>
                         </div>
 
                         <!-- Low Tier -->
-                        <div class="p-2.5 bg-emerald-50/70 rounded-xl border border-emerald-200/80">
-                            <div class="flex items-center justify-between mb-1">
-                                <span class="text-[10px] font-extrabold uppercase text-emerald-700 flex items-center space-x-1">
-                                    <span>🟢</span>
-                                    <span>Low</span>
-                                </span>
-                                <span class="text-[9px] text-emerald-500 font-medium">Normal</span>
+                        <div class="p-2.5 bg-emerald-50/70 rounded-xl border border-emerald-200/80 flex flex-col justify-between">
+                            <div class="flex items-center space-x-1.5 mb-1.5">
+                                <span class="text-xs">🟢</span>
+                                <span class="text-[11px] font-extrabold uppercase text-emerald-700 tracking-wide">Low</span>
                             </div>
-                            <div class="flex items-center bg-white rounded-lg border border-emerald-200 px-2 py-1">
+                            <div class="flex items-center bg-white rounded-lg border border-emerald-200 px-2 py-1 shadow-2xs">
                                 <input type="number" name="sla_low_hours" x-model="subForm.sla_low_hours" min="1" max="720" required class="w-full text-xs font-bold text-slate-800 focus:outline-none text-right">
-                                <span class="text-[11px] font-semibold text-slate-500 ml-1">hrs</span>
+                                <span class="text-[11px] font-bold text-slate-400 ml-1">hrs</span>
                             </div>
                         </div>
                     </div>
@@ -1184,62 +1172,50 @@
                             <!-- 4 Priority SLA Inputs Grid -->
                             <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                                 <!-- Critical Tier -->
-                                <div class="p-2.5 bg-red-50/70 rounded-xl border border-red-200/80">
-                                    <div class="flex items-center justify-between mb-1">
-                                        <span class="text-[10px] font-extrabold uppercase text-red-700 flex items-center space-x-1">
-                                            <span>🔴</span>
-                                            <span>Critical</span>
-                                        </span>
-                                        <span class="text-[9px] text-red-500 font-medium">Emergency</span>
+                                <div class="p-2.5 bg-red-50/70 rounded-xl border border-red-200/80 flex flex-col justify-between">
+                                    <div class="flex items-center space-x-1.5 mb-1.5">
+                                        <span class="text-xs">🔴</span>
+                                        <span class="text-[11px] font-extrabold uppercase text-red-700 tracking-wide">Critical</span>
                                     </div>
-                                    <div class="flex items-center bg-white rounded-lg border border-red-200 px-2 py-1">
+                                    <div class="flex items-center bg-white rounded-lg border border-red-200 px-2 py-1 shadow-2xs">
                                         <input type="number" name="sla_critical_hours" x-model="editCat.sla_critical_hours" min="1" max="720" required class="w-full text-xs font-bold text-slate-800 focus:outline-none text-right">
-                                        <span class="text-[11px] font-semibold text-slate-500 ml-1">hrs</span>
+                                        <span class="text-[11px] font-bold text-slate-400 ml-1">hrs</span>
                                     </div>
                                 </div>
 
                                 <!-- High Tier -->
-                                <div class="p-2.5 bg-orange-50/70 rounded-xl border border-orange-200/80">
-                                    <div class="flex items-center justify-between mb-1">
-                                        <span class="text-[10px] font-extrabold uppercase text-orange-700 flex items-center space-x-1">
-                                            <span>🟠</span>
-                                            <span>High</span>
-                                        </span>
-                                        <span class="text-[9px] text-orange-500 font-medium">Urgent</span>
+                                <div class="p-2.5 bg-orange-50/70 rounded-xl border border-orange-200/80 flex flex-col justify-between">
+                                    <div class="flex items-center space-x-1.5 mb-1.5">
+                                        <span class="text-xs">🟠</span>
+                                        <span class="text-[11px] font-extrabold uppercase text-orange-700 tracking-wide">High</span>
                                     </div>
-                                    <div class="flex items-center bg-white rounded-lg border border-orange-200 px-2 py-1">
+                                    <div class="flex items-center bg-white rounded-lg border border-orange-200 px-2 py-1 shadow-2xs">
                                         <input type="number" name="sla_high_hours" x-model="editCat.sla_high_hours" min="1" max="720" required class="w-full text-xs font-bold text-slate-800 focus:outline-none text-right">
-                                        <span class="text-[11px] font-semibold text-slate-500 ml-1">hrs</span>
+                                        <span class="text-[11px] font-bold text-slate-400 ml-1">hrs</span>
                                     </div>
                                 </div>
 
                                 <!-- Medium Tier -->
-                                <div class="p-2.5 bg-blue-50/70 rounded-xl border border-blue-200/80">
-                                    <div class="flex items-center justify-between mb-1">
-                                        <span class="text-[10px] font-extrabold uppercase text-blue-700 flex items-center space-x-1">
-                                            <span>🔵</span>
-                                            <span>Medium</span>
-                                        </span>
-                                        <span class="text-[9px] text-blue-500 font-medium">Standard</span>
+                                <div class="p-2.5 bg-blue-50/70 rounded-xl border border-blue-200/80 flex flex-col justify-between">
+                                    <div class="flex items-center space-x-1.5 mb-1.5">
+                                        <span class="text-xs">🔵</span>
+                                        <span class="text-[11px] font-extrabold uppercase text-blue-700 tracking-wide">Medium</span>
                                     </div>
-                                    <div class="flex items-center bg-white rounded-lg border border-blue-200 px-2 py-1">
+                                    <div class="flex items-center bg-white rounded-lg border border-blue-200 px-2 py-1 shadow-2xs">
                                         <input type="number" name="sla_medium_hours" x-model="editCat.sla_medium_hours" min="1" max="720" required class="w-full text-xs font-bold text-slate-800 focus:outline-none text-right">
-                                        <span class="text-[11px] font-semibold text-slate-500 ml-1">hrs</span>
+                                        <span class="text-[11px] font-bold text-slate-400 ml-1">hrs</span>
                                     </div>
                                 </div>
 
                                 <!-- Low Tier -->
-                                <div class="p-2.5 bg-emerald-50/70 rounded-xl border border-emerald-200/80">
-                                    <div class="flex items-center justify-between mb-1">
-                                        <span class="text-[10px] font-extrabold uppercase text-emerald-700 flex items-center space-x-1">
-                                            <span>🟢</span>
-                                            <span>Low</span>
-                                        </span>
-                                        <span class="text-[9px] text-emerald-500 font-medium">Normal</span>
+                                <div class="p-2.5 bg-emerald-50/70 rounded-xl border border-emerald-200/80 flex flex-col justify-between">
+                                    <div class="flex items-center space-x-1.5 mb-1.5">
+                                        <span class="text-xs">🟢</span>
+                                        <span class="text-[11px] font-extrabold uppercase text-emerald-700 tracking-wide">Low</span>
                                     </div>
-                                    <div class="flex items-center bg-white rounded-lg border border-emerald-200 px-2 py-1">
+                                    <div class="flex items-center bg-white rounded-lg border border-emerald-200 px-2 py-1 shadow-2xs">
                                         <input type="number" name="sla_low_hours" x-model="editCat.sla_low_hours" min="1" max="720" required class="w-full text-xs font-bold text-slate-800 focus:outline-none text-right">
-                                        <span class="text-[11px] font-semibold text-slate-500 ml-1">hrs</span>
+                                        <span class="text-[11px] font-bold text-slate-400 ml-1">hrs</span>
                                     </div>
                                 </div>
                             </div>
