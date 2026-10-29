@@ -84,6 +84,8 @@ Route::prefix('portal')->group(function () {
         Route::post('/tickets/{ticket}/clarify', [PortalTicketController::class, 'requestClarification'])->name('portal.tickets.clarify');
         Route::post('/tickets/{ticket}/done', [PortalTicketController::class, 'markDone'])->name('portal.tickets.done');
         Route::post('/tickets/{ticket}/block', [PortalTicketController::class, 'markBlocked'])->name('portal.tickets.block');
+        Route::post('/tickets/{ticket}/block-approve', [PortalTicketController::class, 'approveHold'])->name('portal.tickets.block.approve');
+        Route::post('/tickets/{ticket}/block-reject', [PortalTicketController::class, 'rejectHold'])->name('portal.tickets.block.reject');
         Route::post('/tickets/{ticket}/messages', [PortalTicketController::class, 'addMessage'])->name('portal.tickets.messages.store');
         Route::get('/tickets/{ticket}/attachments/{attachment}/download', [PortalTicketController::class, 'downloadAttachment'])->name('portal.attachments.download');
         Route::post('/tickets/{ticket}/approvals/{approval}/approve', [PortalTicketController::class, 'approveStep'])->name('portal.tickets.approvals.approve');
@@ -113,6 +115,7 @@ Route::prefix('portal')->group(function () {
             Route::get('/users', [PortalAdminController::class, 'users'])->name('portal.admin.users');
             Route::post('/users', [PortalAdminController::class, 'storeUser'])->name('portal.admin.users.store');
             Route::post('/users/tma', [PortalAdminController::class, 'storeTmaUser'])->name('portal.admin.users.tma.store');
+            Route::put('/users/{user}', [PortalAdminController::class, 'updateUser'])->name('portal.admin.users.update');
             Route::post('/users/{user}/roles', [PortalAdminController::class, 'updateUserRoles'])->name('portal.admin.users.roles');
             Route::post('/users/{user}/toggle', [PortalAdminController::class, 'toggleUserActive'])->name('portal.admin.users.toggle');
 

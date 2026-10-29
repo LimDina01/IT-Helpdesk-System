@@ -6,6 +6,7 @@
 <div x-data="{
     clarifyModal: false,
     blockModal: false,
+    rejectHoldModal: false,
     reassignDrawer: false,
     messageTab: 'requester_visible',
     messageBody: '',
@@ -352,9 +353,29 @@
                         </button>
                     </form>
 
-                    <button type="button" @click="blockModal = true" class="bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold text-xs px-3 py-2.5 rounded-xl transition">
-                        🛑 Block / Hold
-                    </button>
+                    @if($ticket->isHoldPending())
+                        <div class="inline-flex items-center space-x-1.5 bg-amber-50 text-amber-800 border border-amber-300 font-bold text-xs px-3 py-2 rounded-xl">
+                            <span>⏳</span>
+                            <span>Hold Pending Approval</span>
+                        </div>
+                        @if(Auth::user()->hasRole(['system_admin', 'hod']))
+                            <form method="POST" action="{{ route('portal.tickets.block.approve', $ticket->id) }}">
+                                @csrf
+                                <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs px-3.5 py-2.5 rounded-xl shadow-xs transition flex items-center space-x-1">
+                                    <span>⏸️</span>
+                                    <span>Approve Hold</span>
+                                </button>
+                            </form>
+                            <button type="button" @click="rejectHoldModal = true" class="bg-rose-100 hover:bg-rose-200 text-rose-800 font-bold text-xs px-3 py-2.5 rounded-xl transition">
+                                Reject Hold
+                            </button>
+                        @endif
+                    @else
+                        <button type="button" @click="blockModal = true" class="bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold text-xs px-3 py-2.5 rounded-xl transition flex items-center space-x-1">
+                            <span>⏸️</span>
+                            <span>{{ Auth::user()->hasRole(['system_admin', 'hod']) ? 'Block / Hold' : 'Request Hold' }}</span>
+                        </button>
+                    @endif
 
                     <button type="button" @click="clarifyModal = true" class="bg-slate-100 hover:bg-blue-50 hover:text-blue-600 text-slate-700 font-semibold text-xs px-3 py-2.5 rounded-xl border border-slate-200 transition">
                         ❓ Ask Info
@@ -430,6 +451,39 @@
             <button @click="reassignDrawer = true" class="bg-white text-red-700 font-bold text-xs px-3 py-1.5 rounded-lg shadow-xs hover:bg-red-50">
                 Reassign Immediately
             </button>
+        </div>
+    @endif
+
+    @if($ticket->isHoldPending())
+        <div class="bg-amber-50 border-2 border-amber-300 text-amber-900 p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div class="flex items-start space-x-3">
+                <span class="text-2xl">⏳</span>
+                <div>
+                    <div class="flex items-center space-x-2">
+                        <div class="font-bold text-xs uppercase tracking-wider text-amber-950">Hold Requested (Pending IT HOD Approval)</div>
+                        <span class="bg-amber-200 text-amber-900 font-extrabold text-[10px] uppercase px-2 py-0.5 rounded-full">⏱️ SLA Active (Not Paused)</span>
+                    </div>
+                    <p class="text-xs text-amber-900 mt-1">
+                        <strong>Category:</strong> {{ $ticket->hold_requested_category }} &bull;
+                        <strong>Requested by:</strong> {{ $ticket->holdRequestedBy?->name ?? 'Technician' }} ({{ $ticket->hold_requested_at->format('M d, Y H:i') }})
+                    </p>
+                    <p class="text-xs text-amber-800 mt-0.5"><strong>Reason:</strong> {{ $ticket->hold_requested_reason }}</p>
+                </div>
+            </div>
+
+            @if(Auth::user()->hasRole(['system_admin', 'hod']))
+                <div class="flex items-center space-x-2 shrink-0">
+                    <button type="button" @click="rejectHoldModal = true" class="px-3.5 py-2 text-xs font-bold text-rose-700 bg-rose-100 hover:bg-rose-200 rounded-xl transition">
+                        Reject Hold
+                    </button>
+                    <form method="POST" action="{{ route('portal.tickets.block.approve', $ticket->id) }}">
+                        @csrf
+                        <button type="submit" class="px-4 py-2 text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 rounded-xl shadow-xs transition">
+                            Approve Hold (Pause SLA)
+                        </button>
+                    </form>
+                </div>
+            @endif
         </div>
     @endif
 
@@ -1187,17 +1241,82 @@
         </div>
     </div>
 
-    <!-- MARK BLOCKED MODAL -->
+    <!-- MARK BLOCKED / REQUEST HOLD MODAL -->
     <div x-show="blockModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4" x-cloak>
         <div @click.away="blockModal = false" class="bg-white rounded-3xl max-w-md w-full shadow-2xl p-6 space-y-4">
-            <h3 class="text-sm font-bold text-slate-800">Mark Ticket as Blocked / On Hold</h3>
-            <p class="text-xs text-slate-500">Explain why work cannot continue (e.g., waiting for vendor parts, procurement approval).</p>
+            <div class="flex items-center space-x-2">
+                <span class="text-xl">⏸️</span>
+                <div>
+                    <h3 class="text-sm font-bold text-slate-900">
+                        @if(Auth::user()->hasRole(['system_admin', 'hod']))
+                            Place Ticket On Hold / Blocked
+                        @else
+                            Request Ticket Hold
+                        @endif
+                    </h3>
+                    <p class="text-xs text-slate-500">
+                        @if(Auth::user()->hasRole(['system_admin', 'hod']))
+                            Pauses the SLA countdown immediately upon confirmation.
+                        @else
+                            Requires IT HOD approval. SLA countdown continues until approved.
+                        @endif
+                    </p>
+                </div>
+            </div>
+
             <form method="POST" action="{{ route('portal.tickets.block', $ticket->id) }}" class="space-y-4">
                 @csrf
-                <textarea name="blocked_reason" required rows="3" placeholder="State vendor or procurement blockage reason..." class="w-full text-xs p-3 rounded-xl border border-slate-300"></textarea>
-                <div class="flex justify-end space-x-2">
-                    <button type="button" @click="blockModal = false" class="px-3 py-1.5 text-xs text-slate-600">Cancel</button>
-                    <button type="submit" class="px-4 py-2 bg-amber-600 text-white font-bold text-xs rounded-xl">Confirm Block</button>
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Hold Category</label>
+                    <select name="hold_category" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500">
+                        <option value="Waiting for Vendor / Hardware Delivery">Waiting for Vendor / Hardware Delivery (e.g. RAM, SSD, screen)</option>
+                        <option value="Waiting for 3rd-Party Software Support / ISP">Waiting for 3rd-Party Software Support / ISP</option>
+                        <option value="User Unreachable / Extended Leave">User Unreachable / Extended Leave</option>
+                        <option value="Awaiting Management Budget Approval">Awaiting Management Budget Approval</option>
+                        <option value="External Dependency / Site Access">External Dependency / Site Access</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Detailed Explanation & Justification</label>
+                    <textarea name="blocked_reason" required rows="3" placeholder="Explain the specific reason (e.g., Supplier pending delivery of 16GB DDR4 RAM PO#4021)..." class="w-full text-xs p-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500"></textarea>
+                </div>
+
+                <div class="flex justify-end space-x-2 pt-2 border-t border-slate-100">
+                    <button type="button" @click="blockModal = false" class="px-3.5 py-2 text-xs text-slate-600 font-semibold hover:bg-slate-100 rounded-xl transition">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow-xs transition">
+                        @if(Auth::user()->hasRole(['system_admin', 'hod']))
+                            Confirm Hold (Pause SLA)
+                        @else
+                            Submit Hold Request
+                        @endif
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- REJECT HOLD MODAL (IT HOD) -->
+    <div x-show="rejectHoldModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4" x-cloak>
+        <div @click.away="rejectHoldModal = false" class="bg-white rounded-3xl max-w-md w-full shadow-2xl p-6 space-y-4">
+            <div class="flex items-center space-x-2 text-rose-600">
+                <span class="text-xl">❌</span>
+                <div>
+                    <h3 class="text-sm font-bold text-slate-900">Reject Hold Request</h3>
+                    <p class="text-xs text-slate-500">Provide feedback to the technician on why the hold is not approved.</p>
+                </div>
+            </div>
+
+            <form method="POST" action="{{ route('portal.tickets.block.reject', $ticket->id) }}" class="space-y-4">
+                @csrf
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Rejection Reason (Required)</label>
+                    <textarea name="rejection_reason" required rows="3" placeholder="Explain why the hold request is rejected (e.g., spare RAM is available in IT stock)..." class="w-full text-xs p-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-rose-500"></textarea>
+                </div>
+
+                <div class="flex justify-end space-x-2 pt-2 border-t border-slate-100">
+                    <button type="button" @click="rejectHoldModal = false" class="px-3.5 py-2 text-xs text-slate-600 font-semibold hover:bg-slate-100 rounded-xl transition">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl shadow-xs transition">Confirm Rejection</button>
                 </div>
             </form>
         </div>

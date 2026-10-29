@@ -14,6 +14,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class PortalAdminController extends Controller
@@ -455,6 +456,78 @@ class PortalAdminController extends Controller
         $roleLabel = $validated['role'] === 'hod' ? 'Department HOD' : 'Requester';
 
         return back()->with('status', "TMA User '{$user->name}' ({$employee->employee_code}) registered as {$roleLabel} in {$deptName}. Web login & Telegram link ready!");
+    }
+
+    /**
+     * Update an existing user and their linked employee profile.
+     */
+    public function updateUser(Request $request, User $user): RedirectResponse
+    {
+        abort_unless(Auth::user()->hasRole(['system_admin', 'hod']), 403);
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:100',
+            'email' => ['required', 'email', 'max:150', Rule::unique('users', 'email')->ignore($user->id)],
+            'employee_code' => 'nullable|string|max:50',
+            'department_id' => 'nullable|exists:departments,id',
+            'branch_id' => 'nullable|exists:branches,id',
+            'phone' => 'nullable|string|max:50',
+            'telegram_username' => 'nullable|string|max:100',
+            'password' => 'nullable|string|min:6',
+            'is_active' => 'nullable|boolean',
+            'roles' => 'required|array|min:1',
+            'roles.*' => 'exists:roles,id',
+        ]);
+
+        $email = strtolower(trim($validated['email']));
+
+        // 1. Update or link Employee record
+        $employee = $user->employee;
+        if (!empty($validated['employee_code'])) {
+            $code = strtoupper(trim($validated['employee_code']));
+            if (!$employee) {
+                $employee = Employee::firstOrNew(['employee_code' => $code]);
+            } else {
+                $employee->employee_code = $code;
+            }
+        }
+
+        if ($employee) {
+            $employee->full_name = $validated['name'];
+            $employee->email = $email;
+            if (isset($validated['department_id'])) {
+                $employee->department_id = $validated['department_id'];
+            }
+            if (isset($validated['branch_id'])) {
+                $employee->branch_id = $validated['branch_id'];
+            }
+            if (isset($validated['phone'])) {
+                $employee->phone = $validated['phone'];
+            }
+            $employee->is_active = $request->boolean('is_active', true);
+            $employee->save();
+            $user->employee_id = $employee->id;
+        }
+
+        // 2. Update User record
+        $user->name = $validated['name'];
+        $user->email = $email;
+        $user->is_active = $request->boolean('is_active', true);
+        $user->telegram_username = !empty($validated['telegram_username']) ? ltrim($validated['telegram_username'], '@') : null;
+
+        if (!empty($validated['password'])) {
+            $user->password = \Illuminate\Support\Facades\Hash::make($validated['password']);
+        }
+        $user->save();
+
+        // 3. Update roles (with primary admin protection)
+        $adminRoleId = Role::where('name', 'system_admin')->value('id');
+        if (($user->id === 1 || $user->email === 'admin@cbvh.com.kh') && $adminRoleId && !in_array($adminRoleId, $validated['roles'])) {
+            $validated['roles'][] = $adminRoleId;
+        }
+        $user->roles()->sync($validated['roles']);
+
+        return back()->with('status', "User '{$user->name}' updated successfully.");
     }
 
     /**

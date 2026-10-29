@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\Branch;
 use App\Models\CompanyHoliday;
+use App\Models\Department;
+use App\Models\Employee;
 use App\Models\Role;
 use App\Models\Ticket;
 use App\Models\TicketCategory;
@@ -496,5 +498,126 @@ class HodCockpitAndAdminTest extends TestCase
         $toggleBranchResponse->assertSessionHasNoErrors();
         $createdBranch->refresh();
         $this->assertFalse($createdBranch->is_active);
+    }
+
+    public function test_admin_can_update_user_and_employee_details_and_promote_to_hod(): void
+    {
+        $this->actingAs($this->adminUser);
+
+        // 1. Create a regular TMA employee user first
+        $dept1 = Department::first();
+        $dept2 = Department::skip(1)->first();
+        $branch = Branch::first();
+        $hodRole = Role::where('name', 'hod')->firstOrFail();
+        $requesterRole = Role::where('name', 'requester')->firstOrFail();
+
+        $createResponse = $this->post(route('portal.admin.users.tma.store'), [
+            'name' => 'Dina Promoted',
+            'email' => 'dina.promoted@cbvh.com.kh',
+            'employee_code' => 'EMP-7788',
+            'department_id' => $dept1->id,
+            'branch_id' => $branch->id,
+            'phone' => '+855 12 999 888',
+            'role' => 'requester',
+            'telegram_username' => 'dina_promoted',
+        ]);
+        $createResponse->assertSessionHasNoErrors();
+
+        $user = User::where('email', 'dina.promoted@cbvh.com.kh')->firstOrFail();
+        $this->assertEquals('EMP-7788', $user->employee->employee_code);
+        $this->assertEquals($dept1->id, $user->employee->department_id);
+        $this->assertFalse($user->hasRole('hod'));
+
+        // 2. Admin edits user: changes department to dept2, updates phone, promotes to HOD
+        $updateResponse = $this->put(route('portal.admin.users.update', $user->id), [
+            'name' => 'Dina Promoted (HOD)',
+            'email' => 'dina.hod@cbvh.com.kh',
+            'employee_code' => 'EMP-7788',
+            'department_id' => $dept2->id,
+            'branch_id' => $branch->id,
+            'phone' => '+855 98 111 222',
+            'telegram_username' => 'dina_hod_official',
+            'is_active' => 1,
+            'roles' => [$requesterRole->id, $hodRole->id],
+        ]);
+        $updateResponse->assertSessionHasNoErrors();
+
+        $user->refresh();
+        $this->assertEquals('Dina Promoted (HOD)', $user->name);
+        $this->assertEquals('dina.hod@cbvh.com.kh', $user->email);
+        $this->assertEquals('dina_hod_official', $user->telegram_username);
+        $this->assertTrue($user->hasRole('hod'));
+        $this->assertTrue($user->hasRole('requester'));
+
+        $this->assertEquals('Dina Promoted (HOD)', $user->employee->full_name);
+        $this->assertEquals($dept2->id, $user->employee->department_id);
+        $this->assertEquals('+855 98 111 222', $user->employee->phone);
+    }
+
+    public function test_technician_hold_request_requires_it_hod_approval_before_pausing_sla(): void
+    {
+        // 1. Create a ticket in progress assigned to technician
+        $ticket = Ticket::create([
+            'ticket_code' => 'IT-202610-9999',
+            'ticket_type' => 'incident',
+            'category_id' => TicketCategory::first()->id,
+            'requester_id' => $this->requesterUser->id,
+            'branch_id' => Branch::first()->id,
+            'current_technician_id' => $this->techUser->id,
+            'status' => 'in_progress',
+            'priority' => 'high',
+            'subject' => 'Boutique Scale broken - replacement sensor required',
+            'description' => 'Precision weight sensor faulted on scale #3.',
+            'created_at' => now()->subHours(2),
+        ]);
+
+        $this->assertFalse($ticket->isSlaPaused());
+        $this->assertFalse($ticket->isHoldPending());
+
+        // 2. Technician requests a hold (Option A workflow)
+        $this->actingAs($this->techUser);
+        $holdResponse = $this->post(route('portal.tickets.block', $ticket->id), [
+            'hold_category' => 'Waiting for Vendor / Hardware Delivery',
+            'blocked_reason' => 'Vendor out of stock for load cell sensor, PO #8812 ordered from Singapore.',
+        ]);
+        $holdResponse->assertSessionHasNoErrors();
+
+        $ticket->refresh();
+        // Crucial: Status is STILL in_progress and SLA is NOT paused!
+        $this->assertEquals('in_progress', $ticket->status);
+        $this->assertTrue($ticket->isHoldPending());
+        $this->assertFalse($ticket->isSlaPaused());
+        $this->assertEquals('Waiting for Vendor / Hardware Delivery', $ticket->hold_requested_category);
+        $this->assertNotNull($ticket->hold_requested_at);
+        $this->assertEquals($this->techUser->id, $ticket->hold_requested_by_id);
+
+        // 3. Regular technician CANNOT self-approve hold
+        $techApproveResponse = $this->post(route('portal.tickets.block.approve', $ticket->id));
+        $techApproveResponse->assertSessionHasErrors(['error']);
+        $ticket->refresh();
+        $this->assertEquals('in_progress', $ticket->status);
+
+        // 4. IT HOD approves the hold
+        $this->actingAs($this->adminUser); // adminUser has 'system_admin' and 'hod' roles
+        $hodApproveResponse = $this->post(route('portal.tickets.block.approve', $ticket->id));
+        $hodApproveResponse->assertSessionHasNoErrors();
+
+        $ticket->refresh();
+        // Now it is officially blocked, SLA clock paused!
+        $this->assertEquals('blocked', $ticket->status);
+        $this->assertTrue($ticket->isSlaPaused());
+        $this->assertFalse($ticket->isHoldPending());
+        $this->assertNotNull($ticket->blocked_at);
+        $this->assertStringContainsString('Singapore', $ticket->blocked_reason);
+
+        // 5. Work can resume anytime
+        $this->actingAs($this->techUser);
+        $resumeResponse = $this->post(route('portal.tickets.accept', $ticket->id));
+        $resumeResponse->assertSessionHasNoErrors();
+
+        $ticket->refresh();
+        $this->assertEquals('in_progress', $ticket->status);
+        $this->assertFalse($ticket->isSlaPaused());
+        $this->assertNull($ticket->blocked_at);
     }
 }

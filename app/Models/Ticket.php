@@ -32,6 +32,10 @@ class Ticket extends Model
         'blocked_reason',
         'blocked_at',
         'paused_minutes',
+        'hold_requested_category',
+        'hold_requested_reason',
+        'hold_requested_at',
+        'hold_requested_by_id',
         'cancellation_reason',
     ];
 
@@ -42,6 +46,7 @@ class Ticket extends Model
         'closed_at' => 'datetime',
         'auto_close_deadline' => 'datetime',
         'blocked_at' => 'datetime',
+        'hold_requested_at' => 'datetime',
         'paused_minutes' => 'integer',
     ];
 
@@ -84,6 +89,16 @@ class Ticket extends Model
     public function technician(): BelongsTo
     {
         return $this->belongsTo(User::class, 'current_technician_id');
+    }
+
+    public function holdRequestedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'hold_requested_by_id');
+    }
+
+    public function isHoldPending(): bool
+    {
+        return !empty($this->hold_requested_at) && $this->status !== 'blocked';
     }
 
     public function assignments(): HasMany

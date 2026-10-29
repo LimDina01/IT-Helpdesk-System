@@ -255,6 +255,9 @@ class PortalTicketController extends Controller
                 $additionalPauseMinutes = app(\App\Services\BusinessHoursService::class)->getWorkingMinutesBetween($ticket->blocked_at, $now);
                 $updateData['paused_minutes'] = ($ticket->paused_minutes ?? 0) + $additionalPauseMinutes;
                 $updateData['blocked_at'] = null;
+                $updateData['hold_requested_at'] = null;
+                $updateData['hold_requested_reason'] = null;
+                $updateData['hold_requested_category'] = null;
             }
 
             $ticket->update($updateData);
@@ -405,21 +408,66 @@ class PortalTicketController extends Controller
     }
 
     /**
-     * Technician action: Mark Blocked / On Hold.
+     * Technician action: Request or execute Hold / Blocked.
      */
-    public function markBlocked(Request $request, Ticket $ticket): RedirectResponse
+    public function markBlocked(Request $request, Ticket $ticket, TelegramNotificationService $telegram): RedirectResponse
     {
         $validated = $request->validate([
-            'blocked_reason' => 'required|string|min:5',
+            'hold_category' => 'nullable|string|max:100',
+            'blocked_reason' => 'required|string|min:5|max:1000',
         ]);
 
         $user = Auth::user();
+        $isItManagement = $user->hasRole(['system_admin', 'hod']);
 
-        DB::transaction(function () use ($ticket, $user, $validated) {
+        $category = !empty($validated['hold_category']) ? trim($validated['hold_category']) : 'Waiting for Vendor / Hardware Delivery';
+        $reason = trim($validated['blocked_reason']);
+
+        if ($isItManagement) {
+            // IT HOD / Admin can directly place ticket on hold
+            DB::transaction(function () use ($ticket, $user, $category, $reason) {
+                $ticket->update([
+                    'status' => 'blocked',
+                    'blocked_reason' => "[{$category}] {$reason}",
+                    'blocked_at' => now(),
+                    'hold_requested_at' => null,
+                    'hold_requested_reason' => null,
+                    'hold_requested_category' => null,
+                ]);
+
+                TicketMessage::create([
+                    'ticket_id' => $ticket->id,
+                    'sender_id' => $user->id,
+                    'visibility' => 'system_event',
+                    'message_type' => 'status_change',
+                    'body' => "⏸️ Ticket placed on HOLD by {$user->name} [{$category}]: {$reason}. SLA countdown paused.",
+                ]);
+
+                TicketAuditLog::create([
+                    'ticket_id' => $ticket->id,
+                    'actor_id' => $user->id,
+                    'action' => 'BLOCKED',
+                    'old_value' => $ticket->getOriginal('status'),
+                    'new_value' => 'blocked',
+                    'metadata' => [
+                        'category' => $category,
+                        'reason' => $reason,
+                        'placed_by' => $user->name,
+                    ],
+                    'created_at' => now(),
+                ]);
+            });
+
+            return back()->with('status', 'Ticket placed on hold. SLA countdown paused.');
+        }
+
+        // Regular Technician: Submits hold request. SLA countdown continues until IT HOD approves!
+        DB::transaction(function () use ($ticket, $user, $category, $reason) {
             $ticket->update([
-                'status' => 'blocked',
-                'blocked_reason' => $validated['blocked_reason'],
-                'blocked_at' => now(),
+                'hold_requested_category' => $category,
+                'hold_requested_reason' => $reason,
+                'hold_requested_at' => now(),
+                'hold_requested_by_id' => $user->id,
             ]);
 
             TicketMessage::create([
@@ -427,21 +475,133 @@ class PortalTicketController extends Controller
                 'sender_id' => $user->id,
                 'visibility' => 'system_event',
                 'message_type' => 'status_change',
-                'body' => "Ticket marked as BLOCKED: {$validated['blocked_reason']}",
+                'body' => "⏳ Hold requested by {$user->name} [{$category}]: {$reason}. Awaiting IT HOD approval. SLA timer remains active.",
             ]);
 
             TicketAuditLog::create([
                 'ticket_id' => $ticket->id,
                 'actor_id' => $user->id,
-                'action' => 'BLOCKED',
-                'old_value' => 'in_progress',
-                'new_value' => 'blocked',
-                'metadata' => ['reason' => $validated['blocked_reason']],
+                'action' => 'HOLD_REQUESTED',
+                'old_value' => $ticket->status,
+                'new_value' => $ticket->status,
+                'metadata' => [
+                    'category' => $category,
+                    'reason' => $reason,
+                    'requested_by' => $user->name,
+                ],
                 'created_at' => now(),
             ]);
         });
 
-        return back()->with('status', 'Ticket marked as Blocked/On-Hold.');
+        // Send instant notification to IT HOD / Admin approvers
+        try {
+            $telegram->sendHoldRequestAlertToItHod($ticket, $category, $reason, $user->name);
+        } catch (\Throwable $e) {
+            // Ignore notification failure to prevent blocking UX
+        }
+
+        return back()->with('status', 'Hold request submitted. Ticket remains in progress and SLA clock active until IT HOD approves.');
+    }
+
+    /**
+     * IT HOD action: Approve Hold Request. Pauses SLA clock.
+     */
+    public function approveHold(Request $request, Ticket $ticket): RedirectResponse
+    {
+        $user = Auth::user();
+        if (!$user->hasRole(['system_admin', 'hod'])) {
+            return back()->withErrors(['error' => 'Only IT HOD or System Admin can approve a ticket hold.']);
+        }
+
+        if (!$ticket->isHoldPending()) {
+            return back()->withErrors(['error' => 'This ticket does not have a pending hold request.']);
+        }
+
+        $now = now();
+        $category = $ticket->hold_requested_category ?: 'Vendor / Procurement';
+        $reason = $ticket->hold_requested_reason ?: 'Approved by IT HOD';
+
+        DB::transaction(function () use ($ticket, $user, $now, $category, $reason) {
+            $ticket->update([
+                'status' => 'blocked',
+                'blocked_reason' => "[{$category}] {$reason}",
+                'blocked_at' => $now,
+                'hold_requested_at' => null,
+            ]);
+
+            TicketMessage::create([
+                'ticket_id' => $ticket->id,
+                'sender_id' => $user->id,
+                'visibility' => 'system_event',
+                'message_type' => 'status_change',
+                'body' => "⏸️ IT HOD {$user->name} APPROVED Hold Request [{$category}]: {$reason}. SLA countdown is now paused.",
+            ]);
+
+            TicketAuditLog::create([
+                'ticket_id' => $ticket->id,
+                'actor_id' => $user->id,
+                'action' => 'HOLD_APPROVED',
+                'old_value' => 'in_progress',
+                'new_value' => 'blocked',
+                'metadata' => [
+                    'category' => $category,
+                    'reason' => $reason,
+                    'approved_by' => $user->name,
+                ],
+                'created_at' => $now,
+            ]);
+        });
+
+        return back()->with('status', 'Hold request approved. Ticket is now on hold and SLA clock is paused.');
+    }
+
+    /**
+     * IT HOD action: Reject Hold Request. Work continues.
+     */
+    public function rejectHold(Request $request, Ticket $ticket): RedirectResponse
+    {
+        $user = Auth::user();
+        if (!$user->hasRole(['system_admin', 'hod'])) {
+            return back()->withErrors(['error' => 'Only IT HOD or System Admin can reject a ticket hold.']);
+        }
+
+        $validated = $request->validate([
+            'rejection_reason' => 'required|string|min:3',
+        ]);
+
+        $now = now();
+        $reason = $validated['rejection_reason'];
+
+        DB::transaction(function () use ($ticket, $user, $now, $reason) {
+            $ticket->update([
+                'hold_requested_at' => null,
+                'hold_requested_reason' => null,
+                'hold_requested_category' => null,
+            ]);
+
+            TicketMessage::create([
+                'ticket_id' => $ticket->id,
+                'sender_id' => $user->id,
+                'visibility' => 'system_event',
+                'message_type' => 'status_change',
+                'body' => "❌ IT HOD {$user->name} REJECTED Hold Request: {$reason}. Work continues and SLA timer remains active.",
+            ]);
+
+            TicketAuditLog::create([
+                'ticket_id' => $ticket->id,
+                'actor_id' => $user->id,
+                'action' => 'HOLD_REJECTED',
+                'old_value' => 'in_progress',
+                'new_value' => 'in_progress',
+                'metadata' => [
+                    'rejection_reason' => $reason,
+                    'rejected_by' => $user->name,
+                ],
+                'created_at' => $now,
+            ]);
+        });
+
+        return back()->with('status', 'Hold request rejected. Ticket remains active.');
     }
 
     /**

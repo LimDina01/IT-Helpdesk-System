@@ -378,4 +378,40 @@ class TelegramNotificationService
             $requester->id
         );
     }
+
+    /**
+     * Alert IT HOD / Admin when a technician requests to pause/hold a ticket.
+     */
+    public function sendHoldRequestAlertToItHod(Ticket $ticket, string $category, string $reason, string $techName): void
+    {
+        $approvers = User::whereHas('roles', fn($q) => $q->whereIn('name', ['hod', 'system_admin']))
+            ->whereNotNull('telegram_id')
+            ->where('is_active', true)
+            ->get();
+
+        $text = "⏸️ *Ticket Hold Approval Requested*\n\n"
+              . "*Ticket:* `{$ticket->ticket_code}`\n"
+              . "*Subject:* {$ticket->subject}\n"
+              . "*Technician:* {$techName}\n"
+              . "*Category:* {$category}\n"
+              . "*Reason:* _{$reason}_\n\n"
+              . "⚠️ *SLA countdown remains active until approved by IT HOD.*";
+
+        $keyboard = [
+            [
+                ['text' => '🖥️ Review in Portal', 'url' => "{$this->appUrl}/portal/tickets/{$ticket->id}"]
+            ]
+        ];
+
+        foreach ($approvers as $approver) {
+            $this->sendMessage(
+                $approver->telegram_id,
+                $text,
+                $keyboard,
+                $ticket->id,
+                'hold_approval_requested',
+                $approver->id
+            );
+        }
+    }
 }

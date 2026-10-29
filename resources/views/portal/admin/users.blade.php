@@ -3,7 +3,43 @@
 @section('title', 'System Administration - Users & Roles')
 
 @section('content')
-<div x-data="{ roleModal: false, createUserModal: false, createTmaModal: false, search: '', targetUser: {}, userRoles: [] }" class="space-y-6">
+<div x-data="{
+    roleModal: false,
+    createUserModal: false,
+    createTmaModal: false,
+    editUserModal: false,
+    search: '',
+    targetUser: {},
+    userRoles: [],
+    editForm: {
+        id: '',
+        name: '',
+        email: '',
+        employee_code: '',
+        department_id: '',
+        branch_id: '',
+        phone: '',
+        telegram_username: '',
+        is_active: true,
+        roles: []
+    },
+    openEditModal(u) {
+        this.targetUser = u;
+        this.editForm = {
+            id: u.id,
+            name: u.name,
+            email: u.email,
+            employee_code: u.employee ? (u.employee.employee_code || '') : '',
+            department_id: u.employee ? (u.employee.department_id || '') : '',
+            branch_id: u.employee ? (u.employee.branch_id || '') : '',
+            phone: u.employee ? (u.employee.phone || '') : '',
+            telegram_username: u.telegram_username || '',
+            is_active: u.is_active ? 1 : 0,
+            roles: u.roles ? u.roles.map(r => r.id) : []
+        };
+        this.editUserModal = true;
+    }
+}" class="space-y-6">
 
     <!-- Top Admin Header -->
     <div class="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -175,9 +211,16 @@
 
                             <td class="py-3.5 px-6 text-right whitespace-nowrap space-x-2">
                                 <button type="button"
+                                        @click="openEditModal({{ json_encode($user) }})"
+                                        class="text-[11px] text-blue-600 hover:text-blue-800 font-bold hover:underline inline-flex items-center space-x-1">
+                                    <span>✏️</span>
+                                    <span>Edit</span>
+                                </button>
+
+                                <button type="button"
                                         @click="targetUser = {{ json_encode($user) }}; userRoles = {{ json_encode($user->roles->pluck('id')) }}; roleModal = true"
                                         class="text-[11px] text-indigo-600 hover:underline font-semibold">
-                                    Edit Roles
+                                    Roles
                                 </button>
 
                                 @if($user->id !== Auth::id() && $user->id !== 1 && $user->email !== 'admin@cbvh.com.kh')
@@ -427,6 +470,123 @@
                 <div class="flex justify-end space-x-2 pt-2">
                     <button type="button" @click="roleModal = false" class="px-3.5 py-2 text-xs text-slate-600 font-semibold">Cancel</button>
                     <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-xs transition">Update Roles</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 4. EDIT USER & EMPLOYEE MODAL              -->
+    <!-- ========================================== -->
+    <div x-show="editUserModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4" x-cloak>
+        <div @click.away="editUserModal = false" class="bg-white rounded-3xl max-w-xl w-full shadow-2xl p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div class="flex items-center space-x-2">
+                    <span class="text-xl">✏️</span>
+                    <div>
+                        <h3 class="text-base font-bold text-slate-900">
+                            Edit User & Employee: <span class="text-indigo-600" x-text="editForm.name"></span>
+                        </h3>
+                        <p class="text-[11px] text-slate-500">Update employee profile, department approval routing, branch, contact, and assigned roles.</p>
+                    </div>
+                </div>
+                <button type="button" @click="editUserModal = false" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">✕</button>
+            </div>
+
+            <form :action="'{{ url('portal/admin/users') }}/' + editForm.id" method="POST" class="space-y-4">
+                @csrf
+                @method('PUT')
+
+                <!-- Row 1: Name & Email -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Full Name</label>
+                        <input type="text" name="name" x-model="editForm.name" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Corporate Email</label>
+                        <input type="email" name="email" x-model="editForm.email" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                </div>
+
+                <!-- Row 2: Employee Code & Phone -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Employee Code / ID</label>
+                        <input type="text" name="employee_code" x-model="editForm.employee_code" placeholder="e.g. EMP-1008" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 uppercase">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Phone Number (Optional)</label>
+                        <input type="text" name="phone" x-model="editForm.phone" placeholder="e.g. +855 12 345 678" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                </div>
+
+                <!-- Row 3: Department & Branch -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Department</label>
+                        <select name="department_id" x-model="editForm.department_id" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            <option value="">-- No Department Assigned --</option>
+                            @foreach($departments as $dept)
+                                <option value="{{ $dept->id }}">{{ $dept->name }} ({{ $dept->code }})</option>
+                            @endforeach
+                        </select>
+                        <p class="text-[10px] text-slate-400 mt-0.5">Crucial: Step 1 HOD service requests route to this department's HOD.</p>
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Branch / Location</label>
+                        <select name="branch_id" x-model="editForm.branch_id" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            <option value="">-- No Branch Assigned --</option>
+                            @foreach($branches as $branch)
+                                <option value="{{ $branch->id }}">{{ $branch->name }} ({{ $branch->code }})</option>
+                            @endforeach
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Row 4: Telegram & Password Reset -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Telegram Username</label>
+                        <div class="flex items-center">
+                            <span class="text-xs text-slate-400 font-bold mr-1">@</span>
+                            <input type="text" name="telegram_username" x-model="editForm.telegram_username" placeholder="telegram_handle" class="w-full text-xs px-3 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Reset Password (Optional)</label>
+                        <input type="text" name="password" placeholder="Leave blank to keep unchanged" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                </div>
+
+                <!-- Account Status Checkbox -->
+                <div class="p-3 bg-slate-50 rounded-2xl border border-slate-200">
+                    <label class="flex items-center space-x-2.5 cursor-pointer">
+                        <input type="checkbox" name="is_active" value="1" :checked="editForm.is_active == 1" class="rounded text-indigo-600 focus:ring-indigo-500">
+                        <span class="text-xs font-semibold text-slate-700">Account Active (Uncheck to suspend user access)</span>
+                    </label>
+                </div>
+
+                <!-- Assigned Roles Grid -->
+                <div class="p-3.5 bg-slate-50/80 rounded-2xl border border-slate-200 space-y-2">
+                    <label class="block text-[11px] font-bold text-slate-700 uppercase">Assigned Roles</label>
+                    <p class="text-[10px] text-slate-500">Assign operational roles. When promoting a TMA requester to Department Head, enable <strong>Head of Department (hod)</strong>.</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
+                        @foreach($allRoles as $role)
+                            <label class="flex items-center space-x-2.5 p-2.5 bg-white rounded-xl border border-slate-200 hover:border-indigo-400 cursor-pointer transition">
+                                <input type="checkbox" name="roles[]" value="{{ $role->id }}" :checked="editForm.roles.includes({{ $role->id }})" class="rounded text-indigo-600 focus:ring-indigo-500">
+                                <div>
+                                    <div class="text-xs font-bold text-slate-800">{{ $role->label }}</div>
+                                    <div class="text-[10px] text-slate-400 font-mono">{{ $role->name }}</div>
+                                </div>
+                            </label>
+                        @endforeach
+                    </div>
+                </div>
+
+                <div class="flex justify-end space-x-2 pt-3 border-t border-slate-100">
+                    <button type="button" @click="editUserModal = false" class="px-4 py-2 text-xs text-slate-600 font-semibold hover:bg-slate-100 rounded-xl transition">Cancel</button>
+                    <button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-xs transition">Save Changes</button>
                 </div>
             </form>
         </div>

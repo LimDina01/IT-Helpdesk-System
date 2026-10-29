@@ -403,13 +403,16 @@ class PortalOperationsTest extends TestCase
         \Carbon\Carbon::setTestNow(\Carbon\Carbon::parse('2026-10-26 08:00:00'));
 
         $tech = User::where('email', 'tech1@cbvh.com.kh')->first();
+        $admin = User::where('email', 'admin@cbvh.com.kh')->first();
         $requester = User::where('email', 'sokha.chan@cbvh.com.kh')->first();
         $ticket = $this->createSampleTicket($requester, $tech);
 
-        // 1. Mark ticket as blocked
+        // 1. Tech requests hold, and IT HOD approves hold
         $this->actingAs($tech)->post("/portal/tickets/{$ticket->id}/block", [
             'blocked_reason' => 'Waiting for replacement power supply from vendor',
-        ])->assertSessionHas('status', 'Ticket marked as Blocked/On-Hold.');
+        ]);
+        $this->actingAs($admin)->post("/portal/tickets/{$ticket->id}/block-approve")
+            ->assertSessionHas('status', 'Hold request approved. Ticket is now on hold and SLA clock is paused.');
 
         $ticket->refresh();
         $this->assertEquals('blocked', $ticket->status);
