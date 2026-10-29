@@ -382,8 +382,9 @@
                                     }
 
                                     $targetResolveHours = $t->category?->target_resolve_hours;
-                                    $hoursElapsed = abs((int) now()->diffInHours($t->created_at));
-                                    $hoursRemaining = $targetResolveHours ? ($targetResolveHours - $hoursElapsed) : null;
+                                    $hoursRemaining = $t->getSlaRemainingHours();
+                                    $isSlaPaused = $t->isSlaPaused();
+                                    $pausedHours = $t->getPausedHours();
                                 @endphp
 
                                 <div class="flex flex-col space-y-0.5">
@@ -432,9 +433,15 @@
                                     </div>
 
                                     <!-- Target Resolution SLA Info -->
-                                    <div class="text-[10px] text-slate-400 flex items-center space-x-1.5">
+                                    <div class="text-[10px] text-slate-400 flex items-center space-x-1.5 flex-wrap">
                                         <span>Age: {{ $t->created_at->diffForHumans(null, true) }}</span>
-                                        @if($hoursRemaining !== null && in_array($t->status, ['assigned', 'in_progress', 'blocked', 'reopened']))
+                                        @if($isSlaPaused)
+                                            <span>•</span>
+                                            <span class="text-amber-700 font-bold flex items-center space-x-1" title="SLA timer paused while on hold for parts or vendor">
+                                                <span>⏸️</span>
+                                                <span>SLA Paused{{ $pausedHours > 0 ? " ({$pausedHours}h hold)" : ' (On Hold)' }}</span>
+                                            </span>
+                                        @elseif($hoursRemaining !== null && in_array($t->status, ['assigned', 'in_progress', 'reopened']))
                                             <span>•</span>
                                             @if($hoursRemaining < 0)
                                                 <span class="text-rose-600 font-bold">Overdue (+{{ abs($hoursRemaining) }}h)</span>
@@ -442,6 +449,9 @@
                                                 <span class="text-amber-600 font-bold">Due in {{ $hoursRemaining }}h</span>
                                             @else
                                                 <span>Target: {{ $targetResolveHours }}h</span>
+                                            @endif
+                                            @if($pausedHours > 0)
+                                                <span class="text-slate-400 font-normal">({{ $pausedHours }}h paused)</span>
                                             @endif
                                         @endif
                                     </div>

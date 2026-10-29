@@ -245,20 +245,33 @@ class PortalTicketController extends Controller
         DB::transaction(function () use ($ticket, $user, $oldStatus) {
             $now = now();
 
-            $ticket->update([
+            $updateData = [
                 'status' => 'in_progress',
-                'acknowledged_at' => $now,
-            ]);
+                'acknowledged_at' => $ticket->acknowledged_at ?? $now,
+            ];
+
+            // If resuming from Blocked/Hold, accumulate paused minutes
+            if ($oldStatus === 'blocked' && $ticket->blocked_at) {
+                $additionalPauseMinutes = abs((int) $now->diffInMinutes($ticket->blocked_at));
+                $updateData['paused_minutes'] = ($ticket->paused_minutes ?? 0) + $additionalPauseMinutes;
+                $updateData['blocked_at'] = null;
+            }
+
+            $ticket->update($updateData);
 
             // Stamp acknowledgement on latest assignment record
             $latestAssignment = $ticket->assignments()->latest('id')->first();
-            if ($latestAssignment) {
+            if ($latestAssignment && !$latestAssignment->acknowledged_at) {
                 $latestAssignment->update(['acknowledged_at' => $now]);
             }
 
-            $messageBody = $oldStatus === 'reopened'
-                ? "{$user->name} resumed work on this reopened ticket."
-                : "{$user->name} accepted the ticket and started investigation.";
+            if ($oldStatus === 'reopened') {
+                $messageBody = "{$user->name} resumed work on this reopened ticket.";
+            } elseif ($oldStatus === 'blocked') {
+                $messageBody = "{$user->name} resumed work. SLA countdown active again.";
+            } else {
+                $messageBody = "{$user->name} accepted the ticket and started investigation.";
+            }
 
             TicketMessage::create([
                 'ticket_id' => $ticket->id,
@@ -271,7 +284,7 @@ class PortalTicketController extends Controller
             TicketAuditLog::create([
                 'ticket_id' => $ticket->id,
                 'actor_id' => $user->id,
-                'action' => $oldStatus === 'reopened' ? 'RESUMED' : 'ACKNOWLEDGED',
+                'action' => $oldStatus === 'reopened' ? 'RESUMED' : ($oldStatus === 'blocked' ? 'UNBLOCKED' : 'ACKNOWLEDGED'),
                 'old_value' => $oldStatus,
                 'new_value' => 'in_progress',
                 'metadata' => [
@@ -282,9 +295,13 @@ class PortalTicketController extends Controller
             ]);
         });
 
-        $statusMsg = $oldStatus === 'reopened'
-            ? 'Work resumed on reopened ticket. Status is now In Progress.'
-            : 'Ticket accepted. Status is now In Progress.';
+        if ($oldStatus === 'reopened') {
+            $statusMsg = 'Work resumed on reopened ticket. Status is now In Progress.';
+        } elseif ($oldStatus === 'blocked') {
+            $statusMsg = 'Ticket resumed from hold. SLA clock unpaused and active.';
+        } else {
+            $statusMsg = 'Ticket accepted. Status is now In Progress.';
+        }
 
         return back()->with('status', $statusMsg);
     }
@@ -343,11 +360,19 @@ class PortalTicketController extends Controller
             // Calculate 3 business days auto-close deadline (skipping Sundays and custom holidays)
             $deadline = $businessHours->calculateAutoCloseDeadline($now, 3);
 
-            $ticket->update([
+            $updateData = [
                 'status' => 'pending_confirmation',
                 'resolved_at' => $now,
                 'auto_close_deadline' => $deadline,
-            ]);
+            ];
+
+            if ($ticket->status === 'blocked' && $ticket->blocked_at) {
+                $additionalPauseMinutes = abs((int) $now->diffInMinutes($ticket->blocked_at));
+                $updateData['paused_minutes'] = ($ticket->paused_minutes ?? 0) + $additionalPauseMinutes;
+                $updateData['blocked_at'] = null;
+            }
+
+            $ticket->update($updateData);
 
             TicketMessage::create([
                 'ticket_id' => $ticket->id,
@@ -394,6 +419,7 @@ class PortalTicketController extends Controller
             $ticket->update([
                 'status' => 'blocked',
                 'blocked_reason' => $validated['blocked_reason'],
+                'blocked_at' => now(),
             ]);
 
             TicketMessage::create([

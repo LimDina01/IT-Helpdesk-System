@@ -434,12 +434,34 @@
     @endif
 
     @if($ticket->status === 'blocked')
-        <div class="bg-amber-50 border border-amber-300 text-amber-900 p-4 rounded-2xl flex items-start space-x-3">
-            <span class="text-xl">🛑</span>
-            <div>
-                <div class="font-bold text-xs uppercase tracking-wider">Ticket Currently On Hold / Blocked</div>
-                <p class="text-xs text-amber-800 mt-0.5"><strong>Reason:</strong> {{ $ticket->blocked_reason }}</p>
+        <div class="bg-amber-50 border border-amber-300 text-amber-900 p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div class="flex items-start space-x-3">
+                <span class="text-xl">🛑</span>
+                <div>
+                    <div class="flex items-center space-x-2">
+                        <div class="font-bold text-xs uppercase tracking-wider">Ticket Currently On Hold / Blocked</div>
+                        <span class="bg-amber-200 text-amber-900 font-extrabold text-[10px] uppercase px-2 py-0.5 rounded-full">⏸️ SLA Clock Paused</span>
+                    </div>
+                    <p class="text-xs text-amber-800 mt-1"><strong>Reason:</strong> {{ $ticket->blocked_reason }}</p>
+                    <div class="text-[11px] text-amber-700 mt-1 flex items-center space-x-2 flex-wrap">
+                        <span>Blocked since: <strong>{{ $ticket->blocked_at ? $ticket->blocked_at->format('M d, Y H:i') : $ticket->updated_at->format('M d, Y H:i') }}</strong></span>
+                        @if($ticket->getPausedHours() > 0)
+                            <span>•</span>
+                            <span>Total Paused: <strong>{{ $ticket->getPausedHours() }} hours</strong> (excluded from SLA)</span>
+                        @endif
+                    </div>
+                </div>
             </div>
+
+            @if($ticket->current_technician_id === Auth::id() || Auth::user()->hasAnyRole(['system_admin', 'hod']))
+                <form method="POST" action="{{ route('portal.tickets.accept', $ticket->id) }}" class="shrink-0">
+                    @csrf
+                    <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-xs transition flex items-center space-x-1.5">
+                        <span>▶️</span>
+                        <span>Resume Work</span>
+                    </button>
+                </form>
+            @endif
         </div>
     @endif
 
@@ -665,6 +687,65 @@
                         </form>
                     </div>
                 @endif
+            </div>
+
+            <!-- SLA & Resolution Commitment Card -->
+            <div class="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs space-y-3">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+                    <span class="text-xs font-bold uppercase tracking-wider text-slate-500">SLA Commitments</span>
+                    @if($ticket->isSlaPaused())
+                        <span class="bg-amber-100 text-amber-800 font-extrabold text-[9px] uppercase px-2 py-0.5 rounded-full flex items-center space-x-1">
+                            <span>⏸️</span> <span>SLA Paused</span>
+                        </span>
+                    @elseif($ticket->isSlaOverdue())
+                        <span class="bg-rose-100 text-rose-800 font-extrabold text-[9px] uppercase px-2 py-0.5 rounded-full animate-pulse">
+                            ⚠️ Overdue
+                        </span>
+                    @else
+                        <span class="bg-emerald-100 text-emerald-800 font-extrabold text-[9px] uppercase px-2 py-0.5 rounded-full">
+                            ✔ On Track
+                        </span>
+                    @endif
+                </div>
+
+                <div class="space-y-2 text-xs">
+                    <div class="flex justify-between items-center text-slate-600">
+                        <span class="text-slate-400">Target Resolution:</span>
+                        <span class="font-bold text-slate-800">{{ $ticket->category?->target_resolve_hours ? "{$ticket->category->target_resolve_hours} hours" : 'N/A' }}</span>
+                    </div>
+
+                    <div class="flex justify-between items-center text-slate-600">
+                        <span class="text-slate-400">Wall-Clock Age:</span>
+                        <span class="font-medium text-slate-700">{{ $ticket->created_at->diffForHumans(null, true) }}</span>
+                    </div>
+
+                    @if($ticket->getPausedMinutes() > 0)
+                        <div class="flex justify-between items-center text-amber-800 bg-amber-50 p-2 rounded-xl">
+                            <span class="font-medium">⏸️ On-Hold Time:</span>
+                            <span class="font-bold">{{ $ticket->getPausedHours() }}h ({{ $ticket->getPausedMinutes() }}m)</span>
+                        </div>
+                    @endif
+
+                    <div class="flex justify-between items-center text-slate-600">
+                        <span class="text-slate-400">Active IT Time:</span>
+                        <span class="font-bold text-blue-700">{{ $ticket->getActiveHoursElapsed() }} hours</span>
+                    </div>
+
+                    <div class="pt-2 border-t border-slate-100 flex justify-between items-center">
+                        <span class="text-slate-400">SLA Status:</span>
+                        @if($ticket->isSlaPaused())
+                            <span class="font-bold text-amber-600">Clock Frozen (Vendor Hold)</span>
+                        @elseif($ticket->getSlaRemainingHours() !== null)
+                            @if($ticket->getSlaRemainingHours() < 0)
+                                <span class="font-bold text-rose-600">Overdue (+{{ abs($ticket->getSlaRemainingHours()) }}h)</span>
+                            @else
+                                <span class="font-bold text-emerald-600">{{ $ticket->getSlaRemainingHours() }}h remaining</span>
+                            @endif
+                        @else
+                            <span class="text-slate-400">No Target Defined</span>
+                        @endif
+                    </div>
+                </div>
             </div>
 
             <!-- Requester Profile Card -->

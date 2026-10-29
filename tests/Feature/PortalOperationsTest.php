@@ -366,5 +366,46 @@ class PortalOperationsTest extends TestCase
             'visibility' => 'requester_visible',
         ]);
     }
+
+    public function test_sla_pause_tracking_pauses_clock_and_accumulates_duration_on_resume(): void
+    {
+        $tech = User::where('email', 'tech1@cbvh.com.kh')->first();
+        $requester = User::where('email', 'sokha.chan@cbvh.com.kh')->first();
+        $ticket = $this->createSampleTicket($requester, $tech);
+
+        // 1. Mark ticket as blocked
+        $this->actingAs($tech)->post("/portal/tickets/{$ticket->id}/block", [
+            'blocked_reason' => 'Waiting for replacement power supply from vendor',
+        ])->assertSessionHas('status', 'Ticket marked as Blocked/On-Hold.');
+
+        $ticket->refresh();
+        $this->assertEquals('blocked', $ticket->status);
+        $this->assertNotNull($ticket->blocked_at);
+        $this->assertTrue($ticket->isSlaPaused());
+        $this->assertFalse($ticket->isSlaOverdue());
+
+        // Verify dashboard displays SLA Paused
+        $dashboardResponse = $this->actingAs($tech)->get(route('portal.dashboard', ['view' => 'blocked']));
+        $dashboardResponse->assertStatus(200);
+        $dashboardResponse->assertSee('SLA Paused');
+        $dashboardResponse->assertDontSee('Overdue');
+
+        // 2. Simulate 4 hours passing while on hold
+        \Carbon\Carbon::setTestNow(now()->addHours(4));
+
+        // 3. Resume work
+        $this->actingAs($tech)->post("/portal/tickets/{$ticket->id}/accept")
+            ->assertSessionHas('status', 'Ticket resumed from hold. SLA clock unpaused and active.');
+
+        $ticket->refresh();
+        $this->assertEquals('in_progress', $ticket->status);
+        $this->assertNull($ticket->blocked_at);
+        $this->assertEquals(240, $ticket->paused_minutes);
+        $this->assertEquals(4, $ticket->getPausedHours());
+        $this->assertFalse($ticket->isSlaPaused());
+
+        // Restore real time
+        \Carbon\Carbon::setTestNow();
+    }
 }
 

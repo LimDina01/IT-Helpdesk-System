@@ -30,6 +30,8 @@ class Ticket extends Model
         'closed_at',
         'auto_close_deadline',
         'blocked_reason',
+        'blocked_at',
+        'paused_minutes',
         'cancellation_reason',
     ];
 
@@ -39,6 +41,8 @@ class Ticket extends Model
         'resolved_at' => 'datetime',
         'closed_at' => 'datetime',
         'auto_close_deadline' => 'datetime',
+        'blocked_at' => 'datetime',
+        'paused_minutes' => 'integer',
     ];
 
     public static function generateTicketCode(): string
@@ -188,5 +192,79 @@ class Ticket extends Model
     public function isReopened(): bool
     {
         return $this->status === 'reopened';
+    }
+
+    /**
+     * Total minutes this ticket has been on hold / paused.
+     */
+    public function getPausedMinutes(): int
+    {
+        $minutes = (int) ($this->paused_minutes ?? 0);
+        if ($this->status === 'blocked' && $this->blocked_at) {
+            $minutes += abs((int) now()->diffInMinutes($this->blocked_at));
+        }
+        return $minutes;
+    }
+
+    /**
+     * Total hours this ticket has been on hold / paused.
+     */
+    public function getPausedHours(): int
+    {
+        return (int) round($this->getPausedMinutes() / 60);
+    }
+
+    /**
+     * Active fulfillment minutes elapsed (wall-clock time minus paused hold duration).
+     */
+    public function getActiveMinutesElapsed(): int
+    {
+        $referenceEnd = $this->resolved_at ?? $this->closed_at ?? now();
+        $totalWallMinutes = abs((int) $referenceEnd->diffInMinutes($this->created_at));
+        $paused = $this->getPausedMinutes();
+
+        return max(0, $totalWallMinutes - $paused);
+    }
+
+    /**
+     * Active fulfillment hours elapsed.
+     */
+    public function getActiveHoursElapsed(): int
+    {
+        return (int) floor($this->getActiveMinutesElapsed() / 60);
+    }
+
+    /**
+     * Remaining SLA target hours after factoring out paused hold duration.
+     */
+    public function getSlaRemainingHours(): ?int
+    {
+        $targetHours = $this->category?->target_resolve_hours;
+        if (!$targetHours) {
+            return null;
+        }
+
+        return (int) ($targetHours - $this->getActiveHoursElapsed());
+    }
+
+    /**
+     * Check if the SLA clock is currently paused on hold.
+     */
+    public function isSlaPaused(): bool
+    {
+        return $this->status === 'blocked';
+    }
+
+    /**
+     * Check if resolution SLA target has breached (only when NOT paused).
+     */
+    public function isSlaOverdue(): bool
+    {
+        if ($this->isSlaPaused() || in_array($this->status, ['resolved_confirmed', 'resolved_auto_closed', 'closed', 'rejected', 'cancelled'])) {
+            return false;
+        }
+
+        $remaining = $this->getSlaRemainingHours();
+        return $remaining !== null && $remaining < 0;
     }
 }
