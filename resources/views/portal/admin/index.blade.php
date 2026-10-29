@@ -687,14 +687,14 @@
                             <span class="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700" x-text="newGroup.icon_color"></span>
                         </div>
 
-                        <div class="p-2.5 bg-slate-50/80 rounded-2xl border border-slate-200/80 space-y-2">
+                        <div class="p-3.5 bg-slate-50/80 rounded-2xl border border-slate-200/80 space-y-2.5">
                             <!-- Curated Palette Swatches (36 Shades) -->
-                            <div class="flex items-center flex-wrap gap-1.5 max-h-36 overflow-y-auto p-1 bg-white rounded-xl border border-slate-200/60">
+                            <div class="flex items-center flex-wrap gap-2 max-h-48 overflow-y-auto p-3 bg-white rounded-xl border border-slate-200/60">
                                 <template x-for="c in colorPalette" :key="c.id">
                                     <button type="button" @click="newGroup.icon_color = c.hex"
                                             :style="`background-color: ${c.hex};`"
-                                            :class="(newGroup.icon_color && (newGroup.icon_color.toLowerCase() === c.hex.toLowerCase() || newGroup.icon_color.toLowerCase() === c.id.toLowerCase())) ? 'ring-2 ring-offset-2 ring-indigo-600 scale-110 z-10' : 'opacity-85 hover:opacity-100 hover:scale-105'"
-                                            class="w-6 h-6 rounded-full transition-all duration-150 shadow-2xs shrink-0 border border-black/10 cursor-pointer"
+                                            :class="(newGroup.icon_color && (newGroup.icon_color.toLowerCase() === c.hex.toLowerCase() || newGroup.icon_color.toLowerCase() === c.id.toLowerCase())) ? 'ring-2 ring-offset-2 ring-indigo-600 scale-105 z-10' : 'opacity-85 hover:opacity-100 hover:scale-105'"
+                                            class="w-7 h-7 rounded-full transition-all duration-150 shadow-2xs shrink-0 border border-black/10 cursor-pointer m-0.5"
                                             :title="c.name + ' (' + c.hex + ')'">
                                     </button>
                                 </template>
@@ -702,14 +702,14 @@
 
                             <!-- Custom Color Picker + Hex Input Row -->
                             <div class="flex items-center space-x-2 pt-1 border-t border-slate-200/60">
-                                <label class="flex items-center space-x-1.5 cursor-pointer bg-white px-2 py-1 rounded-lg border border-slate-200 hover:bg-slate-50 transition shrink-0">
+                                <label class="flex items-center space-x-1.5 cursor-pointer bg-white px-2.5 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 transition shrink-0">
                                     <input type="color"
                                            :value="getColorHex(newGroup.icon_color)"
                                            @input="newGroup.icon_color = $event.target.value"
-                                           class="w-5 h-5 rounded cursor-pointer p-0 border-0 bg-transparent" />
+                                           class="w-6 h-6 rounded cursor-pointer p-0 border-0 bg-transparent" />
                                     <span class="text-[11px] font-semibold text-slate-600">Custom Picker</span>
                                 </label>
-                                <div class="flex-1 flex items-center bg-white border border-slate-200 rounded-lg px-2 py-1">
+                                <div class="flex-1 flex items-center bg-white border border-slate-200 rounded-lg px-2.5 py-1.5">
                                     <span class="text-xs text-slate-400 font-mono font-bold mr-1">#</span>
                                     <input type="text"
                                            :value="(newGroup.icon_color || '').replace('#', '')"
@@ -1080,14 +1080,14 @@
                             <span class="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700" x-text="editCat.icon_color"></span>
                         </div>
 
-                        <div class="p-2.5 bg-slate-50/80 rounded-2xl border border-slate-200/80 space-y-2">
+                        <div class="p-3.5 bg-slate-50/80 rounded-2xl border border-slate-200/80 space-y-2.5">
                             <!-- Curated Palette Swatches (36 Shades) -->
-                            <div class="flex items-center flex-wrap gap-1.5 max-h-36 overflow-y-auto p-1 bg-white rounded-xl border border-slate-200/60">
+                            <div class="flex items-center flex-wrap gap-2 max-h-48 overflow-y-auto p-3 bg-white rounded-xl border border-slate-200/60">
                                 <template x-for="c in colorPalette" :key="c.id">
                                     <button type="button" @click="editCat.icon_color = c.hex"
                                             :style="`background-color: ${c.hex};`"
-                                            :class="(editCat.icon_color && (editCat.icon_color.toLowerCase() === c.hex.toLowerCase() || editCat.icon_color.toLowerCase() === c.id.toLowerCase())) ? 'ring-2 ring-offset-2 ring-indigo-600 scale-110 z-10' : 'opacity-85 hover:opacity-100 hover:scale-105'"
-                                            class="w-6 h-6 rounded-full transition-all duration-150 shadow-2xs shrink-0 border border-black/10 cursor-pointer"
+                                            :class="(editCat.icon_color && (editCat.icon_color.toLowerCase() === c.hex.toLowerCase() || editCat.icon_color.toLowerCase() === c.id.toLowerCase())) ? 'ring-2 ring-offset-2 ring-indigo-600 scale-105 z-10' : 'opacity-85 hover:opacity-100 hover:scale-105'"
+                                            class="w-7 h-7 rounded-full transition-all duration-150 shadow-2xs shrink-0 border border-black/10 cursor-pointer m-0.5"
                                             :title="c.name + ' (' + c.hex + ')'">
                                     </button>
                                 </template>
@@ -1095,14 +1095,14 @@
 
                             <!-- Custom Color Picker + Hex Input Row -->
                             <div class="flex items-center space-x-2 pt-1 border-t border-slate-200/60">
-                                <label class="flex items-center space-x-1.5 cursor-pointer bg-white px-2 py-1 rounded-lg border border-slate-200 hover:bg-slate-50 transition shrink-0">
+                                <label class="flex items-center space-x-1.5 cursor-pointer bg-white px-2.5 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 transition shrink-0">
                                     <input type="color"
                                            :value="getColorHex(editCat.icon_color)"
                                            @input="editCat.icon_color = $event.target.value"
-                                           class="w-5 h-5 rounded cursor-pointer p-0 border-0 bg-transparent" />
+                                           class="w-6 h-6 rounded cursor-pointer p-0 border-0 bg-transparent" />
                                     <span class="text-[11px] font-semibold text-slate-600">Custom Picker</span>
                                 </label>
-                                <div class="flex-1 flex items-center bg-white border border-slate-200 rounded-lg px-2 py-1">
+                                <div class="flex-1 flex items-center bg-white border border-slate-200 rounded-lg px-2.5 py-1.5">
                                     <span class="text-xs text-slate-400 font-mono font-bold mr-1">#</span>
                                     <input type="text"
                                            :value="(editCat.icon_color || '').replace('#', '')"
