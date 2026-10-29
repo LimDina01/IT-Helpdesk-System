@@ -14,6 +14,62 @@
     selectedParentName: '',
     editCat: {},
     catToDelete: null,
+
+    // Preset Icons Reference
+    presetIcons: [
+        { id: 'wifi', label: 'Wi-Fi / Network', emoji: '📶' },
+        { id: 'laptop', label: 'Computer / Hardware', emoji: '💻' },
+        { id: 'apps', label: 'Software / Apps', emoji: '🪟' },
+        { id: 'database', label: 'Database / ERP', emoji: '🗄️' },
+        { id: 'pos', label: 'POS / Cashier', emoji: '💳' },
+        { id: 'facility', label: 'Building / Office', emoji: '🏢' },
+        { id: 'cctv', label: 'CCTV / Camera', emoji: '📹' },
+        { id: 'phone', label: 'Phone / Intercom', emoji: '📞' },
+        { id: 'lock', label: 'Access / Account', emoji: '🔐' },
+        { id: 'email', label: 'Email / 365', emoji: '✉️' },
+        { id: 'cart', label: 'Procurement / Buying', emoji: '🛒' },
+        { id: 'other', label: 'Other / Inquiries', emoji: '🏷️' },
+        { id: 'help', label: 'Help / Support', emoji: '❓' }
+    ],
+
+    // Color Swatches Reference
+    colorPalette: [
+        { id: 'emerald', name: 'Emerald', bgClass: 'bg-emerald-500' },
+        { id: 'blue', name: 'Blue', bgClass: 'bg-blue-600' },
+        { id: 'sky', name: 'Sky', bgClass: 'bg-sky-600' },
+        { id: 'indigo', name: 'Indigo', bgClass: 'bg-indigo-600' },
+        { id: 'purple', name: 'Purple', bgClass: 'bg-purple-600' },
+        { id: 'amber', name: 'Amber', bgClass: 'bg-amber-500' },
+        { id: 'rose', name: 'Rose', bgClass: 'bg-rose-500' },
+        { id: 'slate', name: 'Slate', bgClass: 'bg-slate-600' }
+    ],
+
+    newGroup: {
+        name: '',
+        name_km: '',
+        description: '',
+        description_km: '',
+        icon: 'other',
+        icon_color: 'blue',
+        icon_tab: 'upload',
+        iconPreview: null,
+        previewLang: 'en'
+    },
+
+    openCreateGroup() {
+        this.newGroup = {
+            name: '',
+            name_km: '',
+            description: '',
+            description_km: '',
+            icon: 'other',
+            icon_color: 'blue',
+            icon_tab: 'upload',
+            iconPreview: null,
+            previewLang: 'en'
+        };
+        this.createGroupModal = true;
+    },
     
     openAddSub(parentId = '', parentName = '') {
         this.selectedParentId = parentId ? String(parentId) : '';
@@ -28,7 +84,21 @@
         } else {
             this.editCat.parent_id = '';
         }
+        this.editCat.icon = this.editCat.icon || 'other';
+        this.editCat.icon_color = this.editCat.icon_color || 'blue';
+        this.editCat.icon_tab = this.editCat.icon_url ? 'upload' : 'preset';
+        this.editCat.iconPreview = this.editCat.icon_url || null;
+        this.editCat.remove_icon_file = 0;
+        this.editCat.previewLang = 'en';
         this.editModal = true;
+    },
+    getColorClass(colorId) {
+        const found = this.colorPalette.find(c => c.id === colorId);
+        return found ? found.bgClass : 'bg-blue-600';
+    },
+    getEmojiForIcon(iconId) {
+        const found = this.presetIcons.find(i => i.id === iconId);
+        return found ? found.emoji : '📁';
     },
     confirmDelete(cat, isParent = false) {
         this.catToDelete = cat;
@@ -54,7 +124,7 @@
 
         <div class="flex items-center flex-wrap gap-2.5 self-start lg:self-auto">
             <!-- Create Parent Group Button -->
-            <button type="button" @click="createGroupModal = true" class="bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs px-3.5 py-2.5 rounded-xl shadow-xs transition flex items-center space-x-1.5">
+            <button type="button" @click="openCreateGroup()" class="bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs px-3.5 py-2.5 rounded-xl shadow-xs transition flex items-center space-x-1.5">
                 <span>📁</span>
                 <span>New Parent Group</span>
             </button>
@@ -134,8 +204,29 @@
                 <!-- Parent Header -->
                 <div class="bg-slate-50/90 px-6 py-4 border-b border-slate-200/80 flex flex-col md:flex-row md:items-center justify-between gap-3">
                     <div class="flex items-center space-x-3">
-                        <div class="w-9 h-9 rounded-xl {{ $parent->type === 'service_request' ? 'bg-indigo-100 text-indigo-700' : 'bg-rose-100 text-rose-700' }} flex items-center justify-center font-bold text-sm shadow-2xs">
-                            {{ $parent->type === 'service_request' ? '📦' : '⚡' }}
+                        <div class="w-10 h-10 rounded-xl {{ $parent->icon_color ? 'bg-' . $parent->icon_color . '-500 text-white' : ($parent->type === 'service_request' ? 'bg-indigo-100 text-indigo-700' : 'bg-rose-100 text-rose-700') }} flex items-center justify-center font-bold text-sm shadow-2xs overflow-hidden shrink-0">
+                            @if($parent->icon_url)
+                                <img src="{{ $parent->icon_url }}" alt="" class="w-6 h-6 object-contain" />
+                            @else
+                                <span class="text-base">
+                                    @switch($parent->icon)
+                                        @case('wifi') 📶 @break
+                                        @case('laptop') 💻 @break
+                                        @case('apps') 🪟 @break
+                                        @case('database') 🗄️ @break
+                                        @case('pos') 💳 @break
+                                        @case('facility') 🏢 @break
+                                        @case('cctv') 📹 @break
+                                        @case('phone') 📞 @break
+                                        @case('lock') 🔐 @break
+                                        @case('email') ✉️ @break
+                                        @case('cart') 🛒 @break
+                                        @case('other') 🏷️ @break
+                                        @case('help') ❓ @break
+                                        @default {{ $parent->type === 'service_request' ? '📦' : '⚡' }}
+                                    @endswitch
+                                </span>
+                            @endif
                         </div>
                         <div>
                             <div class="flex items-center space-x-2">
@@ -147,7 +238,15 @@
                                     <span class="text-[9px] font-bold uppercase px-1.5 py-0.2 rounded bg-slate-200 text-slate-600">Disabled</span>
                                 @endif
                             </div>
-                            <div class="text-[11px] text-slate-500 mt-0.5 flex items-center space-x-1.5">
+                            @if($parent->description || $parent->description_km)
+                                <div class="text-[11px] text-slate-600 font-medium mt-0.5">
+                                    <span>{{ $parent->description }}</span>
+                                    @if($parent->description_km)
+                                        <span class="text-slate-400 font-normal">({{ $parent->description_km }})</span>
+                                    @endif
+                                </div>
+                            @endif
+                            <div class="text-[11px] text-slate-400 mt-0.5 flex items-center space-x-1.5">
                                 @if($parent->type === 'service_request')
                                     <span class="text-indigo-600 font-semibold">🔵 Service Request Group</span>
                                 @else
@@ -316,7 +415,7 @@
                 <div class="text-3xl mb-2">📁</div>
                 <div class="font-bold text-slate-700 text-sm">No Category Groups Created Yet</div>
                 <p class="text-xs text-slate-400 mt-1">Get started by creating your first parent category group.</p>
-                <button type="button" @click="createGroupModal = true" class="mt-4 bg-indigo-600 text-white font-bold text-xs px-4 py-2 rounded-xl">
+                <button type="button" @click="openCreateGroup()" class="mt-4 bg-indigo-600 text-white font-bold text-xs px-4 py-2 rounded-xl">
                     + Create Parent Group
                 </button>
             </div>
@@ -327,7 +426,7 @@
     <!-- 1. CREATE PARENT GROUP MODAL               -->
     <!-- ========================================== -->
     <div x-show="createGroupModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4" x-cloak>
-        <div @click.away="createGroupModal = false" class="bg-white rounded-3xl max-w-lg w-full shadow-2xl p-6 space-y-4">
+        <div @click.away="createGroupModal = false" class="bg-white rounded-3xl max-w-xl w-full shadow-2xl p-6 space-y-4 max-h-[90vh] overflow-y-auto">
             <div class="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div class="flex items-center space-x-2">
                     <span class="text-xl">📁</span>
@@ -336,18 +435,37 @@
                 <button type="button" @click="createGroupModal = false" class="text-slate-400 hover:text-slate-600 text-sm font-bold">✕</button>
             </div>
             
-            <form method="POST" action="{{ route('portal.admin.categories.store') }}" class="space-y-4">
+            <form method="POST" action="{{ route('portal.admin.categories.store') }}" enctype="multipart/form-data" class="space-y-4">
                 @csrf
                 <input type="hidden" name="parent_id" value="">
+                <input type="hidden" name="icon" :value="newGroup.icon">
+                <input type="hidden" name="icon_color" :value="newGroup.icon_color">
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Group Name (EN)</label>
-                        <input type="text" name="name" required placeholder="e.g. Hardware & Devices" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Group Name (EN) <span class="text-rose-500">*</span></label>
+                        <input type="text" name="name" x-model="newGroup.name" required placeholder="e.g. Hardware & Devices" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium">
                     </div>
                     <div>
                         <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Khmer Name (ឈ្មោះជាភាសាខ្មែរ)</label>
-                        <input type="text" name="name_km" placeholder="ឧ. កុំព្យូទ័រ & ឧបករណ៍បច្ចេកវិទ្យា" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-sans">
+                        <input type="text" name="name_km" x-model="newGroup.name_km" placeholder="ឧ. កុំព្យូទ័រ & ឧបករណ៍បច្ចេកវិទ្យា" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-sans">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">
+                            Detail Subtitle (EN)
+                            <span class="text-slate-400 font-normal lowercase">(shows in Mini App)</span>
+                        </label>
+                        <input type="text" name="description" x-model="newGroup.description" placeholder="e.g. Laptop, desktop, printer, accessories" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">
+                            Detail Subtitle (KM ភាសាខ្មែរ)
+                            <span class="text-slate-400 font-normal lowercase">(ការបកប្រែ)</span>
+                        </label>
+                        <input type="text" name="description_km" x-model="newGroup.description_km" placeholder="ឧ. កុំព្យូទ័រយួរដៃ លើតុ ម៉ាស៊ីនព្រីន..." class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-sans">
                     </div>
                 </div>
 
@@ -357,7 +475,103 @@
                         <option value="incident_issue">Incident / Fault (Something Broken)</option>
                         <option value="service_request">Service Request (Enhancement / Access / Buying)</option>
                     </select>
-                    <p class="text-[10px] text-slate-400 mt-1">This sets the default classification for subcategories inside this group.</p>
+                    <p class="text-[10px] text-slate-400 mt-1">Sets the default classification for subcategories inside this group.</p>
+                </div>
+
+                <!-- Custom Icon & Styling Box -->
+                <div class="p-4 bg-slate-50/90 rounded-2xl border border-slate-200/80 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <label class="block text-[11px] font-bold text-slate-700 uppercase tracking-wide">Category Icon & Style</label>
+                        <!-- Tab switcher -->
+                        <div class="inline-flex items-center bg-slate-200/80 p-0.5 rounded-xl text-[11px]">
+                            <button type="button" @click="newGroup.icon_tab = 'upload'" :class="newGroup.icon_tab === 'upload' ? 'bg-white text-indigo-700 font-bold shadow-2xs' : 'text-slate-600 font-medium'" class="px-2.5 py-1 rounded-lg transition">
+                                📤 Upload Custom
+                            </button>
+                            <button type="button" @click="newGroup.icon_tab = 'preset'" :class="newGroup.icon_tab === 'preset' ? 'bg-white text-indigo-700 font-bold shadow-2xs' : 'text-slate-600 font-medium'" class="px-2.5 py-1 rounded-lg transition">
+                                🎨 Presets
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- TAB 1: Custom Icon File Upload -->
+                    <div x-show="newGroup.icon_tab === 'upload'" class="space-y-2">
+                        <div class="flex items-center space-x-3">
+                            <label class="flex-1 cursor-pointer border-2 border-dashed border-indigo-200 hover:border-indigo-400 bg-white hover:bg-indigo-50/30 rounded-2xl p-3 text-center transition group">
+                                <input type="file" name="icon_file" accept="image/png,image/svg+xml,image/jpeg,image/webp" class="hidden"
+                                       @change="const file = $event.target.files[0]; if (file) { const reader = new FileReader(); reader.onload = (e) => newGroup.iconPreview = e.target.result; reader.readAsDataURL(file); }">
+                                <div class="flex items-center justify-center space-x-2 text-indigo-600 font-bold text-xs">
+                                    <span>📁</span>
+                                    <span>Upload Custom PNG / SVG / JPG</span>
+                                </div>
+                                <p class="text-[10px] text-slate-400 mt-0.5">Transparent PNG or SVG recommended (Square ratio, max 2MB)</p>
+                            </label>
+
+                            <template x-if="newGroup.iconPreview">
+                                <div class="flex items-center space-x-2 bg-white p-2 rounded-2xl border border-slate-200 shrink-0">
+                                    <img :src="newGroup.iconPreview" class="w-8 h-8 object-contain rounded-lg">
+                                    <button type="button" @click="newGroup.iconPreview = null" class="text-rose-500 hover:text-rose-700 text-xs font-bold px-1.5 py-1 rounded hover:bg-rose-50" title="Remove custom file">✕</button>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- TAB 2: Preset Icon Picker -->
+                    <div x-show="newGroup.icon_tab === 'preset'" class="space-y-2">
+                        <div class="grid grid-cols-4 sm:grid-cols-7 gap-1.5 max-h-32 overflow-y-auto p-1.5 bg-white rounded-xl border border-slate-200">
+                            <template x-for="item in presetIcons" :key="item.id">
+                                <button type="button" @click="newGroup.icon = item.id; newGroup.iconPreview = null"
+                                        :class="newGroup.icon === item.id && !newGroup.iconPreview ? 'border-indigo-600 bg-indigo-50 ring-2 ring-indigo-500/20' : 'border-slate-200 hover:bg-slate-50'"
+                                        class="flex flex-col items-center justify-center p-2 rounded-xl border text-center transition"
+                                        :title="item.label">
+                                    <span class="text-lg" x-text="item.emoji"></span>
+                                    <span class="text-[9px] font-semibold text-slate-700 truncate w-full mt-0.5" x-text="item.id"></span>
+                                </button>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- Color Swatches -->
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1.5">Tile Background Color</label>
+                        <div class="flex items-center flex-wrap gap-2">
+                            <template x-for="c in colorPalette" :key="c.id">
+                                <button type="button" @click="newGroup.icon_color = c.id"
+                                        :class="[c.bgClass, newGroup.icon_color === c.id ? 'ring-2 ring-offset-2 ring-indigo-600 scale-110' : 'opacity-80 hover:opacity-100']"
+                                        class="w-6 h-6 rounded-full transition-all duration-150 shadow-2xs"
+                                        :title="c.name">
+                                </button>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- Live Mini App Preview Box -->
+                    <div class="p-3 bg-white border border-slate-200/90 rounded-2xl space-y-1.5 shadow-2xs">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[9px] font-bold uppercase tracking-wider text-slate-400">Live Telegram Mini App Preview</span>
+                            <div class="inline-flex items-center bg-slate-100 p-0.5 rounded-full text-[9px]">
+                                <button type="button" @click="newGroup.previewLang = 'en'" :class="newGroup.previewLang === 'en' ? 'bg-blue-600 text-white font-bold' : 'text-slate-500'" class="px-2 py-0.5 rounded-full transition">EN</button>
+                                <button type="button" @click="newGroup.previewLang = 'km'" :class="newGroup.previewLang === 'km' ? 'bg-blue-600 text-white font-bold' : 'text-slate-500'" class="px-2 py-0.5 rounded-full transition">ខ្មែរ</button>
+                            </div>
+                        </div>
+
+                        <div class="bg-white border border-slate-200 rounded-2xl p-3 flex items-center space-x-3">
+                            <div :class="getColorClass(newGroup.icon_color)" class="w-12 h-12 rounded-2xl text-white flex items-center justify-center shrink-0 shadow-xs overflow-hidden">
+                                <template x-if="newGroup.iconPreview">
+                                    <img :src="newGroup.iconPreview" class="w-7 h-7 object-contain">
+                                </template>
+                                <template x-if="!newGroup.iconPreview">
+                                    <span class="text-xl" x-text="getEmojiForIcon(newGroup.icon)"></span>
+                                </template>
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <div class="text-xs font-bold text-slate-800 leading-tight" x-text="newGroup.previewLang === 'km' ? (newGroup.name_km || newGroup.name || 'ឈ្មោះក្រុម') : (newGroup.name || 'Group Name')"></div>
+                                <div class="text-[11px] text-slate-500 mt-0.5 leading-snug line-clamp-1" x-text="newGroup.previewLang === 'km' ? (newGroup.description_km || newGroup.description || 'ការពន្យល់លម្អិត...') : (newGroup.description || 'Detail subtitle description...')"></div>
+                            </div>
+                            <div class="text-slate-300">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="flex justify-end space-x-2 pt-3 border-t border-slate-100">
@@ -460,7 +674,7 @@
     <!-- 3. EDIT CATEGORY / GROUP MODAL             -->
     <!-- ========================================== -->
     <div x-show="editModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4" x-cloak>
-        <div @click.away="editModal = false" class="bg-white rounded-3xl max-w-lg w-full shadow-2xl p-6 space-y-4">
+        <div @click.away="editModal = false" class="bg-white rounded-3xl max-w-xl w-full shadow-2xl p-6 space-y-4 max-h-[90vh] overflow-y-auto">
             <div class="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div class="flex items-center space-x-2">
                     <span class="text-xl" x-text="isEditingParent ? '📁' : '✏️'"></span>
@@ -472,9 +686,11 @@
                 <button type="button" @click="editModal = false" class="text-slate-400 hover:text-slate-600 text-sm font-bold">✕</button>
             </div>
             
-            <form :action="'{{ url('portal/admin/categories') }}/' + editCat.id" method="POST" class="space-y-4">
+            <form :action="'{{ url('portal/admin/categories') }}/' + editCat.id" method="POST" enctype="multipart/form-data" class="space-y-4">
                 @csrf
                 @method('PUT')
+                <input type="hidden" name="icon" :value="editCat.icon">
+                <input type="hidden" name="icon_color" :value="editCat.icon_color">
 
                 <!-- Parent Group Reassignment (For Subcategories) -->
                 <div x-show="!isEditingParent">
@@ -490,12 +706,30 @@
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Name (EN)</label>
-                        <input type="text" name="name" x-model="editCat.name" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Name (EN) <span class="text-rose-500">*</span></label>
+                        <input type="text" name="name" x-model="editCat.name" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium">
                     </div>
                     <div>
                         <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Khmer Name (ឈ្មោះជាភាសាខ្មែរ)</label>
                         <input type="text" name="name_km" x-model="editCat.name_km" placeholder="ឈ្មោះជាភាសាខ្មែរ..." class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-sans">
+                    </div>
+                </div>
+
+                <!-- Detail / Subtitle (For Parent Category Groups) -->
+                <div x-show="isEditingParent" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">
+                            Detail Subtitle (EN)
+                            <span class="text-slate-400 font-normal lowercase">(shows in Mini App)</span>
+                        </label>
+                        <input type="text" name="description" x-model="editCat.description" placeholder="e.g. Receipt printer, barcode scanner, POS" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">
+                            Detail Subtitle (KM ភាសាខ្មែរ)
+                            <span class="text-slate-400 font-normal lowercase">(ការបកប្រែ)</span>
+                        </label>
+                        <input type="text" name="description_km" x-model="editCat.description_km" placeholder="ឧ. ម៉ាស៊ីនព្រីនវិក្កយបត្រ ស្កេនបាកូដ..." class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-sans">
                     </div>
                 </div>
 
@@ -516,6 +750,106 @@
                             <option value="high">High</option>
                             <option value="critical">Critical</option>
                         </select>
+                    </div>
+                </div>
+
+                <!-- Custom Icon & Styling Box (For Parent Category Groups) -->
+                <div x-show="isEditingParent" class="p-4 bg-slate-50/90 rounded-2xl border border-slate-200/80 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <label class="block text-[11px] font-bold text-slate-700 uppercase tracking-wide">Category Icon & Style</label>
+                        <div class="inline-flex items-center bg-slate-200/80 p-0.5 rounded-xl text-[11px]">
+                            <button type="button" @click="editCat.icon_tab = 'upload'" :class="editCat.icon_tab === 'upload' ? 'bg-white text-indigo-700 font-bold shadow-2xs' : 'text-slate-600 font-medium'" class="px-2.5 py-1 rounded-lg transition">
+                                📤 Upload Custom
+                            </button>
+                            <button type="button" @click="editCat.icon_tab = 'preset'" :class="editCat.icon_tab === 'preset' ? 'bg-white text-indigo-700 font-bold shadow-2xs' : 'text-slate-600 font-medium'" class="px-2.5 py-1 rounded-lg transition">
+                                🎨 Presets
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- TAB 1: Custom Icon File Upload -->
+                    <div x-show="editCat.icon_tab === 'upload'" class="space-y-2">
+                        <div class="flex items-center space-x-3">
+                            <label class="flex-1 cursor-pointer border-2 border-dashed border-indigo-200 hover:border-indigo-400 bg-white hover:bg-indigo-50/30 rounded-2xl p-3 text-center transition group">
+                                <input type="file" name="icon_file" accept="image/png,image/svg+xml,image/jpeg,image/webp" class="hidden"
+                                       @change="const file = $event.target.files[0]; if (file) { const reader = new FileReader(); reader.onload = (e) => editCat.iconPreview = e.target.result; reader.readAsDataURL(file); editCat.remove_icon_file = 0; }">
+                                <div class="flex items-center justify-center space-x-2 text-indigo-600 font-bold text-xs">
+                                    <span>📁</span>
+                                    <span>Upload New PNG / SVG / JPG</span>
+                                </div>
+                                <p class="text-[10px] text-slate-400 mt-0.5">Transparent PNG or SVG recommended (Square ratio, max 2MB)</p>
+                            </label>
+
+                            <template x-if="editCat.iconPreview">
+                                <div class="flex items-center space-x-2 bg-white p-2 rounded-2xl border border-slate-200 shrink-0">
+                                    <img :src="editCat.iconPreview" class="w-8 h-8 object-contain rounded-lg">
+                                    <button type="button" @click="editCat.iconPreview = null; editCat.remove_icon_file = 1" class="text-rose-500 hover:text-rose-700 text-xs font-bold px-1.5 py-1 rounded hover:bg-rose-50" title="Remove custom file">✕</button>
+                                </div>
+                            </template>
+                        </div>
+
+                        <!-- Checkbox for removing uploaded icon -->
+                        <template x-if="editCat.icon_url && !editCat.iconPreview">
+                            <input type="hidden" name="remove_icon_file" value="1">
+                        </template>
+                    </div>
+
+                    <!-- TAB 2: Preset Icon Picker -->
+                    <div x-show="editCat.icon_tab === 'preset'" class="space-y-2">
+                        <div class="grid grid-cols-4 sm:grid-cols-7 gap-1.5 max-h-32 overflow-y-auto p-1.5 bg-white rounded-xl border border-slate-200">
+                            <template x-for="item in presetIcons" :key="item.id">
+                                <button type="button" @click="editCat.icon = item.id; editCat.iconPreview = null; editCat.remove_icon_file = 1"
+                                        :class="editCat.icon === item.id && !editCat.iconPreview ? 'border-indigo-600 bg-indigo-50 ring-2 ring-indigo-500/20' : 'border-slate-200 hover:bg-slate-50'"
+                                        class="flex flex-col items-center justify-center p-2 rounded-xl border text-center transition"
+                                        :title="item.label">
+                                    <span class="text-lg" x-text="item.emoji"></span>
+                                    <span class="text-[9px] font-semibold text-slate-700 truncate w-full mt-0.5" x-text="item.id"></span>
+                                </button>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- Color Swatches -->
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1.5">Tile Background Color</label>
+                        <div class="flex items-center flex-wrap gap-2">
+                            <template x-for="c in colorPalette" :key="c.id">
+                                <button type="button" @click="editCat.icon_color = c.id"
+                                        :class="[c.bgClass, editCat.icon_color === c.id ? 'ring-2 ring-offset-2 ring-indigo-600 scale-110' : 'opacity-80 hover:opacity-100']"
+                                        class="w-6 h-6 rounded-full transition-all duration-150 shadow-2xs"
+                                        :title="c.name">
+                                </button>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- Live Mini App Preview Box -->
+                    <div class="p-3 bg-white border border-slate-200/90 rounded-2xl space-y-1.5 shadow-2xs">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[9px] font-bold uppercase tracking-wider text-slate-400">Live Telegram Mini App Preview</span>
+                            <div class="inline-flex items-center bg-slate-100 p-0.5 rounded-full text-[9px]">
+                                <button type="button" @click="editCat.previewLang = 'en'" :class="editCat.previewLang === 'en' ? 'bg-blue-600 text-white font-bold' : 'text-slate-500'" class="px-2 py-0.5 rounded-full transition">EN</button>
+                                <button type="button" @click="editCat.previewLang = 'km'" :class="editCat.previewLang === 'km' ? 'bg-blue-600 text-white font-bold' : 'text-slate-500'" class="px-2 py-0.5 rounded-full transition">ខ្មែរ</button>
+                            </div>
+                        </div>
+
+                        <div class="bg-white border border-slate-200 rounded-2xl p-3 flex items-center space-x-3">
+                            <div :class="getColorClass(editCat.icon_color)" class="w-12 h-12 rounded-2xl text-white flex items-center justify-center shrink-0 shadow-xs overflow-hidden">
+                                <template x-if="editCat.iconPreview">
+                                    <img :src="editCat.iconPreview" class="w-7 h-7 object-contain">
+                                </template>
+                                <template x-if="!editCat.iconPreview">
+                                    <span class="text-xl" x-text="getEmojiForIcon(editCat.icon)"></span>
+                                </template>
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <div class="text-xs font-bold text-slate-800 leading-tight" x-text="editCat.previewLang === 'km' ? (editCat.name_km || editCat.name || 'ឈ្មោះក្រុម') : (editCat.name || 'Group Name')"></div>
+                                <div class="text-[11px] text-slate-500 mt-0.5 leading-snug line-clamp-1" x-text="editCat.previewLang === 'km' ? (editCat.description_km || editCat.description || 'ការពន្យល់លម្អិត...') : (editCat.description || 'Detail subtitle description...')"></div>
+                            </div>
+                            <div class="text-slate-300">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                            </div>
+                        </div>
                     </div>
                 </div>
 

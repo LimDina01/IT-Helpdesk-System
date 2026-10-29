@@ -13,6 +13,7 @@ use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class PortalAdminController extends Controller
@@ -47,6 +48,11 @@ class PortalAdminController extends Controller
             'parent_id' => 'nullable|exists:ticket_categories,id',
             'name' => 'required|string|max:100',
             'name_km' => 'nullable|string|max:150',
+            'description' => 'nullable|string|max:255',
+            'description_km' => 'nullable|string|max:255',
+            'icon' => 'nullable|string|max:50',
+            'icon_file' => 'nullable|file|mimes:png,svg,jpg,jpeg,webp|max:2048',
+            'icon_color' => 'nullable|string|max:50',
             'type' => 'required|in:incident_issue,service_request',
             'requires_approval' => 'nullable|boolean',
             'default_priority' => 'nullable|in:low,medium,high,critical',
@@ -59,6 +65,17 @@ class PortalAdminController extends Controller
         $validated['target_acknowledge_minutes'] = $validated['target_acknowledge_minutes'] ?? 30;
         $validated['target_resolve_hours'] = $validated['target_resolve_hours'] ?? 24;
         $validated['is_active'] = true;
+
+        if ($request->hasFile('icon_file')) {
+            $file = $request->file('icon_file');
+            $filename = 'cat_' . time() . '_' . Str::random(8) . '.' . $file->getClientOriginalExtension();
+            $destinationPath = public_path('uploads/categories');
+            if (!file_exists($destinationPath)) {
+                mkdir($destinationPath, 0755, true);
+            }
+            $file->move($destinationPath, $filename);
+            $validated['icon_url'] = '/uploads/categories/' . $filename;
+        }
 
         $created = TicketCategory::create($validated);
         $typeLabel = $created->parent_id ? 'Subcategory' : 'Parent Category Group';
@@ -77,6 +94,12 @@ class PortalAdminController extends Controller
             'parent_id' => 'nullable|exists:ticket_categories,id|not_in:' . $category->id,
             'name' => 'required|string|max:100',
             'name_km' => 'nullable|string|max:150',
+            'description' => 'nullable|string|max:255',
+            'description_km' => 'nullable|string|max:255',
+            'icon' => 'nullable|string|max:50',
+            'icon_file' => 'nullable|file|mimes:png,svg,jpg,jpeg,webp|max:2048',
+            'remove_icon_file' => 'nullable|boolean',
+            'icon_color' => 'nullable|string|max:50',
             'type' => 'required|in:incident_issue,service_request',
             'requires_approval' => 'nullable|boolean',
             'default_priority' => 'nullable|in:low,medium,high,critical',
@@ -88,6 +111,25 @@ class PortalAdminController extends Controller
         $validated['default_priority'] = $validated['default_priority'] ?? 'medium';
         $validated['target_acknowledge_minutes'] = $validated['target_acknowledge_minutes'] ?? 30;
         $validated['target_resolve_hours'] = $validated['target_resolve_hours'] ?? 24;
+
+        if ($request->boolean('remove_icon_file')) {
+            if ($category->icon_url && file_exists(public_path(ltrim($category->icon_url, '/')))) {
+                @unlink(public_path(ltrim($category->icon_url, '/')));
+            }
+            $validated['icon_url'] = null;
+        } elseif ($request->hasFile('icon_file')) {
+            if ($category->icon_url && file_exists(public_path(ltrim($category->icon_url, '/')))) {
+                @unlink(public_path(ltrim($category->icon_url, '/')));
+            }
+            $file = $request->file('icon_file');
+            $filename = 'cat_' . time() . '_' . Str::random(8) . '.' . $file->getClientOriginalExtension();
+            $destinationPath = public_path('uploads/categories');
+            if (!file_exists($destinationPath)) {
+                mkdir($destinationPath, 0755, true);
+            }
+            $file->move($destinationPath, $filename);
+            $validated['icon_url'] = '/uploads/categories/' . $filename;
+        }
 
         // If explicitly set empty, allow removing parent (promoting to root)
         if ($request->has('parent_id') && empty($request->input('parent_id'))) {

@@ -357,7 +357,17 @@ function tmaApp() {
 
         getCategorySubtitle(cat) {
             if (!cat || !cat.name) return this.t('select_category_desc', 'Select to view options');
-            const n = cat.name.toLowerCase();
+
+            // 1. If category has custom configured descriptions in DB, use them!
+            if (this.locale === 'km' && cat.description_km) {
+                return cat.description_km;
+            }
+            if (cat.description) {
+                return cat.description;
+            }
+
+            // 2. Intelligent fallback based on name
+            const n = (cat.name || '').toLowerCase();
             if (this.locale === 'km') {
                 if (n.includes('account') || n.includes('access')) return 'បង្កើតគណនីថ្មី សិទ្ធិចូលប្រព័ន្ធ ឬប្តូរសិទ្ធិប្រើប្រាស់';
                 if (n.includes('pos') || n.includes('cashier')) return 'ម៉ាស៊ីនព្រីនវិក្កយបត្រ ស្កេនបាកូដ ថតលុយ ឬស្ថានីយ POS';
@@ -366,7 +376,8 @@ function tmaApp() {
                 if (n.includes('email') || n.includes('collaboration')) return 'អ៊ីមែល Microsoft 365, Teams, SharePoint';
                 if (n.includes('network') || n.includes('connectivity') || n.includes('internet')) return 'ប្រព័ន្ធបណ្តាញ Wi-Fi, VPN, និងអ៊ីនធឺណិត';
                 if (n.includes('business') || n.includes('erp')) return 'ប្រព័ន្ធ Business Central, POS, RFID, Humica, IQ, Bio-Start';
-                if (n.includes('facility') || n.includes('cctv') || n.includes('phone') || n.includes('other')) return 'បន្ទប់ប្រជុំ កាមេរ៉ាសុវត្ថិភាព ទូរស័ព្ទ និងសេវាផ្សេងៗ';
+                if (n.includes('facility') || n.includes('cctv') || n.includes('phone')) return 'បន្ទប់ប្រជុំ កាមេរ៉ាសុវត្ថិភាព ទូរស័ព្ទ និងសេវាទូទៅ';
+                if (n.includes('other')) return 'សំណួរទូទៅ និងសេវាផ្សេងៗដែលមិនមានក្នុងបញ្ជី';
                 if (n.includes('procurement') || n.includes('service')) return 'ស្នើសុំកុំព្យូទ័រថ្មី បរិក្ខារ IT និងការបញ្ជាក់លក្ខណៈបច្ចេកទេស';
                 return 'ជ្រើសរើសប្រភេទសេវាកម្មដើម្បីបន្ត';
             }
@@ -377,19 +388,37 @@ function tmaApp() {
             if (n.includes('email') || n.includes('collaboration')) return 'Email, Microsoft 365, Teams, SharePoint';
             if (n.includes('network') || n.includes('connectivity') || n.includes('internet')) return 'Network, Wi-Fi, VPN, internet';
             if (n.includes('business') || n.includes('erp')) return 'Business Central, POS, RFID, Humica, IQ, Bio-Start, etc.';
-            if (n.includes('facility') || n.includes('cctv') || n.includes('phone') || n.includes('other')) return 'Meeting room, CCTV, phone, others';
+            if (n.includes('facility') || n.includes('cctv') || n.includes('phone')) return 'Meeting room, CCTV, phone, general services';
+            if (n.includes('other')) return 'General requests, unlisted issues, other inquiries';
             if (n.includes('procurement') || n.includes('service')) return 'Hardware procurement, IT asset spec recommendation';
             return 'Select category and proceed';
         },
 
         getCategoryIconBg(cat) {
+            // 1. If custom color specified
+            if (cat?.icon_color) {
+                const colorMap = {
+                    emerald: 'bg-emerald-500',
+                    blue: 'bg-blue-600',
+                    sky: 'bg-sky-600',
+                    indigo: 'bg-indigo-600',
+                    purple: 'bg-purple-600',
+                    amber: 'bg-amber-500',
+                    rose: 'bg-rose-500',
+                    slate: 'bg-slate-600',
+                };
+                return colorMap[cat.icon_color] || (cat.icon_color.startsWith('bg-') ? cat.icon_color : 'bg-blue-600');
+            }
+
+            // 2. Intelligent fallback
             const n = (cat?.name || '').toLowerCase();
             if (n.includes('email')) return 'bg-rose-500';
             if (n.includes('network') || n.includes('connectivity') || n.includes('internet')) return 'bg-emerald-500';
             if (n.includes('hardware') || n.includes('equipment')) return 'bg-sky-600';
             if (n.includes('software') || n.includes('application')) return 'bg-blue-500';
             if (n.includes('business') || n.includes('erp')) return 'bg-blue-600';
-            if (n.includes('facility') || n.includes('cctv') || n.includes('other') || n.includes('phone')) return 'bg-amber-500';
+            if (n.includes('facility') || n.includes('cctv') || n.includes('phone')) return 'bg-amber-500';
+            if (n.includes('other')) return 'bg-slate-600';
             if (n.includes('pos') || n.includes('cashier')) return 'bg-sky-700';
             if (n.includes('procurement') || (n.includes('service') && !n.includes('hardware'))) return 'bg-indigo-600';
             return 'bg-blue-600';

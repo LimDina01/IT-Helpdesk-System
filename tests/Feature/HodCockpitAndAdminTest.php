@@ -153,6 +153,70 @@ class HodCockpitAndAdminTest extends TestCase
         $this->assertFalse($newCategory->is_active);
     }
 
+    public function test_admin_can_create_and_update_parent_category_with_custom_icon_and_description(): void
+    {
+        $this->actingAs($this->adminUser);
+
+        // 1. Create parent group with custom icon upload and descriptions
+        $fakeIcon = \Illuminate\Http\UploadedFile::fake()->image('pos_scanner.png', 100, 100);
+
+        $response = $this->post(route('portal.admin.categories.store'), [
+            'name' => 'Boutique Scales & Tag Scanners',
+            'name_km' => 'ជញ្ជីងពេជ្រ & ម៉ាស៊ីនស្កេនស្លាក',
+            'description' => 'Precision jewelry scales, gold tester, RFID tag scanner',
+            'description_km' => 'ជញ្ជីងថ្លឹងពេជ្រ ម៉ាស៊ីនវាស់គុណភាពមាស និងស្កេន RFID',
+            'type' => 'incident_issue',
+            'icon' => 'pos',
+            'icon_color' => 'amber',
+            'icon_file' => $fakeIcon,
+        ]);
+
+        $response->assertSessionHasNoErrors();
+
+        $category = TicketCategory::where('name', 'Boutique Scales & Tag Scanners')->firstOrFail();
+        $this->assertEquals('ជញ្ជីងពេជ្រ & ម៉ាស៊ីនស្កេនស្លាក', $category->name_km);
+        $this->assertEquals('Precision jewelry scales, gold tester, RFID tag scanner', $category->description);
+        $this->assertEquals('amber', $category->icon_color);
+        $this->assertNotNull($category->icon_url);
+        $this->assertStringStartsWith('/uploads/categories/', $category->icon_url);
+
+        // Clean up created file if on disk
+        $localFilePath = public_path(ltrim($category->icon_url, '/'));
+        if (file_exists($localFilePath)) {
+            @unlink($localFilePath);
+        }
+
+        // 2. Update category to preset icon and remove custom file
+        $updateResponse = $this->put(route('portal.admin.categories.update', $category->id), [
+            'name' => 'Boutique Scales & Tag Scanners',
+            'name_km' => 'ជញ្ជីងពេជ្រ & ម៉ាស៊ីនស្កេនស្លាក',
+            'description' => 'Updated precision jewelry scales and tools',
+            'description_km' => 'ជញ្ជីងថ្លឹងពេជ្រដែលបានកែប្រែ',
+            'type' => 'incident_issue',
+            'icon' => 'other',
+            'icon_color' => 'slate',
+            'remove_icon_file' => 1,
+        ]);
+
+        $updateResponse->assertSessionHasNoErrors();
+        $category->refresh();
+        $this->assertEquals('Updated precision jewelry scales and tools', $category->description);
+        $this->assertEquals('other', $category->icon);
+        $this->assertEquals('slate', $category->icon_color);
+        $this->assertNull($category->icon_url);
+
+        // 3. Verify TMA getFormData includes these fields
+        $tmaUser = User::where('email', 'sokha.chan@cbvh.com.kh')->firstOrFail();
+        $tmaResponse = $this->actingAs($tmaUser)->getJson(route('tma.form-data'));
+        $tmaResponse->assertStatus(200);
+        $tmaResponse->assertJsonFragment([
+            'name' => 'Boutique Scales & Tag Scanners',
+            'description' => 'Updated precision jewelry scales and tools',
+            'icon' => 'other',
+            'icon_color' => 'slate',
+        ]);
+    }
+
     public function test_admin_holidays_management(): void
     {
         $this->actingAs($this->adminUser);

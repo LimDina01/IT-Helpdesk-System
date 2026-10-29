@@ -38,48 +38,66 @@
                     <div @click="selectCategory(cat)"
                          class="bg-white border border-slate-200/80 hover:border-blue-400 rounded-2xl p-3.5 shadow-xs flex items-center space-x-3.5 cursor-pointer active:scale-[0.97] active:bg-slate-50 transition-all duration-150 ease-out">
                         
-                        <!-- Colored Square Icon matching Image 2 -->
+                        <!-- Colored Square Icon (Custom Uploaded Image OR Preset Icon) -->
                         <div :class="getCategoryIconBg(cat)"
-                             class="w-12 h-12 rounded-2xl text-white flex items-center justify-center shrink-0 shadow-xs">
-                            <!-- Account & Access / User -->
-                            <template x-if="cat.name.toLowerCase().includes('account') || cat.name.toLowerCase().includes('access')">
-                                <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                             class="w-12 h-12 rounded-2xl text-white flex items-center justify-center shrink-0 shadow-xs overflow-hidden">
+                            <!-- 1. Custom Uploaded Image Icon -->
+                            <template x-if="cat.icon_url">
+                                <img :src="cat.icon_url" alt="" class="w-7 h-7 object-contain select-none" />
                             </template>
-                            <!-- Hardware & Equipment / Laptop -->
-                            <template x-if="cat.name.toLowerCase().includes('hardware') || cat.name.toLowerCase().includes('equipment')">
-                                <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25m18 0A2.25 2.25 0 0018.75 3H5.25A2.25 2.25 0 003 5.25m18 0H3"/></svg>
-                            </template>
-                            <!-- Software & Application / Grid -->
-                            <template x-if="cat.name.toLowerCase().includes('software') || cat.name.toLowerCase().includes('application')">
-                                <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M4 4h6v6H4V4zm10 0h6v6h-6V4zM4 14h6v6H4v-6zm10 0h6v6h-6v-6z"/></svg>
-                            </template>
-                            <!-- Email & Collaboration / Envelope -->
-                            <template x-if="cat.name.toLowerCase().includes('email') || cat.name.toLowerCase().includes('collaboration')">
-                                <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75"/></svg>
-                            </template>
-                            <!-- Network & Connectivity / Wi-Fi -->
-                            <template x-if="cat.name.toLowerCase().includes('network') || cat.name.toLowerCase().includes('connectivity') || cat.name.toLowerCase().includes('internet')">
-                                <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.288 15.038a5.25 5.25 0 017.424 0M5.106 11.856c3.807-3.808 9.98-3.808 13.788 0M1.924 8.674c5.565-5.565 14.587-5.565 20.152 0M12.53 18.22l-.53.53-.53-.53a.75.75 0 011.06 0z"/></svg>
-                            </template>
-                            <!-- Business Systems / Database -->
-                            <template x-if="cat.name.toLowerCase().includes('business') || cat.name.toLowerCase().includes('erp')">
-                                <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path stroke-linecap="round" stroke-linejoin="round" d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
-                            </template>
-                            <!-- Facility & Other / Building -->
-                            <template x-if="cat.name.toLowerCase().includes('facility') || cat.name.toLowerCase().includes('cctv') || cat.name.toLowerCase().includes('other') || cat.name.toLowerCase().includes('phone')">
-                                <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21"/></svg>
-                            </template>
-                            <!-- POS & Cashier Hardware -->
-                            <template x-if="cat.name.toLowerCase().includes('pos') || cat.name.toLowerCase().includes('cashier')">
-                                <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z"/></svg>
-                            </template>
-                            <!-- Procurement & Service Requests / Box & Cart -->
-                            <template x-if="cat.name.toLowerCase().includes('procurement') || (cat.name.toLowerCase().includes('service') && !cat.name.toLowerCase().includes('hardware'))">
-                                <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z"/></svg>
-                            </template>
-                            <!-- Default Fallback Icon if none matched -->
-                            <template x-if="!cat.name.toLowerCase().includes('account') && !cat.name.toLowerCase().includes('access') && !cat.name.toLowerCase().includes('hardware') && !cat.name.toLowerCase().includes('equipment') && !cat.name.toLowerCase().includes('software') && !cat.name.toLowerCase().includes('application') && !cat.name.toLowerCase().includes('email') && !cat.name.toLowerCase().includes('collaboration') && !cat.name.toLowerCase().includes('network') && !cat.name.toLowerCase().includes('connectivity') && !cat.name.toLowerCase().includes('internet') && !cat.name.toLowerCase().includes('business') && !cat.name.toLowerCase().includes('erp') && !cat.name.toLowerCase().includes('facility') && !cat.name.toLowerCase().includes('cctv') && !cat.name.toLowerCase().includes('other') && !cat.name.toLowerCase().includes('phone') && !cat.name.toLowerCase().includes('pos') && !cat.name.toLowerCase().includes('cashier') && !cat.name.toLowerCase().includes('procurement') && !cat.name.toLowerCase().includes('service')">
-                                <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z"/><path stroke-linecap="round" stroke-linejoin="round" d="M6 6h.008v.008H6V6z"/></svg>
+
+                            <!-- 2. Selected / Fallback Preset SVG Icons -->
+                            <template x-if="!cat.icon_url">
+                                <div class="w-full h-full flex items-center justify-center">
+                                    <!-- Network / Wi-Fi -->
+                                    <template x-if="cat.icon === 'wifi' || (!cat.icon && (cat.name.toLowerCase().includes('network') || cat.name.toLowerCase().includes('connectivity') || cat.name.toLowerCase().includes('internet')))">
+                                        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.288 15.038a5.25 5.25 0 017.424 0M5.106 11.856c3.807-3.808 9.98-3.808 13.788 0M1.924 8.674c5.565-5.565 14.587-5.565 20.152 0M12.53 18.22l-.53.53-.53-.53a.75.75 0 011.06 0z"/></svg>
+                                    </template>
+                                    <!-- Hardware & Equipment / Laptop -->
+                                    <template x-if="cat.icon === 'laptop' || cat.icon === 'device' || (!cat.icon && (cat.name.toLowerCase().includes('hardware') || cat.name.toLowerCase().includes('equipment')))">
+                                        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25m18 0A2.25 2.25 0 0018.75 3H5.25A2.25 2.25 0 003 5.25m18 0H3"/></svg>
+                                    </template>
+                                    <!-- Software & Application / Grid -->
+                                    <template x-if="cat.icon === 'apps' || cat.icon === 'software' || (!cat.icon && (cat.name.toLowerCase().includes('software') || cat.name.toLowerCase().includes('application')))">
+                                        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M4 4h6v6H4V4zm10 0h6v6h-6V4zM4 14h6v6H4v-6zm10 0h6v6h-6v-6z"/></svg>
+                                    </template>
+                                    <!-- POS & Cashier Hardware -->
+                                    <template x-if="cat.icon === 'pos' || (!cat.icon && (cat.name.toLowerCase().includes('pos') || cat.name.toLowerCase().includes('cashier')))">
+                                        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z"/></svg>
+                                    </template>
+                                    <!-- Business Systems / Database -->
+                                    <template x-if="cat.icon === 'database' || (!cat.icon && (cat.name.toLowerCase().includes('business') || cat.name.toLowerCase().includes('erp')))">
+                                        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path stroke-linecap="round" stroke-linejoin="round" d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+                                    </template>
+                                    <!-- Facility & Meeting Room / Building -->
+                                    <template x-if="cat.icon === 'facility' || cat.icon === 'building' || (!cat.icon && (cat.name.toLowerCase().includes('facility') && !cat.name.toLowerCase().includes('other')))">
+                                        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21"/></svg>
+                                    </template>
+                                    <!-- CCTV -->
+                                    <template x-if="cat.icon === 'cctv' || (!cat.icon && cat.name.toLowerCase().includes('cctv'))">
+                                        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z"/></svg>
+                                    </template>
+                                    <!-- Phone -->
+                                    <template x-if="cat.icon === 'phone' || (!cat.icon && cat.name.toLowerCase().includes('phone'))">
+                                        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z"/></svg>
+                                    </template>
+                                    <!-- Email & Collaboration / Envelope -->
+                                    <template x-if="cat.icon === 'email' || (!cat.icon && (cat.name.toLowerCase().includes('email') || cat.name.toLowerCase().includes('collaboration')))">
+                                        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75"/></svg>
+                                    </template>
+                                    <!-- Account & Access / User -->
+                                    <template x-if="cat.icon === 'user' || cat.icon === 'lock' || (!cat.icon && (cat.name.toLowerCase().includes('account') || cat.name.toLowerCase().includes('access')))">
+                                        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                                    </template>
+                                    <!-- Procurement & Service Requests / Box & Cart -->
+                                    <template x-if="cat.icon === 'cart' || (!cat.icon && (cat.name.toLowerCase().includes('procurement') || (cat.name.toLowerCase().includes('service') && !cat.name.toLowerCase().includes('hardware'))))">
+                                        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z"/></svg>
+                                    </template>
+                                    <!-- Other / Tag / Fallback -->
+                                    <template x-if="cat.icon === 'other' || cat.icon === 'tag' || cat.icon === 'help' || (!cat.icon && (cat.name.toLowerCase().includes('other') || (!cat.name.toLowerCase().includes('account') && !cat.name.toLowerCase().includes('access') && !cat.name.toLowerCase().includes('hardware') && !cat.name.toLowerCase().includes('equipment') && !cat.name.toLowerCase().includes('software') && !cat.name.toLowerCase().includes('application') && !cat.name.toLowerCase().includes('email') && !cat.name.toLowerCase().includes('collaboration') && !cat.name.toLowerCase().includes('network') && !cat.name.toLowerCase().includes('connectivity') && !cat.name.toLowerCase().includes('internet') && !cat.name.toLowerCase().includes('business') && !cat.name.toLowerCase().includes('erp') && !cat.name.toLowerCase().includes('facility') && !cat.name.toLowerCase().includes('cctv') && !cat.name.toLowerCase().includes('phone') && !cat.name.toLowerCase().includes('pos') && !cat.name.toLowerCase().includes('cashier') && !cat.name.toLowerCase().includes('procurement') && !cat.name.toLowerCase().includes('service'))))">
+                                        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z"/><path stroke-linecap="round" stroke-linejoin="round" d="M6 6h.008v.008H6V6z"/></svg>
+                                    </template>
+                                </div>
                             </template>
                         </div>
 
