@@ -199,13 +199,14 @@ class PortalAdminController extends Controller
             ->orderBy('name')
             ->paginate(25);
 
-        $roles = Role::all();
+        // Operational IT Staff roles
+        $roles = Role::whereIn('name', ['technician', 'helpdesk', 'system_admin', 'hod'])->get();
 
         return view('portal.admin.users', compact('users', 'roles'));
     }
 
     /**
-     * Create a new staff or admin user.
+     * Create or promote an IT staff / admin user.
      */
     public function storeUser(Request $request): RedirectResponse
     {
@@ -213,7 +214,7 @@ class PortalAdminController extends Controller
 
         $validated = $request->validate([
             'name' => 'required|string|max:100',
-            'email' => 'required|email|max:150|unique:users,email',
+            'email' => 'required|email|max:150',
             'password' => 'nullable|string|min:6',
             'telegram_username' => 'nullable|string|max:100',
             'employee_code' => 'nullable|string|max:50',
@@ -221,7 +222,8 @@ class PortalAdminController extends Controller
             'roles.*' => 'exists:roles,id',
         ]);
 
-        $password = !empty($validated['password']) ? $validated['password'] : 'Password123!';
+        $email = strtolower(trim($validated['email']));
+        $user = User::where('email', $email)->first();
 
         // Check if employee code matches an existing employee
         $employeeId = null;
@@ -232,9 +234,34 @@ class PortalAdminController extends Controller
             }
         }
 
+        $passwordInput = !empty($validated['password']) ? $validated['password'] : null;
+
+        if ($user) {
+            // Update existing user profile & promote roles without failing
+            $updateData = [
+                'name' => $validated['name'],
+                'is_active' => true,
+            ];
+            if ($employeeId) {
+                $updateData['employee_id'] = $employeeId;
+            }
+            if (!empty($validated['telegram_username'])) {
+                $updateData['telegram_username'] = ltrim($validated['telegram_username'], '@');
+            }
+            if ($passwordInput) {
+                $updateData['password'] = \Illuminate\Support\Facades\Hash::make($passwordInput);
+            }
+            $user->update($updateData);
+            $user->roles()->sync($validated['roles']);
+
+            return back()->with('status', "IT Staff user '{$user->name}' ({$user->email}) updated and assigned roles successfully!");
+        }
+
+        // Register new staff user
+        $password = $passwordInput ?: 'Password123!';
         $newUser = User::create([
             'name' => $validated['name'],
-            'email' => strtolower($validated['email']),
+            'email' => $email,
             'password' => \Illuminate\Support\Facades\Hash::make($password),
             'telegram_username' => !empty($validated['telegram_username']) ? ltrim($validated['telegram_username'], '@') : null,
             'employee_id' => $employeeId,
@@ -243,7 +270,7 @@ class PortalAdminController extends Controller
 
         $newUser->roles()->sync($validated['roles']);
 
-        return back()->with('status', "Staff user '{$newUser->name}' ({$newUser->email}) created successfully! Password: {$password}");
+        return back()->with('status', "IT Staff user '{$newUser->name}' ({$newUser->email}) registered successfully.");
     }
 
     /**

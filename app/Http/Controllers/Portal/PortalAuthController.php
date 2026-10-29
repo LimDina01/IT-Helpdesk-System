@@ -43,8 +43,10 @@ class PortalAuthController extends Controller
                     return back()->withErrors(['email' => 'This account has been deactivated. Please contact the administrator.']);
                 }
 
+                // Auto-grant IT Technician role on first Active Directory portal sign-in
                 if (!$ldapUser->isStaff()) {
-                    return back()->withErrors(['email' => 'Access denied. Only IT Help Desk, Technicians, and HOD can access this portal.']);
+                    $techRole = \App\Models\Role::firstOrCreate(['name' => 'technician'], ['label' => 'IT Technician']);
+                    $ldapUser->roles()->syncWithoutDetaching([$techRole->id]);
                 }
 
                 Auth::login($ldapUser, $remember);

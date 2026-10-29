@@ -180,8 +180,11 @@
         <div @click.away="createUserModal = false" class="bg-white rounded-3xl max-w-lg w-full shadow-2xl p-6 space-y-4">
             <div class="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div class="flex items-center space-x-2">
-                    <span class="text-xl">👤</span>
-                    <h3 class="text-base font-bold text-slate-900">Add Staff / Admin User</h3>
+                    <span class="text-xl">🛠️</span>
+                    <div>
+                        <h3 class="text-base font-bold text-slate-900">Register / Promote IT Staff</h3>
+                        <p class="text-[11px] text-slate-500">Assign operational roles to IT team members. AD users log in with their Windows domain password.</p>
+                    </div>
                 </div>
                 <button type="button" @click="createUserModal = false" class="text-slate-400 hover:text-slate-600 text-sm font-bold">✕</button>
             </div>
@@ -192,38 +195,38 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                         <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Full Name</label>
-                        <input type="text" name="name" required placeholder="e.g. Dina Lim" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <input type="text" name="name" required placeholder="e.g. Sem Boran" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500">
                     </div>
                     <div>
-                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Corporate Email</label>
-                        <input type="email" name="email" required placeholder="e.g. dina.lim@cbvh.com.kh" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Corporate Email / AD Login</label>
+                        <input type="email" name="email" required placeholder="e.g. boran.sem@cbvh.com.kh" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500">
                     </div>
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Login Password</label>
+                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Local Password (Optional)</label>
                         <input type="text" name="password" placeholder="Default: Password123!" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                        <p class="text-[10px] text-slate-400 mt-0.5">Leave blank for default: Password123!</p>
+                        <p class="text-[10px] text-slate-400 mt-0.5">Optional for AD users. Default: Password123!</p>
                     </div>
                     <div>
                         <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Telegram Username (Optional)</label>
-                        <input type="text" name="telegram_username" placeholder="e.g. Lim_Dina01" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <input type="text" name="telegram_username" placeholder="e.g. boran_sem" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500">
                     </div>
                 </div>
 
                 <div>
                     <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Employee ID Code (Optional)</label>
-                    <input type="text" name="employee_code" placeholder="e.g. EMP-1002" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                    <p class="text-[10px] text-slate-400 mt-0.5">Links this user account to employee department and branch records.</p>
+                    <input type="text" name="employee_code" placeholder="e.g. EMP-1005" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <p class="text-[10px] text-slate-400 mt-0.5">Links this staff member to company branch and employee records.</p>
                 </div>
 
                 <div>
-                    <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1.5">Assign Roles</label>
+                    <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1.5">Assign Operational IT Roles</label>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         @foreach($roles as $role)
                             <label class="flex items-center space-x-2.5 p-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer transition">
-                                <input type="checkbox" name="roles[]" value="{{ $role->id }}" {{ $role->name === 'system_admin' ? 'checked' : '' }} class="rounded text-indigo-600 focus:ring-indigo-500">
+                                <input type="checkbox" name="roles[]" value="{{ $role->id }}" {{ $role->name === 'technician' ? 'checked' : '' }} class="rounded text-indigo-600 focus:ring-indigo-500">
                                 <div>
                                     <div class="text-xs font-bold text-slate-800">{{ $role->label }}</div>
                                     <div class="text-[9px] text-slate-400 font-mono">{{ $role->name }}</div>
@@ -235,7 +238,7 @@
 
                 <div class="flex justify-end space-x-2 pt-3 border-t border-slate-100">
                     <button type="button" @click="createUserModal = false" class="px-4 py-2 text-xs text-slate-600 font-semibold hover:bg-slate-100 rounded-xl transition">Cancel</button>
-                    <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-xs transition">Create Staff User</button>
+                    <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-xs transition">Save IT Staff User</button>
                 </div>
             </form>
         </div>

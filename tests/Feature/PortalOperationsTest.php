@@ -75,6 +75,36 @@ class PortalOperationsTest extends TestCase
         $this->assertEquals('helpdesk@cbvh.com.kh', auth()->user()->email);
     }
 
+    public function test_ad_user_without_staff_role_is_auto_granted_technician_role_on_first_portal_login(): void
+    {
+        $adUser = User::create([
+            'name' => 'New AD Technician',
+            'email' => 'new.ad.tech@cbvh.com.kh',
+            'password' => \Illuminate\Support\Facades\Hash::make('Temporary123!'),
+            'is_active' => true,
+        ]);
+        $this->assertFalse($adUser->isStaff());
+
+        $mockLdap = $this->createMock(\App\Services\LdapAuthService::class);
+        $mockLdap->method('isEnabled')->willReturn(true);
+        $mockLdap->expects($this->once())
+            ->method('authenticate')
+            ->willReturn($adUser);
+
+        $this->app->instance(\App\Services\LdapAuthService::class, $mockLdap);
+
+        $response = $this->post('/portal/login', [
+            'email' => 'new.ad.tech@cbvh.com.kh',
+            'password' => 'DomainPassword123!',
+        ]);
+
+        $response->assertRedirect('/portal');
+        $this->assertAuthenticatedAs($adUser);
+        $adUser->refresh();
+        $this->assertTrue($adUser->isStaff());
+        $this->assertTrue($adUser->hasRole('technician'));
+    }
+
     public function test_helpdesk_can_assign_technician_and_record_assignment_history(): void
     {
         $helpdesk = User::where('email', 'helpdesk@cbvh.com.kh')->first();

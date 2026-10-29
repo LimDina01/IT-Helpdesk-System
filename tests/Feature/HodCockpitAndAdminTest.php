@@ -215,5 +215,29 @@ class HodCockpitAndAdminTest extends TestCase
         // 4. Verify cannot deactivate oneself
         $selfToggleResponse = $this->post(route('portal.admin.users.toggle', $this->adminUser->id));
         $selfToggleResponse->assertSessionHasErrors(['error']);
+
+        // 5. Register new IT Staff User
+        $newUserResponse = $this->post(route('portal.admin.users.store'), [
+            'name' => 'Boran Sem Test',
+            'email' => 'boran.sem.test@cbvh.com.kh',
+            'telegram_username' => 'boran_sem_test',
+            'roles' => [$techRole->id],
+        ]);
+        $newUserResponse->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('users', ['email' => 'boran.sem.test@cbvh.com.kh']);
+        $createdUser = User::where('email', 'boran.sem.test@cbvh.com.kh')->firstOrFail();
+        $this->assertTrue($createdUser->hasRole('technician'));
+
+        // 6. Promoting an existing user with storeUser does not crash with email taken
+        $promoteResponse = $this->post(route('portal.admin.users.store'), [
+            'name' => 'Boran Sem Test Promoted',
+            'email' => 'boran.sem.test@cbvh.com.kh',
+            'telegram_username' => 'boran_sem_promoted',
+            'roles' => [$techRole->id, $helpdeskRole->id],
+        ]);
+        $promoteResponse->assertSessionHasNoErrors();
+        $createdUser->refresh();
+        $this->assertEquals('Boran Sem Test Promoted', $createdUser->name);
+        $this->assertTrue($createdUser->hasRole('helpdesk'));
     }
 }
