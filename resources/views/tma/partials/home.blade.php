@@ -49,7 +49,7 @@
             <!-- Luxury Gold Silk Banner (Matching Image 1) -->
             <div class="px-4 pt-3.5">
                 <div class="w-full rounded-3xl overflow-hidden shadow-xs border border-amber-200/60 bg-[#FAF4E3]">
-                    <img src="/images/cbvh-banner.svg" alt="CBVH Cambodia Jewelry Public Company" class="w-full h-auto block select-none pointer-events-none" />
+                    <img src="/images/cbvh-banner.png" alt="CBVH Cheang Bak Van Hong Jewelry" class="w-full h-auto block select-none pointer-events-none" />
                 </div>
             </div>
 
