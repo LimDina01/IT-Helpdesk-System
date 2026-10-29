@@ -279,4 +279,77 @@ class HodCockpitAndAdminTest extends TestCase
         $this->assertTrue($tmaHodUser->hasRole('hod'));
         $this->assertTrue($tmaHodUser->hasRole('requester'));
     }
+
+    public function test_admin_organization_departments_and_branches_crud(): void
+    {
+        $this->actingAs($this->adminUser);
+
+        // 1. View organization overview
+        $viewResponse = $this->get(route('portal.admin.organization'));
+        $viewResponse->assertStatus(200);
+        $viewResponse->assertSee('Company Departments');
+        $viewResponse->assertSee('Branches & Offices', false);
+
+        // 2. Add Department
+        $storeDeptResponse = $this->post(route('portal.admin.departments.store'), [
+            'name' => 'Compliance & Risk Management',
+            'code' => 'COMP',
+        ]);
+        $storeDeptResponse->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('departments', [
+            'name' => 'Compliance & Risk Management',
+            'code' => 'COMP',
+            'is_active' => true,
+        ]);
+        $createdDept = \App\Models\Department::where('code', 'COMP')->firstOrFail();
+
+        // 3. Update Department
+        $updateDeptResponse = $this->put(route('portal.admin.departments.update', $createdDept->id), [
+            'name' => 'Legal, Compliance & AML',
+            'code' => 'LEGAL',
+        ]);
+        $updateDeptResponse->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('departments', [
+            'id' => $createdDept->id,
+            'name' => 'Legal, Compliance & AML',
+            'code' => 'LEGAL',
+        ]);
+
+        // 4. Toggle Department Active
+        $toggleDeptResponse = $this->post(route('portal.admin.departments.toggle', $createdDept->id));
+        $toggleDeptResponse->assertSessionHasNoErrors();
+        $createdDept->refresh();
+        $this->assertFalse($createdDept->is_active);
+
+        // 5. Add Branch
+        $storeBranchResponse = $this->post(route('portal.admin.branches.store'), [
+            'name' => 'Kompong Cham Provincial Branch',
+            'code' => 'KC-01',
+        ]);
+        $storeBranchResponse->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('branches', [
+            'name' => 'Kompong Cham Provincial Branch',
+            'code' => 'KC-01',
+            'is_active' => true,
+        ]);
+        $createdBranch = \App\Models\Branch::where('code', 'KC-01')->firstOrFail();
+
+        // 6. Update Branch
+        $updateBranchResponse = $this->put(route('portal.admin.branches.update', $createdBranch->id), [
+            'name' => 'Kompong Cham Central Branch',
+            'code' => 'KPC-01',
+        ]);
+        $updateBranchResponse->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('branches', [
+            'id' => $createdBranch->id,
+            'name' => 'Kompong Cham Central Branch',
+            'code' => 'KPC-01',
+        ]);
+
+        // 7. Toggle Branch Active
+        $toggleBranchResponse = $this->post(route('portal.admin.branches.toggle', $createdBranch->id));
+        $toggleBranchResponse->assertSessionHasNoErrors();
+        $createdBranch->refresh();
+        $this->assertFalse($createdBranch->is_active);
+    }
 }

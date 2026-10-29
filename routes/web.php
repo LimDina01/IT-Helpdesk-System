@@ -115,6 +115,18 @@ Route::prefix('portal')->group(function () {
             Route::post('/users/tma', [PortalAdminController::class, 'storeTmaUser'])->name('portal.admin.users.tma.store');
             Route::post('/users/{user}/roles', [PortalAdminController::class, 'updateUserRoles'])->name('portal.admin.users.roles');
             Route::post('/users/{user}/toggle', [PortalAdminController::class, 'toggleUserActive'])->name('portal.admin.users.toggle');
+
+            // Organization Management (Departments & Branches)
+            Route::get('/organization', [PortalAdminController::class, 'organization'])->name('portal.admin.organization');
+            Route::post('/departments', [PortalAdminController::class, 'storeDepartment'])->name('portal.admin.departments.store');
+            Route::put('/departments/{department}', [PortalAdminController::class, 'updateDepartment'])->name('portal.admin.departments.update');
+            Route::post('/departments/{department}/toggle', [PortalAdminController::class, 'toggleDepartment'])->name('portal.admin.departments.toggle');
+            Route::delete('/departments/{department}', [PortalAdminController::class, 'destroyDepartment'])->name('portal.admin.departments.destroy');
+
+            Route::post('/branches', [PortalAdminController::class, 'storeBranch'])->name('portal.admin.branches.store');
+            Route::put('/branches/{branch}', [PortalAdminController::class, 'updateBranch'])->name('portal.admin.branches.update');
+            Route::post('/branches/{branch}/toggle', [PortalAdminController::class, 'toggleBranch'])->name('portal.admin.branches.toggle');
+            Route::delete('/branches/{branch}', [PortalAdminController::class, 'destroyBranch'])->name('portal.admin.branches.destroy');
         });
     });
 });

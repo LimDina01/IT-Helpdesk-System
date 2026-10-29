@@ -425,4 +425,164 @@ class PortalAdminController extends Controller
         $statusStr = $user->is_active ? 'activated' : 'deactivated';
         return back()->with('status', "User {$user->name} {$statusStr}.");
     }
+
+    /**
+     * Organization: Departments & Branches Management overview.
+     */
+    public function organization(): View
+    {
+        abort_unless(Auth::user()->hasRole(['system_admin', 'hod']), 403);
+
+        $departments = Department::withCount('employees')
+            ->orderBy('name')
+            ->get();
+
+        $branches = Branch::withCount(['employees', 'tickets'])
+            ->orderBy('name')
+            ->get();
+
+        return view('portal.admin.organization', compact('departments', 'branches'));
+    }
+
+    /**
+     * Store new Department.
+     */
+    public function storeDepartment(Request $request): RedirectResponse
+    {
+        abort_unless(Auth::user()->hasRole(['system_admin', 'hod']), 403);
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:100',
+            'code' => 'required|string|max:20|unique:departments,code',
+        ]);
+
+        Department::create([
+            'name' => trim($validated['name']),
+            'code' => strtoupper(trim($validated['code'])),
+            'is_active' => true,
+        ]);
+
+        return back()->with('status', "Department '{$validated['name']}' created successfully.");
+    }
+
+    /**
+     * Update existing Department.
+     */
+    public function updateDepartment(Request $request, Department $department): RedirectResponse
+    {
+        abort_unless(Auth::user()->hasRole(['system_admin', 'hod']), 403);
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:100',
+            'code' => 'required|string|max:20|unique:departments,code,' . $department->id,
+        ]);
+
+        $department->update([
+            'name' => trim($validated['name']),
+            'code' => strtoupper(trim($validated['code'])),
+        ]);
+
+        return back()->with('status', "Department '{$department->name}' updated successfully.");
+    }
+
+    /**
+     * Toggle Department active status.
+     */
+    public function toggleDepartment(Department $department): RedirectResponse
+    {
+        abort_unless(Auth::user()->hasRole(['system_admin', 'hod']), 403);
+
+        $department->update(['is_active' => !$department->is_active]);
+
+        $statusStr = $department->is_active ? 'activated' : 'suspended';
+        return back()->with('status', "Department '{$department->name}' {$statusStr}.");
+    }
+
+    /**
+     * Delete Department if not in use.
+     */
+    public function destroyDepartment(Department $department): RedirectResponse
+    {
+        abort_unless(Auth::user()->hasRole(['system_admin', 'hod']), 403);
+
+        if ($department->employees()->count() > 0) {
+            return back()->withErrors(['error' => "Cannot delete department '{$department->name}' because it has assigned employees. Suspend it instead."]);
+        }
+
+        $name = $department->name;
+        $department->delete();
+
+        return back()->with('status', "Department '{$name}' deleted successfully.");
+    }
+
+    /**
+     * Store new Branch.
+     */
+    public function storeBranch(Request $request): RedirectResponse
+    {
+        abort_unless(Auth::user()->hasRole(['system_admin', 'hod']), 403);
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:100',
+            'code' => 'required|string|max:20|unique:branches,code',
+        ]);
+
+        Branch::create([
+            'name' => trim($validated['name']),
+            'code' => strtoupper(trim($validated['code'])),
+            'is_active' => true,
+        ]);
+
+        return back()->with('status', "Branch '{$validated['name']}' created successfully.");
+    }
+
+    /**
+     * Update existing Branch.
+     */
+    public function updateBranch(Request $request, Branch $branch): RedirectResponse
+    {
+        abort_unless(Auth::user()->hasRole(['system_admin', 'hod']), 403);
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:100',
+            'code' => 'required|string|max:20|unique:branches,code,' . $branch->id,
+        ]);
+
+        $branch->update([
+            'name' => trim($validated['name']),
+            'code' => strtoupper(trim($validated['code'])),
+        ]);
+
+        return back()->with('status', "Branch '{$branch->name}' updated successfully.");
+    }
+
+    /**
+     * Toggle Branch active status.
+     */
+    public function toggleBranch(Branch $branch): RedirectResponse
+    {
+        abort_unless(Auth::user()->hasRole(['system_admin', 'hod']), 403);
+
+        $branch->update(['is_active' => !$branch->is_active]);
+
+        $statusStr = $branch->is_active ? 'activated' : 'suspended';
+        return back()->with('status', "Branch '{$branch->name}' {$statusStr}.");
+    }
+
+    /**
+     * Delete Branch if not in use.
+     */
+    public function destroyBranch(Branch $branch): RedirectResponse
+    {
+        abort_unless(Auth::user()->hasRole(['system_admin', 'hod']), 403);
+
+        if ($branch->employees()->count() > 0 || $branch->tickets()->count() > 0) {
+            return back()->withErrors(['error' => "Cannot delete branch '{$branch->name}' because it has assigned employees or tickets. Suspend it instead."]);
+        }
+
+        $name = $branch->name;
+        $branch->delete();
+
+        return back()->with('status', "Branch '{$name}' deleted successfully.");
+    }
 }

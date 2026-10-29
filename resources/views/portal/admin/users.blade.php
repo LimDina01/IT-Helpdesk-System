@@ -42,6 +42,10 @@
                 <span>👥</span>
                 <span>Staff & User Roles</span>
             </a>
+            <a href="{{ route('portal.admin.organization') }}" class="text-slate-600 hover:text-slate-900 px-4 py-2 rounded-xl transition flex items-center space-x-1.5">
+                <span>🏢</span>
+                <span>Departments & Branches</span>
+            </a>
         </div>
 
         <!-- Filter Pills & Search -->
@@ -98,7 +102,7 @@
                 <thead class="bg-slate-50 text-slate-500 font-bold uppercase tracking-wider text-[10px] border-b border-slate-200">
                     <tr>
                         <th class="py-3 px-6">User / Employee</th>
-                        <th class="py-3 px-4">Department & Branch</th>
+                        <th class="py-3 px-4 min-w-[200px]">Department & Branch</th>
                         <th class="py-3 px-4">Telegram Linked</th>
                         <th class="py-3 px-4">Assigned Roles</th>
                         <th class="py-3 px-4">Account Status</th>
@@ -124,7 +128,7 @@
                                 </div>
                             </td>
 
-                            <td class="py-3.5 px-4 whitespace-nowrap">
+                            <td class="py-3.5 px-4 whitespace-nowrap min-w-[200px]">
                                 <div class="font-semibold text-slate-700">{{ $user->employee?->department?->name ?? 'Standalone IT Account' }}</div>
                                 <div class="text-[10px] text-slate-400">{{ $user->employee?->branch?->name ?? 'Head Office' }}</div>
                             </td>
@@ -277,10 +281,10 @@
     <!-- 2. CREATE TMA EMPLOYEE MODAL               -->
     <!-- ========================================== -->
     <div x-show="createTmaModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4" x-cloak>
-        <div @click.away="createTmaModal = false" class="bg-white rounded-3xl max-w-lg w-full shadow-2xl p-6 space-y-4 max-h-[92vh] overflow-y-auto">
+        <div @click.away="createTmaModal = false" class="bg-white rounded-3xl max-w-xl w-full shadow-2xl p-6 sm:p-7 space-y-4 max-h-[92vh] overflow-y-auto">
             <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-                <div class="flex items-center space-x-2">
-                    <span class="text-xl">📱</span>
+                <div class="flex items-center space-x-2.5">
+                    <span class="text-2xl">📱</span>
                     <div>
                         <h3 class="text-base font-bold text-slate-900">Register TMA Employee / Requester</h3>
                         <p class="text-[11px] text-slate-500">Pre-register bank employee for Telegram Mini App & department approval routing.</p>
@@ -289,10 +293,11 @@
                 <button type="button" @click="createTmaModal = false" class="text-slate-400 hover:text-slate-600 text-sm font-bold">✕</button>
             </div>
             
-            <form method="POST" action="{{ route('portal.admin.users.tma.store') }}" class="space-y-3.5">
+            <form method="POST" action="{{ route('portal.admin.users.tma.store') }}" class="space-y-4">
                 @csrf
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <!-- Row 1: Name & Email -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                     <div>
                         <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Full Name</label>
                         <input type="text" name="name" required placeholder="e.g. Sokha Chan" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
@@ -303,30 +308,55 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <!-- Row 2: Employee Code & Phone -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                     <div>
                         <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Employee ID Code</label>
-                        <input type="text" name="employee_code" required placeholder="e.g. EMP-1009" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono">
+                        <input type="text" name="employee_code" required placeholder="e.g. EMP-1009" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono font-bold uppercase">
+                        <p class="text-[10px] text-slate-400 mt-0.5">Used for Telegram Mini App account link matching.</p>
                     </div>
                     <div>
-                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Department</label>
-                        <select name="department_id" required class="w-full text-xs px-3 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                            @foreach($departments as $dept)
-                                <option value="{{ $dept->id }}">{{ $dept->name }} ({{ $dept->code }})</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Branch</label>
-                        <select name="branch_id" required class="w-full text-xs px-3 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                            @foreach($branches as $branch)
-                                <option value="{{ $branch->id }}">{{ $branch->name }}</option>
-                            @endforeach
-                        </select>
+                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Phone Number (Optional)</label>
+                        <input type="text" name="phone" placeholder="e.g. +855 12 333 444" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
                 </div>
 
-                <!-- Role Selection in TMA -->
+                <!-- Row 3: Department & Branch (Wide 2-Column Section) -->
+                <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[11px] font-extrabold text-slate-700 uppercase tracking-wider flex items-center space-x-1">
+                            <span>🏢</span>
+                            <span>Organization Placement</span>
+                        </span>
+                        <a href="{{ route('portal.admin.organization') }}" target="_blank" class="text-[10px] text-indigo-600 hover:text-indigo-800 font-bold hover:underline flex items-center space-x-0.5">
+                            <span>⚙️ Manage Depts & Branches</span>
+                            <span>↗</span>
+                        </a>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Department</label>
+                            <select name="department_id" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                                @foreach($departments as $dept)
+                                    <option value="{{ $dept->id }}">{{ $dept->name }} ({{ $dept->code }})</option>
+                                @endforeach
+                            </select>
+                            <p class="text-[10px] text-slate-400 mt-0.5">Directs HOD service request approvals.</p>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Branch / Location</label>
+                            <select name="branch_id" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                                @foreach($branches as $branch)
+                                    <option value="{{ $branch->id }}">{{ $branch->name }} ({{ $branch->code }})</option>
+                                @endforeach
+                            </select>
+                            <p class="text-[10px] text-slate-400 mt-0.5">Physical office for equipment support.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Row 4: Role Selection in TMA -->
                 <div>
                     <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1.5">TMA Account Role</label>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -348,7 +378,8 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <!-- Row 5: Web Login Password & Telegram Username -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                     <div>
                         <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Web Login Password</label>
                         <input type="text" name="password" placeholder="Default: Password123!" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
