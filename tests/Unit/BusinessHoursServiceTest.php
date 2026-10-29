@@ -85,8 +85,46 @@ class BusinessHoursServiceTest extends TestCase
         $deadline = $this->service->addWorkingMinutes($saturday430pm, 480);
 
         // Saturday uses 30 mins (until 17:00), remaining 450 mins (7.5 hours) on Monday
-        // Monday 08:00 + 7h30m = Monday 15:30 (3:30 PM)
-        $this->assertEquals('2026-10-26 15:30:00', $deadline->format('Y-m-d H:i:s'));
+        // Monday 08:00 to 12:00 = 4h (240 mins). Lunch 12:00-13:00 (paused).
+        // Monday 13:00 to 16:30 = 3.5h (210 mins) => Monday 16:30 (4:30 PM)
+        $this->assertEquals('2026-10-26 16:30:00', $deadline->format('Y-m-d H:i:s'));
+    }
+
+    public function test_lunch_break_is_excluded_from_working_minutes(): void
+    {
+        // Monday 11:30 AM to Monday 01:30 PM (2 wall-clock hours, includes 12:00-13:00 lunch)
+        $monday1130am = Carbon::parse('2026-10-26 11:30:00');
+        $monday130pm = Carbon::parse('2026-10-26 13:30:00');
+
+        $workingMinutes = $this->service->getWorkingMinutesBetween($monday1130am, $monday130pm);
+
+        // Morning: 30 mins (11:30 - 12:00). Lunch: 0 mins. Afternoon: 30 mins (13:00 - 13:30) => 60 mins (1 hour)
+        $this->assertEquals(60, $workingMinutes);
+        $this->assertEquals(1.0, $this->service->getWorkingHoursBetween($monday1130am, $monday130pm));
+    }
+
+    public function test_lunch_break_shifts_sla_deadline_by_one_hour(): void
+    {
+        // Ticket submitted Monday at 11:00 AM with a 2-hour (120 mins) SLA target
+        $monday11am = Carbon::parse('2026-10-26 11:00:00');
+        $deadline = $this->service->addWorkingMinutes($monday11am, 120);
+
+        // 11:00 to 12:00 = 1 hour (60 mins). Lunch 12:00 to 13:00 paused.
+        // 13:00 to 14:00 = 1 hour (60 mins) => Deadline should be 14:00 (2:00 PM)
+        $this->assertEquals('2026-10-26 14:00:00', $deadline->format('Y-m-d H:i:s'));
+    }
+
+    public function test_is_lunch_break_detection(): void
+    {
+        $duringLunch = Carbon::parse('2026-10-26 12:30:00'); // Mon 12:30 PM
+        $beforeLunch = Carbon::parse('2026-10-26 11:59:00'); // Mon 11:59 AM
+        $afterLunch = Carbon::parse('2026-10-26 13:00:00');  // Mon 1:00 PM
+        $sundayLunch = Carbon::parse('2026-10-25 12:30:00'); // Sun 12:30 PM (rest day)
+
+        $this->assertTrue($this->service->isLunchBreak($duringLunch));
+        $this->assertFalse($this->service->isLunchBreak($beforeLunch));
+        $this->assertFalse($this->service->isLunchBreak($afterLunch));
+        $this->assertFalse($this->service->isLunchBreak($sundayLunch));
     }
 
     public function test_ticket_model_uses_business_hours_and_calculates_remaining_hours(): void
@@ -120,8 +158,8 @@ class BusinessHoursServiceTest extends TestCase
         $this->assertEquals(6, $ticket->getSlaRemainingHours());
         $this->assertFalse($ticket->isSlaOverdue());
 
-        // Target deadline: Monday 2026-10-26 at 15:30 (3:30 PM)
-        $this->assertEquals('2026-10-26 15:30:00', $ticket->getSlaDeadline()->format('Y-m-d H:i:s'));
+        // Target deadline: Monday 2026-10-26 at 16:30 (4:30 PM, factoring in 12:00-13:00 lunch)
+        $this->assertEquals('2026-10-26 16:30:00', $ticket->getSlaDeadline()->format('Y-m-d H:i:s'));
 
         Carbon::setTestNow(null);
     }

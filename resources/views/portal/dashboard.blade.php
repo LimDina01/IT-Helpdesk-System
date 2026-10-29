@@ -386,6 +386,7 @@
                                     $isSlaPaused = $t->isSlaPaused();
                                     $pausedHours = $t->getPausedHours();
                                     $slaDeadline = $t->getSlaDeadline();
+                                    $isLunchBreak = $t->isLunchBreak();
                                     $isOffHours = $t->isOutsideBusinessHours();
                                 @endphp
 
@@ -447,6 +448,8 @@
                                             <span>•</span>
                                             @if($hoursRemaining < 0)
                                                 <span class="text-rose-600 font-bold">Overdue (+{{ abs($hoursRemaining) }}h)</span>
+                                            @elseif($isLunchBreak)
+                                                <span class="text-amber-600 font-semibold" title="CBVH Lunch Break (12:00 PM – 1:00 PM). SLA clock frozen until 1:00 PM.">🍽️ Lunch Break ({{ $hoursRemaining }}h left)</span>
                                             @elseif($isOffHours)
                                                 <span class="text-indigo-600 font-semibold" title="CBVH is currently closed. SLA clock frozen until next working day 08:00 AM.">🌙 Off-Hours ({{ $hoursRemaining }}h left)</span>
                                             @elseif($hoursRemaining <= 8)

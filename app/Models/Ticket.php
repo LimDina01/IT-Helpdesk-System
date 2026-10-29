@@ -276,6 +276,14 @@ class Ticket extends Model
     }
 
     /**
+     * Check if current time is during CBVH 12:00 PM - 01:00 PM lunch break.
+     */
+    public function isLunchBreak(): bool
+    {
+        return app(\App\Services\BusinessHoursService::class)->isLunchBreak();
+    }
+
+    /**
      * Check if current time is outside active banking business hours.
      */
     public function isOutsideBusinessHours(): bool

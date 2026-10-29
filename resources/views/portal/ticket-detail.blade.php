@@ -697,6 +697,10 @@
                         <span class="bg-amber-100 text-amber-800 font-extrabold text-[9px] uppercase px-2 py-0.5 rounded-full flex items-center space-x-1">
                             <span>⏸️</span> <span>SLA Paused</span>
                         </span>
+                    @elseif($ticket->isLunchBreak() && !in_array($ticket->status, ['resolved_confirmed', 'resolved_auto_closed', 'closed']))
+                        <span class="bg-amber-100 text-amber-800 font-extrabold text-[9px] uppercase px-2 py-0.5 rounded-full flex items-center space-x-1">
+                            <span>🍽️</span> <span>Lunch Break</span>
+                        </span>
                     @elseif($ticket->isSlaOverdue())
                         <span class="bg-rose-100 text-rose-800 font-extrabold text-[9px] uppercase px-2 py-0.5 rounded-full animate-pulse">
                             ⚠️ Overdue
@@ -742,6 +746,8 @@
                         <span class="text-slate-400">SLA Status:</span>
                         @if($ticket->isSlaPaused())
                             <span class="font-bold text-amber-600">Clock Frozen (Vendor Hold)</span>
+                        @elseif($ticket->isLunchBreak() && !in_array($ticket->status, ['resolved_confirmed', 'resolved_auto_closed', 'closed']))
+                            <span class="font-bold text-amber-600">🍽️ Lunch Break (Frozen until 01:00 PM)</span>
                         @elseif($ticket->isOutsideBusinessHours() && !in_array($ticket->status, ['resolved_confirmed', 'resolved_auto_closed', 'closed']))
                             <span class="font-bold text-indigo-600">🌙 Off-Hours (Frozen until 08:00 AM)</span>
                         @elseif($ticket->getSlaRemainingHours() !== null)

@@ -399,6 +399,9 @@ class PortalOperationsTest extends TestCase
 
     public function test_sla_pause_tracking_pauses_clock_and_accumulates_duration_on_resume(): void
     {
+        // Fix test time to Monday 08:00 AM so 4 hours falls squarely in the 08:00 - 12:00 morning shift
+        \Carbon\Carbon::setTestNow(\Carbon\Carbon::parse('2026-10-26 08:00:00'));
+
         $tech = User::where('email', 'tech1@cbvh.com.kh')->first();
         $requester = User::where('email', 'sokha.chan@cbvh.com.kh')->first();
         $ticket = $this->createSampleTicket($requester, $tech);

@@ -1,29 +1,40 @@
 ========================================================================================
-CANADIA BANK / CBVH IT OPERATIONS MANAGEMENT
+CBVH JEWELRY ENTERPRISE / IT OPERATIONS MANAGEMENT
 SERVICE LEVEL AGREEMENT (SLA) POLICY & CALCULATION GUIDE
-CBVH Working Hours Engine (Mon–Sat 08:00–17:00), Real Scenarios & Executive Decision Guide
+CBVH Working Hours Engine (Mon–Sat 08:00–17:00, Lunch 12:00–13:00 Frozen),
+Real-Life Scenarios, Technician Performance Tracking & Executive Decision Guide
 ========================================================================================
 
 Target Audience: Head of IT / Management Review
+Company Profile: CBVH Jewelry Enterprise (Retail Boutiques, Workshops & Head Office)
 CBVH Working Schedule: Monday to Saturday Full Time (08:00 AM – 05:00 PM)
+Daily Lunch Break: 12:00 PM – 01:00 PM (100% Automated SLA Freeze)
+Net Daily Active Working Hours: 8 Hours (08:00–12:00 Morning + 13:00–17:00 Afternoon)
 Weekly Rest Day: Every Sunday (24 Hours Off-Clock / Fully Frozen)
+Public Holidays: Extended holidays configured by HR (HR adds 3-4 extra days on major festivals)
 Timezone & Calendar: Asia/Phnom_Penh (UTC+7)
-Document Version: 2.0 (Automated Business Hours Engine)
+Document Version: 2.1 (Lunch Break Integration & Power BI Analytics Specification)
 Prepared By: IT Help Desk Team
 Date: October 2026
 
 ----------------------------------------------------------------------------------------
 1. EXECUTIVE SUMMARY & CBVH SCHEDULE ALIGNMENT
 ----------------------------------------------------------------------------------------
-To eliminate unfair SLA breaches when staff are not in the office, the IT Helpdesk System 
-operates an automated CBVH Business Hours Engine tailored to bank working hours:
+To eliminate unfair SLA breaches and provide true operational performance data for 
+management and Power BI tracking, the IT Helpdesk System operates an automated CBVH 
+Business Hours Engine tailored to CBVH's jewelry boutique, workshop, and office schedule:
 
-• Working Days: Monday through Saturday (Full Days: 08:00 AM – 05:00 PM).
+• Working Days: Monday through Saturday (08:00 AM – 05:00 PM).
+• Lunch Break: 12:00 PM – 01:00 PM every working day is AUTOMATICALLY FROZEN.
+  (Net working time = 8 active hours per day: 4h Morning + 4h Afternoon).
 • Weekly Rest Day: Every Sunday (24 hours fully frozen; SLA clock never ticks).
-• Public Holidays: Extended bank holidays decided by HR (Khmer New Year, Pchum Ben, 
-  Water Festival, etc.) are configured in the Holiday Calendar and automatically frozen.
-• Overnight Hours: 05:00 PM to 08:00 AM next morning are automatically frozen (zero manual 
-  clicks required from technicians).
+• Public Holidays: Major holidays (Khmer New Year, Pchum Ben, Water Festival, etc.) 
+  with HR-decided extensions (+3 to 4 days) are registered in the Holiday Calendar and 
+  automatically frozen.
+• Overnight Hours: 05:00 PM to 08:00 AM next morning are automatically frozen.
+• Zero Manual Interventions: Technicians do NOT need to click manual pause buttons for 
+  lunch, evenings, Sundays, or holidays. The system's calculation engine handles this 
+  mathematically in real time.
 
 
 ----------------------------------------------------------------------------------------
@@ -35,12 +46,14 @@ The system monitors three distinct phases of a ticket lifecycle:
    • Trigger Phase: When Help Desk assigns a ticket to a field technician.
    • Target Window: 30 working minutes (default per category in Admin Settings).
    • Breach Condition: Technician has not clicked "Accept & Start" within 30 working minutes.
+   • Business Hours Impact: If assigned at 11:50 AM, the technician has 10 minutes until 12:00 PM, 
+     then the clock pauses during lunch (12:00–13:00) and resumes at 1:00 PM with 20 minutes left.
 
 2. RESOLUTION SLA
    • Trigger Phase: Active troubleshooting time until technician marks "Resolved".
    • Target Window: Defined per Category (e.g. 1h, 4h, 8h, 24h, 48h).
-   • Breach Condition: Active working hours exceed category target (off-hours, Sundays & 
-     daytime holds deducted).
+   • Breach Condition: Active working hours exceed category target (off-hours, lunch break, 
+     Sundays, holidays & daytime vendor holds deducted).
 
 3. AUTO-CLOSE CONFIRMATION SLA
    • Trigger Phase: Once ticket is resolved; waiting for employee confirmation.
@@ -53,69 +66,105 @@ The system monitors three distinct phases of a ticket lifecycle:
 3. REAL-LIFE SCENARIOS UNDER THE CBVH ENGINE
 ----------------------------------------------------------------------------------------
 
---- SCENARIO A: Saturday 4:30 PM Ticket Crossing Weekend (Automatic Freeze) ---
-Context: A branch printer goes offline on Saturday at 4:30 PM (30 minutes before 5:00 PM bank closing).
+--- SCENARIO A: Saturday 4:30 PM Boutique Ticket Crossing Weekend & Lunch ---
+Context: A jewelry boutique barcode printer goes offline Saturday at 4:30 PM (30 minutes before 5:00 PM close).
 Category Target: 8 Working Hours. Technician: Dara.
 
 Timeline:
-• Saturday 04:30 PM – 05:00 PM: 30 minutes of working time used. (7h 30m remaining on SLA).
-• Saturday 05:00 PM – Monday 08:00 AM: Bank is closed. Off-hours and all of Sunday are 
-  AUTOMATICALLY FROZEN (0 minutes counted).
-• Monday 08:00 AM: Dara arrives at work. The SLA clock resumes automatically with 7h 30m left.
-• System Target Deadline: Monday 03:30 PM (Target: Mon 03:30 PM, 7.5h left).
+• Saturday 04:30 PM – 05:00 PM: 30 minutes of working time used (7h 30m remaining).
+• Saturday 05:00 PM – Monday 08:00 AM: Closed. Off-hours and all of Sunday are AUTOMATICALLY FROZEN.
+• Monday 08:00 AM – 12:00 PM: 4 hours of morning working time used (3h 30m remaining).
+• Monday 12:00 PM – 01:00 PM: CBVH Lunch Break. SLA clock is AUTOMATICALLY FROZEN (0 minutes counted).
+• Monday 01:00 PM – 04:30 PM: 3 hours 30 minutes of afternoon working time used.
+• System Target Deadline: Monday 04:30 PM.
 
--> Executive Result: The ticket is NOT overdue on Monday morning. Dara's SLA metrics are 100% 
-   protected without needing to click any manual pause buttons on Saturday afternoon!
+-> Result: The ticket is NOT overdue on Monday morning. Dara's SLA metrics are 100% protected.
 
 
---- SCENARIO B: Hardware Failure with Parts Delay (Daytime Operational Hold) ---
-Context: Laptop requires a replacement motherboard delivered by supplier.
+--- SCENARIO B: Weekday 11:00 AM Ticket Crossing 12:00–1:00 PM Lunch Break ---
+Context: Workshop scale calibration software glitch submitted Monday at 11:00 AM.
+Category Target: 2 Working Hours (120 active minutes).
+
+Timeline:
+• Monday 11:00 AM – 12:00 PM: 1 hour (60 mins) active working time used. (60 mins remaining).
+• Monday 12:00 PM – 01:00 PM: Lunch Break. SLA clock pauses automatically.
+• Monday 01:00 PM – 02:00 PM: 1 hour (60 mins) active working time used. (0 mins remaining).
+• System Target Deadline: Monday 02:00 PM (shifted by 1 hour due to lunch break).
+
+-> Result: Technicians are not penalized for taking their 12:00–1:00 PM lunch break.
+
+
+--- SCENARIO C: Hardware Failure with Parts Delay (Daytime Operational Hold) ---
+Context: Boutique POS terminal requires a replacement motherboard from external supplier.
 Category Target: 8 Working Hours.
 
 Timeline:
 • Monday 10:00 AM: Created. Technician inspects at 11:00 AM (1 working hour used).
-• Monday 11:00 AM: Tech clicks "Mark Blocked" (Reason: Waiting for supplier spare part). 
-  SLA clock pauses.
-• Tuesday 11:00 AM: Supplier delivers part (9 working hours on hold). Tech clicks "Accept & Resume".
-• Tuesday 01:00 PM: Tech completes installation and resolves ticket (2 working hours used).
+• Monday 11:00 AM: Tech clicks "Mark Blocked" (Reason: Waiting for vendor spare part). SLA clock pauses.
+• Tuesday 11:00 AM: Supplier delivers part (8 working hours on hold during business time). Tech clicks "Accept & Resume".
+• Tuesday 02:00 PM: Tech completes installation and resolves ticket (2 working hours used, lunch 12–1 skipped).
 
 Calculation:
-  Total working time elapsed = 12h.
-  Paused working time = 9h.
-  Active IT fulfillment time = 12h - 9h = 3 ACTIVE WORKING HOURS.
--> Executive Result: PASSED (3 active hours used vs. 8h allowed). Supplier shipment delay 
-   was not charged to technician.
-
-
---- SCENARIO C: Auto-Closure Inactivity Window (3 Business Days) ---
-Context: Ticket resolved Thursday at 4:00 PM. Employee does not confirm or reject.
-
-Timeline:
-• Day 1: Friday (Working day).
-• Day 2: Saturday (Working day).
-• Sunday: Non-working day (AUTOMATICALLY SKIPPED).
-• Day 3: Monday (Working day).
-• Tuesday 04:00 PM: 3 business days complete. System automatically closes ticket as "resolved_auto_closed".
+  Total working time elapsed = 11h.
+  Paused working time = 8h.
+  Active IT fulfillment time = 11h - 8h = 3 ACTIVE WORKING HOURS.
+-> Result: PASSED (3 active hours used vs. 8h allowed). Supplier shipment delay was not charged to technician.
 
 
 ----------------------------------------------------------------------------------------
-4. EXECUTIVE DECISION QUESTIONNAIRE FOR MANAGEMENT
+4. MANAGEMENT PERFORMANCE TRACKING & POWER BI INTEGRATION
+----------------------------------------------------------------------------------------
+To give management full visibility into individual technician performance and team 
+efficiency without requiring complicated manual spreadsheets, the system records 
+all SLA metrics ready for Power BI consumption:
+
+Key Data Attributes Provided by the Help Desk Database:
+1. Ticket Identification: Ticket Number, Subject, Priority, Status.
+2. Classification: Category Name, Issue Type (Boutique POS, Workshop Hardware, ERP/Accounting).
+3. Location & Department: Branch/Boutique Name, Department Name, Requester Name.
+4. Personnel: Assigned Technician Name, Technician Email, Assignee Role.
+5. Lifecycle Timestamps (Cambodia UTC+7):
+   • Created At (Submission timestamp)
+   • Acknowledged At (Technician acceptance timestamp)
+   • First Response At
+   • Resolved At (Issue resolution timestamp)
+   • Closed At
+6. Time Duration Breakdown:
+   • Total Wall-Clock Minutes (Full calendar elapsed time)
+   • Active SLA Working Minutes (Only Mon–Sat 8–12 & 13–17, excluding lunch, Sundays, and holidays)
+   • Paused / On-Hold Minutes (Daytime vendor or parts delays)
+   • Acknowledgement Elapsed Minutes
+7. SLA Compliance Indicators:
+   • Acknowledgement SLA Met (Yes / No: within 30 mins)
+   • Resolution SLA Met (Yes / No: within category target)
+   • Target Resolution Hours
+   • Variance Minutes (Ahead of target vs. Overdue)
+
+Power BI Dashboards Supported:
+• Technician Leaderboard: Monthly ticket volume resolved per technician, SLA compliance %.
+• Boutique & Branch Heatmap: Volume of IT incidents per store / workshop / head office.
+• Vendor / Spare Part Hold Analysis: Bottlenecks caused by external hardware suppliers.
+• Peak Hours Analysis: When ticket volume is highest to optimize technician shift coverage.
+
+
+----------------------------------------------------------------------------------------
+5. EXECUTIVE DECISION QUESTIONNAIRE FOR MANAGEMENT
 ----------------------------------------------------------------------------------------
 Please review and confirm management policy for the following 5 SLA operational decisions:
 
-DECISION 1: CBVH Operating Hours Engine (Mon–Sat 08:00–17:00)
+DECISION 1: CBVH Operating Hours Engine (Mon–Sat 08:00–17:00, Lunch 12:00–13:00 Frozen)
 Question: "Do you approve running the automated Business Hours engine (Mon–Sat 8:00–17:00, 
-Sundays and HR extended holidays frozen)?"
+12:00–13:00 lunch break, Sundays, and HR extended holidays frozen)?"
 
 [ ] Option A: Approve CBVH Working Hours Engine [RECOMMENDED]
-    SLA counts only Monday–Saturday 08:00–17:00. Nights, Sundays, and official bank holidays 
-    freeze automatically.
+    SLA counts only Monday–Saturday 08:00–12:00 & 13:00–17:00 (8h/day). Lunch, nights, 
+    Sundays, and official holidays freeze automatically.
 [ ] Option B: 24/7 Continuous Calendar Clock
-    SLA runs continuously through nights and weekends (requires manual technician pausing).
+    SLA runs continuously through nights, lunch, and weekends (not recommended for jewelry retail).
 [ ] Option C: Tiered / Hybrid Clock
-    Critical (P1) incidents run 24/7; Normal tickets (P2–P4) run on CBVH working hours only.
+    Boutique critical POS alarms run extended hours; back-office tickets run standard hours.
 
-IT Recommendation: Option A (CBVH Working Hours) or Option C (Hybrid for Data Center critical alarms).
+IT Recommendation: Option A (CBVH Working Hours with Lunch Break).
 
 
 DECISION 2: Resolution SLA Target Driver (Service Category vs. Priority)
@@ -123,15 +172,13 @@ Question: "Should target resolution hours be driven primarily by the Service Cat
 or by a strict Priority Matrix?"
 
 [ ] Option A: By Service Category (Baseline)
-    Each service catalog category defines its standard target hours (e.g. Core Banking = 4h, 
-    PC = 8h, General = 24h).
+    Each service catalog category defines standard target hours (e.g. POS = 4h, PC = 8h, General = 24h).
 [ ] Option B: Standard Priority Matrix
     Strictly determined by urgency level: Critical = 2h, High = 4h, Medium = 8h, Low = 24h.
 [ ] Option C: Category Default + Priority Override [RECOMMENDED]
     Category provides baseline, but Help Desk can escalate priority to shorten the SLA window.
 
-IT Recommendation: Option C. Retains service-specific targets while allowing rapid escalation 
-for VIPs or severe operational impacts.
+IT Recommendation: Option C.
 
 
 DECISION 3: Technician Acknowledgement Window & Escalation
@@ -140,27 +187,25 @@ Question: "How long should a technician have to accept an assigned ticket before
 [ ] Option A: 30 Working Minutes Default
     Technician has 30 working minutes to click "Accept & Start".
 [ ] Option B: Tiered Acceptance Window [RECOMMENDED]
-    15 minutes for Critical incidents, 30 minutes for Normal tickets.
+    15 minutes for Critical boutique incidents, 30 minutes for Normal tickets.
 [ ] Option C: Automated Telegram Escalation
-    If not accepted within 30 minutes, send an immediate Telegram alert to IT HOD / Help Desk Lead.
+    If not accepted within 30 minutes, send an immediate Telegram alert to IT Lead.
 
-IT Recommendation: Option B + Option C (Telegram notification to IT HOD if Critical ticket 
-is unaccepted after 15 minutes).
+IT Recommendation: Option B + Option C.
 
 
 DECISION 4: Approved Reasons for Daytime Operational Hold (Blocked)
 Question: "Which daytime operational reasons are officially approved for placing a ticket on hold?"
 
 [ ] Option A: Three Standard Categories [RECOMMENDED]
-    1. Waiting for Spare Parts/Procurement, 2. Waiting for External Vendor (ISP/Oracle/Microsoft), 
+    1. Waiting for Spare Parts/Procurement, 2. Waiting for External Vendor (ISP/Software), 
     3. Waiting for Requester Response.
 [ ] Option B: Approval Gate Required
     Technician can request a hold, but freeze requires Help Desk Lead approval.
 [ ] Option C: Open Technician Discretion
     Technician enters custom reason notes and pauses clock directly.
 
-IT Recommendation: Option A with mandatory reason notes. Daytime holds are tracked separately 
-from automated off-hours freezing.
+IT Recommendation: Option A with mandatory reason notes.
 
 
 DECISION 5: Requester Auto-Closure Window
@@ -168,18 +213,17 @@ Question: "Once IT marks an issue resolved, how many business days should the em
 to test before automated closure?"
 
 [ ] Option A: 3 Business Days / 72 Hours [RECOMMENDED & INDUSTRY STANDARD]
-    Standard banking practice. Automatically excludes Sundays and public holidays.
+    Automatically excludes Sundays and public holidays.
 [ ] Option B: 2 Business Days / 48 Hours
     Accelerates ticket closure turnaround.
 [ ] Option C: 5 Business Days / 1 Week
-    Extended buffer for branch employees on rotation.
+    Extended buffer for boutique staff on rotating shift schedules.
 
-IT Recommendation: Option A (3 Business Days). Gives staff enough time to verify without 
-cluttering active queues.
+IT Recommendation: Option A (3 Business Days).
 
 
 ----------------------------------------------------------------------------------------
-5. MANAGEMENT SIGN-OFF & APPROVALS
+6. MANAGEMENT SIGN-OFF & APPROVALS
 ----------------------------------------------------------------------------------------
 
 Reviewed By:        __________________________________________
@@ -188,5 +232,5 @@ Signature:          __________________________________________
 Date:               _____ / _____ / 2026
 
 ========================================================================================
-File generated: SLA_Policy_Clarification_and_Decision_Guide.docx (.txt)
+File: SLA_Policy_Clarification_and_Decision_Guide.txt
 ========================================================================================
