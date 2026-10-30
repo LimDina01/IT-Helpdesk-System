@@ -97,13 +97,13 @@
                     <span class="text-[10px] px-1.5 py-0.2 rounded-full {{ $filter === 'all' ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-200 text-slate-600' }}">{{ $totalCount }}</span>
                 </a>
                 <a href="{{ route('portal.admin.users', ['filter' => 'portal']) }}" class="px-3.5 py-1.5 rounded-xl transition flex items-center space-x-1.5 {{ $filter === 'portal' ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-600 hover:text-slate-900' }}">
-                    <span>🛠️</span>
-                    <span>IT Staff Portal</span>
+                    <span>🌐</span>
+                    <span>Web Portal Enabled</span>
                     <span class="text-[10px] px-1.5 py-0.2 rounded-full {{ $filter === 'portal' ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-200 text-slate-600' }}">{{ $staffCount }}</span>
                 </a>
                 <a href="{{ route('portal.admin.users', ['filter' => 'tma']) }}" class="px-3.5 py-1.5 rounded-xl transition flex items-center space-x-1.5 {{ $filter === 'tma' ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-600 hover:text-slate-900' }}">
                     <span>📱</span>
-                    <span>TMA Requesters</span>
+                    <span>TMA Only</span>
                     <span class="text-[10px] px-1.5 py-0.2 rounded-full {{ $filter === 'tma' ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-200 text-slate-600' }}">{{ $tmaCount }}</span>
                 </a>
             </div>
@@ -231,13 +231,13 @@
                                     <button type="button"
                                             @click="targetUser = {{ json_encode($user) }}; userRoles = {{ json_encode($user->roles->pluck('id')) }}; roleModal = true"
                                             class="text-[11px] text-indigo-600 hover:underline font-semibold">
-                                        IT Roles
+                                        Roles
                                     </button>
                                 @endif
 
                                 @if($user->id !== Auth::id() && $user->id !== 1 && $user->email !== 'admin@cbvh.com.kh')
                                     <!-- Toggle Portal Access Button -->
-                                    <form method="POST" action="{{ route('portal.admin.users.toggle-portal', $user->id) }}" class="inline-block" onsubmit="return confirm('{{ $user->can_access_portal ? 'Revoke Web Portal login access for ' . $user->name . '? They will only be able to use Telegram TMA.' : 'Grant Web Portal login access to ' . $user->name . '? They will be promoted to IT Staff.' }}');">
+                                    <form method="POST" action="{{ route('portal.admin.users.toggle-portal', $user->id) }}" class="inline-block" onsubmit="return confirm('{{ $user->can_access_portal ? 'Revoke Web Portal login access for ' . $user->name . '? They will only be able to use Telegram TMA.' : 'Grant Web Portal login access to ' . $user->name . '? They will be able to log in via browser.' }}');">
                                         @csrf
                                         <button type="submit" class="text-[11px] {{ $user->can_access_portal ? 'text-amber-600 hover:text-amber-800' : 'text-blue-600 hover:text-blue-800' }} hover:underline font-semibold">
                                             {{ $user->can_access_portal ? 'Revoke Portal' : 'Grant Portal' }}
