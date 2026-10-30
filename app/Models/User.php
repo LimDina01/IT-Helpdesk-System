@@ -83,7 +83,12 @@ class User extends Authenticatable
 
     public function isStaff(): bool
     {
-        return (bool) $this->can_access_portal && $this->hasAnyRole(['helpdesk', 'technician', 'hod', 'system_admin']);
+        return $this->hasAnyRole(['helpdesk', 'technician', 'hod', 'system_admin']);
+    }
+
+    public function canAccessPortal(): bool
+    {
+        return (bool) $this->can_access_portal;
     }
 
     public function createdTickets(): HasMany

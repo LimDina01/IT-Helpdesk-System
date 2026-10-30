@@ -16,7 +16,7 @@ class PortalAuthController extends Controller
      */
     public function showLogin(): View|RedirectResponse
     {
-        if (Auth::check() && Auth::user()->isStaff()) {
+        if (Auth::check() && Auth::user()->can_access_portal) {
             return redirect()->route('portal.dashboard');
         }
 
@@ -133,8 +133,8 @@ class PortalAuthController extends Controller
                     }
                 }
 
-                if (!$localUser->isStaff()) {
-                    return back()->withErrors(['email' => 'Access denied. Only IT Help Desk, Technicians, and HOD can access this portal.']);
+                if (!$localUser->can_access_portal) {
+                    return back()->withErrors(['email' => 'Access denied. Web Portal access is not enabled for your account. Please use the Telegram TMA app.']);
                 }
 
                 Auth::login($localUser, $remember);

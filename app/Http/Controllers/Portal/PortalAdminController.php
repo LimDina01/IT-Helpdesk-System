@@ -623,12 +623,6 @@ class PortalAdminController extends Controller
         $newAccess = !$user->can_access_portal;
         $user->can_access_portal = $newAccess;
 
-        // If granting portal access for the first time without any staff roles, grant IT Technician as default baseline
-        if ($newAccess && !$user->hasAnyRole(['technician', 'helpdesk', 'system_admin', 'hod'])) {
-            $techRole = Role::firstOrCreate(['name' => 'technician'], ['label' => 'IT Technician']);
-            $user->roles()->syncWithoutDetaching([$techRole->id]);
-        }
-
         // If revoking portal access, terminate active portal sessions
         if (!$newAccess) {
             try {

@@ -34,11 +34,11 @@ class EnsureStaffUser
             return redirect()->route('portal.login')->withErrors(['email' => 'Your account has been deactivated. Please contact the administrator.']);
         }
 
-        if (!$user->isStaff()) {
+        if (!$user->can_access_portal) {
             if ($request->expectsJson()) {
-                return response()->json(['error' => 'Unauthorized. Staff privileges required.'], 403);
+                return response()->json(['error' => 'Unauthorized. Web Portal access is not enabled for your account.'], 403);
             }
-            abort(403, 'Unauthorized. Staff portal access requires Help Desk, Technician, HOD, or Administrator role.');
+            abort(403, 'Unauthorized. Web Portal access is not enabled for this account.');
         }
 
         return $next($request);
