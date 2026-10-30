@@ -22,6 +22,7 @@
         telegram_username: '',
         telegram_id: '',
         is_active: true,
+        can_access_portal: false,
         roles: []
     },
     openEditModal(u) {
@@ -37,6 +38,7 @@
             telegram_username: u.telegram_username || '',
             telegram_id: u.telegram_id || '',
             is_active: u.is_active ? 1 : 0,
+            can_access_portal: u.can_access_portal ? 1 : 0,
             roles: u.roles ? u.roles.map(r => r.id) : []
         };
         this.editUserModal = true;
@@ -225,13 +227,24 @@
                                     <span>Edit</span>
                                 </button>
 
-                                <button type="button"
-                                        @click="targetUser = {{ json_encode($user) }}; userRoles = {{ json_encode($user->roles->pluck('id')) }}; roleModal = true"
-                                        class="text-[11px] text-indigo-600 hover:underline font-semibold">
-                                    Roles
-                                </button>
+                                @if($user->can_access_portal)
+                                    <button type="button"
+                                            @click="targetUser = {{ json_encode($user) }}; userRoles = {{ json_encode($user->roles->pluck('id')) }}; roleModal = true"
+                                            class="text-[11px] text-indigo-600 hover:underline font-semibold">
+                                        IT Roles
+                                    </button>
+                                @endif
 
                                 @if($user->id !== Auth::id() && $user->id !== 1 && $user->email !== 'admin@cbvh.com.kh')
+                                    <!-- Toggle Portal Access Button -->
+                                    <form method="POST" action="{{ route('portal.admin.users.toggle-portal', $user->id) }}" class="inline-block" onsubmit="return confirm('{{ $user->can_access_portal ? 'Revoke Web Portal login access for ' . $user->name . '? They will only be able to use Telegram TMA.' : 'Grant Web Portal login access to ' . $user->name . '? They will be promoted to IT Staff.' }}');">
+                                        @csrf
+                                        <button type="submit" class="text-[11px] {{ $user->can_access_portal ? 'text-amber-600 hover:text-amber-800' : 'text-blue-600 hover:text-blue-800' }} hover:underline font-semibold">
+                                            {{ $user->can_access_portal ? 'Revoke Portal' : 'Grant Portal' }}
+                                        </button>
+                                    </form>
+
+                                    <!-- Suspend / Activate User Button -->
                                     <form method="POST" action="{{ route('portal.admin.users.toggle', $user->id) }}" class="inline-block">
                                         @csrf
                                         <button type="submit" class="text-[11px] {{ $user->is_active ? 'text-rose-600 hover:underline' : 'text-emerald-600 hover:underline' }} font-semibold">
@@ -587,22 +600,71 @@
                     </label>
                 </div>
 
-                <!-- Assigned Roles Grid -->
-                <div class="p-3.5 bg-slate-50/80 rounded-2xl border border-slate-200 space-y-2">
-                    <label class="block text-[11px] font-bold text-slate-700 uppercase">Assigned Roles</label>
-                    <p class="text-[10px] text-slate-500">Assign operational roles. When promoting a TMA requester to Department Head, enable <strong>Head of Department (hod)</strong>.</p>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
-                        @foreach($allRoles as $role)
-                            <label class="flex items-center space-x-2.5 p-2.5 bg-white rounded-xl border border-slate-200 hover:border-indigo-400 cursor-pointer transition">
-                                <input type="checkbox" name="roles[]" value="{{ $role->id }}" :checked="editForm.roles.includes({{ $role->id }})" class="rounded text-indigo-600 focus:ring-indigo-500">
+                <!-- Portal Access & Roles Configuration -->
+                <template x-if="editForm.can_access_portal">
+                    <div class="p-4 bg-indigo-50/70 rounded-2xl border border-indigo-200/80 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <div class="text-xs font-bold text-indigo-900 flex items-center space-x-1.5">
+                                    <span>🛠️</span>
+                                    <span>IT Staff Operational Roles</span>
+                                </div>
+                                <p class="text-[10px] text-indigo-700 mt-0.5">This user has <strong>Web Portal Access</strong>. Select the functional roles they have inside the portal:</p>
+                            </div>
+                            <input type="hidden" name="can_access_portal" value="1">
+                        </div>
+                        
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                            @foreach($roles as $role)
+                                <label class="flex items-center space-x-2.5 p-2.5 bg-white rounded-xl border border-indigo-100 hover:border-indigo-400 cursor-pointer transition shadow-2xs">
+                                    <input type="checkbox" name="roles[]" value="{{ $role->id }}" :checked="editForm.roles.includes({{ $role->id }})" class="rounded text-indigo-600 focus:ring-indigo-500">
+                                    <div>
+                                        <div class="text-xs font-bold text-slate-800">{{ $role->label }}</div>
+                                        <div class="text-[10px] text-slate-400 font-mono">{{ $role->name }}</div>
+                                    </div>
+                                </label>
+                            @endforeach
+                        </div>
+                    </div>
+                </template>
+
+                <template x-if="!editForm.can_access_portal">
+                    <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-2.5">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <div class="text-xs font-bold text-slate-800 flex items-center space-x-1.5">
+                                    <span>📱</span>
+                                    <span>TMA Requester Role</span>
+                                </div>
+                                <p class="text-[10px] text-slate-500 mt-0.5">This user is a standard banking employee (TMA only, no Web Portal access).</p>
+                            </div>
+                            <input type="hidden" name="can_access_portal" value="0">
+                        </div>
+
+                        @php
+                            $requesterRoleObj = $allRoles->firstWhere('name', 'requester');
+                            $hodRoleObj = $allRoles->firstWhere('name', 'hod');
+                        @endphp
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                            <label class="flex items-start space-x-2.5 p-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50/80 cursor-pointer transition">
+                                <input type="checkbox" name="roles[]" value="{{ $requesterRoleObj?->id }}" checked class="mt-0.5 rounded text-blue-600 focus:ring-blue-500">
                                 <div>
-                                    <div class="text-xs font-bold text-slate-800">{{ $role->label }}</div>
-                                    <div class="text-[10px] text-slate-400 font-mono">{{ $role->name }}</div>
+                                    <div class="text-xs font-bold text-slate-900">👤 Requester (Employee)</div>
+                                    <div class="text-[10px] text-slate-500 mt-0.5">Can submit and track personal IT support tickets.</div>
                                 </div>
                             </label>
-                        @endforeach
+
+                            <label class="flex items-start space-x-2.5 p-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50/80 cursor-pointer transition">
+                                <input type="checkbox" name="roles[]" value="{{ $hodRoleObj?->id }}" :checked="editForm.roles.includes({{ $hodRoleObj?->id }})" class="mt-0.5 rounded text-purple-600 focus:ring-purple-500">
+                                <div>
+                                    <div class="text-xs font-bold text-slate-900">👔 Department HOD</div>
+                                    <div class="text-[10px] text-slate-500 mt-0.5">Approves Step 1 department requests on TMA.</div>
+                                </div>
+                            </label>
+                        </div>
                     </div>
-                </div>
+                </template>
 
                 <div class="flex justify-end space-x-2 pt-3 border-t border-slate-100">
                     <button type="button" @click="editUserModal = false" class="px-4 py-2 text-xs text-slate-600 font-semibold hover:bg-slate-100 rounded-xl transition">Cancel</button>

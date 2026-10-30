@@ -93,6 +93,7 @@ class DatabaseSeeder extends Seeder
             'name' => 'Vannak Ouk (HOD / Admin)',
             'email' => 'admin@cbvh.com.kh',
             'password' => $defaultPassword,
+            'can_access_portal' => true,
             'is_active' => true,
         ]);
         $hodUser->roles()->attach([$roleModels['system_admin']->id, $roleModels['hod']->id]);
@@ -103,9 +104,10 @@ class DatabaseSeeder extends Seeder
             'name' => 'Chantha Som (Operations HOD)',
             'email' => 'hod.ops@cbvh.com.kh',
             'password' => $defaultPassword,
+            'can_access_portal' => true,
             'is_active' => true,
         ]);
-        $opsHodUser->roles()->attach([$roleModels['hod']->id]);
+        $opsHodUser->roles()->attach([$roleModels['hod']->id, $roleModels['requester']->id]);
 
         // Help Desk Specialist
         $helpdeskUser = User::create([
@@ -113,6 +115,7 @@ class DatabaseSeeder extends Seeder
             'name' => 'Kosal Meng (Help Desk)',
             'email' => 'helpdesk@cbvh.com.kh',
             'password' => $defaultPassword,
+            'can_access_portal' => true,
             'is_active' => true,
         ]);
         $helpdeskUser->roles()->attach([$roleModels['helpdesk']->id]);
@@ -123,6 +126,7 @@ class DatabaseSeeder extends Seeder
             'name' => 'Dara Sam (IT Technician)',
             'email' => 'tech1@cbvh.com.kh',
             'password' => $defaultPassword,
+            'can_access_portal' => true,
             'is_active' => true,
         ]);
         $tech1User->roles()->attach([$roleModels['technician']->id]);
@@ -133,6 +137,7 @@ class DatabaseSeeder extends Seeder
             'name' => 'Sopheap Nuon (Senior Tech & Triage)',
             'email' => 'tech2@cbvh.com.kh',
             'password' => $defaultPassword,
+            'can_access_portal' => true,
             'is_active' => true,
         ]);
         $tech2User->roles()->attach([$roleModels['technician']->id, $roleModels['helpdesk']->id]);

@@ -43,8 +43,11 @@ class PortalAuthController extends Controller
                     return back()->withErrors(['email' => 'This account has been deactivated. Please contact the administrator.']);
                 }
 
-                // Auto-grant IT Technician role on first Active Directory portal sign-in
-                if (!$ldapUser->isStaff()) {
+                // Auto-grant IT Technician role and portal access on first Active Directory portal sign-in
+                if (!$ldapUser->can_access_portal || !$ldapUser->isStaff()) {
+                    $ldapUser->can_access_portal = true;
+                    $ldapUser->save();
+
                     $techRole = \App\Models\Role::firstOrCreate(['name' => 'technician'], ['label' => 'IT Technician']);
                     $ldapUser->roles()->syncWithoutDetaching([$techRole->id]);
                 }
@@ -110,8 +113,11 @@ class PortalAuthController extends Controller
             }
 
             if ($passwordValid) {
-                // If demo admin lost roles, safely re-attach system_admin
+                // If demo admin lost roles or portal access, safely re-attach
                 if ($isAdminIdentifier && !$localUser->isStaff()) {
+                    $localUser->can_access_portal = true;
+                    $localUser->save();
+
                     $adminRole = \App\Models\Role::where('name', 'system_admin')->first();
                     if ($adminRole) {
                         $localUser->roles()->syncWithoutDetaching([$adminRole->id]);

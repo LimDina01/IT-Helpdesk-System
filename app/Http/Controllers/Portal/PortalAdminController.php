@@ -279,16 +279,16 @@ class PortalAdminController extends Controller
             ->orderBy('name');
 
         if ($filter === 'portal') {
-            $query->whereHas('roles', fn($q) => $q->whereIn('name', ['technician', 'helpdesk', 'system_admin']));
+            $query->where('can_access_portal', true);
         } elseif ($filter === 'tma') {
-            $query->whereHas('roles', fn($q) => $q->where('name', 'requester'));
+            $query->where('can_access_portal', false);
         }
 
         $users = $query->paginate(25)->withQueryString();
 
         $totalCount = User::count();
-        $staffCount = User::whereHas('roles', fn($q) => $q->whereIn('name', ['technician', 'helpdesk', 'system_admin']))->count();
-        $tmaCount = User::whereHas('roles', fn($q) => $q->where('name', 'requester'))->count();
+        $staffCount = User::where('can_access_portal', true)->count();
+        $tmaCount = User::where('can_access_portal', false)->count();
 
         // Operational IT Staff roles (for staff modal)
         $roles = Role::whereIn('name', ['technician', 'helpdesk', 'system_admin', 'hod'])->get();
@@ -345,6 +345,7 @@ class PortalAdminController extends Controller
             // Update existing user profile & promote roles without failing
             $updateData = [
                 'name' => $validated['name'],
+                'can_access_portal' => true,
                 'is_active' => true,
             ];
             if ($employeeId) {
@@ -370,6 +371,7 @@ class PortalAdminController extends Controller
             'password' => \Illuminate\Support\Facades\Hash::make($password),
             'telegram_username' => !empty($validated['telegram_username']) ? ltrim($validated['telegram_username'], '@') : null,
             'employee_id' => $employeeId,
+            'can_access_portal' => true,
             'is_active' => true,
         ]);
 
@@ -437,6 +439,7 @@ class PortalAdminController extends Controller
                 'employee_id' => $employee->id,
                 'password' => \Illuminate\Support\Facades\Hash::make($passwordInput),
                 'telegram_username' => !empty($validated['telegram_username']) ? ltrim($validated['telegram_username'], '@') : null,
+                'can_access_portal' => false,
                 'is_active' => true,
             ]);
         }
@@ -476,6 +479,7 @@ class PortalAdminController extends Controller
             'telegram_username' => 'nullable|string|max:100',
             'password' => 'nullable|string|min:6',
             'is_active' => 'nullable|boolean',
+            'can_access_portal' => 'nullable|boolean',
             'roles' => 'required|array|min:1',
             'roles.*' => 'exists:roles,id',
         ]);
@@ -515,6 +519,7 @@ class PortalAdminController extends Controller
         $user->email = $email;
         $isActive = $request->boolean('is_active', true);
         $user->is_active = $isActive;
+        $user->can_access_portal = $request->boolean('can_access_portal');
 
         if ($request->boolean('unlink_telegram')) {
             $user->telegram_id = null;
@@ -598,6 +603,43 @@ class PortalAdminController extends Controller
 
         $statusStr = $newStatus ? 'activated' : 'suspended';
         return back()->with('status', "User {$user->name} {$statusStr}.");
+    }
+
+    /**
+     * Quick toggle granting or revoking Web Portal access.
+     */
+    public function togglePortalAccess(User $user): RedirectResponse
+    {
+        abort_unless(Auth::user()->hasRole(['system_admin', 'hod']), 403);
+
+        if ($user->id === Auth::id()) {
+            return back()->withErrors(['error' => 'You cannot revoke your own web portal access.']);
+        }
+
+        if ($user->id === 1 || $user->email === 'admin@cbvh.com.kh') {
+            return back()->withErrors(['error' => 'Primary system admin portal access cannot be revoked.']);
+        }
+
+        $newAccess = !$user->can_access_portal;
+        $user->can_access_portal = $newAccess;
+
+        // If granting portal access for the first time without any staff roles, grant IT Technician as default baseline
+        if ($newAccess && !$user->hasAnyRole(['technician', 'helpdesk', 'system_admin', 'hod'])) {
+            $techRole = Role::firstOrCreate(['name' => 'technician'], ['label' => 'IT Technician']);
+            $user->roles()->syncWithoutDetaching([$techRole->id]);
+        }
+
+        // If revoking portal access, terminate active portal sessions
+        if (!$newAccess) {
+            try {
+                DB::table('sessions')->where('user_id', $user->id)->delete();
+            } catch (\Throwable $e) {}
+        }
+
+        $user->save();
+
+        $actionText = $newAccess ? 'granted' : 'revoked';
+        return back()->with('status', "Web Portal access {$actionText} for {$user->name}.");
     }
 
     /**

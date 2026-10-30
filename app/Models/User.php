@@ -28,6 +28,7 @@ class User extends Authenticatable
         'email',
         'password',
         'is_active',
+        'can_access_portal',
     ];
 
     /**
@@ -51,6 +52,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_active' => 'boolean',
+            'can_access_portal' => 'boolean',
             'telegram_id' => 'integer',
         ];
     }
@@ -81,7 +83,7 @@ class User extends Authenticatable
 
     public function isStaff(): bool
     {
-        return $this->hasAnyRole(['helpdesk', 'technician', 'hod', 'system_admin']);
+        return (bool) $this->can_access_portal && $this->hasAnyRole(['helpdesk', 'technician', 'hod', 'system_admin']);
     }
 
     public function createdTickets(): HasMany
