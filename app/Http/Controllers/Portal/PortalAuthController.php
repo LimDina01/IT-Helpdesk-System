@@ -43,13 +43,8 @@ class PortalAuthController extends Controller
                     return back()->withErrors(['email' => 'This account has been deactivated. Please contact the administrator.']);
                 }
 
-                // Auto-grant IT Technician role and portal access on first Active Directory portal sign-in
-                if (!$ldapUser->can_access_portal || !$ldapUser->isStaff()) {
-                    $ldapUser->can_access_portal = true;
-                    $ldapUser->save();
-
-                    $techRole = \App\Models\Role::firstOrCreate(['name' => 'technician'], ['label' => 'IT Technician']);
-                    $ldapUser->roles()->syncWithoutDetaching([$techRole->id]);
+                if (!$ldapUser->can_access_portal) {
+                    return back()->withErrors(['email' => 'Access denied. Web Portal access is not enabled for your account. Please use the Telegram TMA app.']);
                 }
 
                 Auth::login($ldapUser, $remember);
