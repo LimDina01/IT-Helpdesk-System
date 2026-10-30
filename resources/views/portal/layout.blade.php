@@ -72,7 +72,8 @@
                                 $pendingHoldNavbarCount = \App\Models\Ticket::whereNotNull('hold_requested_at')->count();
                             @endphp
                             @if($cockpitUrgentCount > 0)
-                                <span class="bg-purple-500 text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full animate-pulse inline-flex items-center gap-1" title="{{ $cockpitUrgentCount }} urgent items ({{ $pendingHoldNavbarCount }} hold requests)">
+                                <span class="bg-purple-500 text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full animate-pulse inline-flex items-center gap-1 cursor-help"
+                                      title="⚡ {{ $cockpitUrgentCount }} Actionable Bottlenecks:&#10;• Approvals&#10;• Hold Requests ({{ $pendingHoldNavbarCount }})&#10;• Blocked&#10;• Reopened">
                                     @if($pendingHoldNavbarCount > 0)
                                         <span>⏸</span>
                                     @endif

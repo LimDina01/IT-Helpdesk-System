@@ -18,6 +18,20 @@
             <p class="text-xs sm:text-sm text-slate-300 mt-1 max-w-2xl">
                 Real-time oversight of technician capacity, SLA compliance breaches, blocked procurement items, and multi-stage service approvals.
             </p>
+            <!-- Bottleneck Definition Banner -->
+            <div class="mt-3 inline-flex flex-wrap items-center gap-2 bg-slate-800/80 border border-indigo-500/30 rounded-xl px-3.5 py-1.5 text-[11px] text-slate-200 shadow-sm">
+                <span class="font-extrabold text-purple-300 flex items-center gap-1">
+                    <span>⚡</span>
+                    <span>Navbar Badge Formula:</span>
+                </span>
+                <span class="text-slate-300 font-medium">
+                    <strong class="text-white">Actionable Bottlenecks</strong> = 
+                    <span class="text-purple-300 font-semibold">Pending Approvals</span> + 
+                    <span class="text-amber-300 font-semibold">Hold Requests</span> + 
+                    <span class="text-amber-400 font-semibold">Blocked</span> + 
+                    <span class="text-rose-300 font-semibold">Reopened Fixes</span>
+                </span>
+            </div>
         </div>
 
         <div class="flex items-center gap-3">
@@ -201,9 +215,17 @@
                         <span>🚨</span>
                         <span>High-Attention Incident & Request Queue</span>
                     </h2>
-                    <p class="text-xs text-slate-500">Tickets requiring executive awareness, approval, or priority adjustment.</p>
+                    <p class="text-xs text-slate-500">
+                        Listing all <strong class="text-slate-700">Actionable Bottlenecks</strong>: Pending Approvals, Hold Requests, Blocked items, and Reopened tickets.
+                    </p>
                 </div>
-                <span class="text-xs font-mono font-bold text-slate-400">{{ $urgentTickets->count() }} items</span>
+                <div class="flex items-center space-x-2">
+                    <a href="{{ route('portal.dashboard', ['view' => 'all_active']) }}" 
+                       class="text-[11px] font-semibold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-2.5 py-1 rounded-lg border border-blue-200 transition">
+                        View All in Queues &rarr;
+                    </a>
+                    <span class="text-xs font-mono font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">{{ $urgentTickets->count() }} items</span>
+                </div>
             </div>
 
             <div class="overflow-x-auto">
