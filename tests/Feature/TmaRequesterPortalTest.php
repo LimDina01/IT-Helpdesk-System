@@ -373,5 +373,112 @@ class TmaRequesterPortalTest extends TestCase
         // Presence must be gone immediately
         $this->assertFalse(\Illuminate\Support\Facades\Cache::has("ticket_presence_{$ticket->id}_{$requester->id}"));
     }
+
+    public function test_suspended_user_cannot_authenticate_via_tma_init_data(): void
+    {
+        $user = User::where('email', 'sokha.chan@cbvh.com.kh')->first();
+        $user->update(['is_active' => false]);
+
+        $service = new TelegramAuthService();
+        $initData = $service->generateTestInitData([
+            'id' => 123456789,
+            'first_name' => 'Sokha',
+            'last_name' => 'Chan',
+            'username' => 'sokhachan_demo',
+        ]);
+
+        $response = $this->postJson('/tma/api/auth', [
+            'init_data' => $initData,
+        ]);
+
+        $response->assertStatus(403);
+        $response->assertJson([
+            'status' => 'suspended',
+        ]);
+        $this->assertGuest();
+    }
+
+    public function test_suspended_authenticated_user_is_rejected_and_logged_out_by_middleware(): void
+    {
+        $user = User::where('email', 'sokha.chan@cbvh.com.kh')->first();
+        $user->update(['is_active' => false]);
+
+        $response = $this->actingAs($user)->getJson('/tma/api/tickets');
+
+        $response->assertStatus(403);
+        $response->assertJson([
+            'status' => 'suspended',
+        ]);
+        $this->assertGuest();
+    }
+
+    public function test_suspended_user_cannot_use_tma_web_login(): void
+    {
+        $user = User::where('email', 'sokha.chan@cbvh.com.kh')->first();
+        $user->update([
+            'is_active' => false,
+            'password' => bcrypt('SecurePassword123!'),
+        ]);
+
+        $response = $this->postJson('/tma/api/login', [
+            'login' => $user->email,
+            'password' => 'SecurePassword123!',
+        ]);
+
+        $response->assertStatus(403);
+        $response->assertJson([
+            'status' => 'suspended',
+        ]);
+        $this->assertGuest();
+    }
+
+    public function test_admin_can_unlink_telegram_and_clear_sessions(): void
+    {
+        $admin = User::where('email', 'admin@cbvh.com.kh')->first();
+        $user = User::where('email', 'sokha.chan@cbvh.com.kh')->first();
+
+        // Create a dummy session record in the sessions table
+        \Illuminate\Support\Facades\DB::table('sessions')->insert([
+            'id' => 'dummy_session_id_123',
+            'user_id' => $user->id,
+            'ip_address' => '127.0.0.1',
+            'user_agent' => 'Mozilla/5.0',
+            'payload' => 'dummy_payload',
+            'last_activity' => time(),
+        ]);
+
+        $this->assertDatabaseHas('sessions', ['user_id' => $user->id]);
+        $this->assertNotNull($user->telegram_id);
+
+        $response = $this->actingAs($admin)->post("/portal/admin/users/{$user->id}/unlink-telegram");
+        $response->assertRedirect();
+
+        $user->refresh();
+        $this->assertNull($user->telegram_id);
+        $this->assertNull($user->telegram_username);
+        $this->assertDatabaseMissing('sessions', ['user_id' => $user->id]);
+    }
+
+    public function test_admin_deactivating_user_clears_active_sessions(): void
+    {
+        $admin = User::where('email', 'admin@cbvh.com.kh')->first();
+        $user = User::where('email', 'sokha.chan@cbvh.com.kh')->first();
+
+        \Illuminate\Support\Facades\DB::table('sessions')->insert([
+            'id' => 'dummy_session_id_456',
+            'user_id' => $user->id,
+            'ip_address' => '127.0.0.1',
+            'user_agent' => 'Mozilla/5.0',
+            'payload' => 'dummy_payload',
+            'last_activity' => time(),
+        ]);
+
+        $response = $this->actingAs($admin)->post("/portal/admin/users/{$user->id}/toggle");
+        $response->assertRedirect();
+
+        $user->refresh();
+        $this->assertFalse((bool)$user->is_active);
+        $this->assertDatabaseMissing('sessions', ['user_id' => $user->id]);
+    }
 }
 

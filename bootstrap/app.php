@@ -14,6 +14,10 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'staff' => \App\Http\Middleware\EnsureStaffUser::class,
+            'active' => \App\Http\Middleware\EnsureActiveUser::class,
+        ]);
+        $middleware->web(append: [
+            \App\Http\Middleware\EnsureActiveUser::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

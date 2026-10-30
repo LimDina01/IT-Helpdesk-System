@@ -13,6 +13,7 @@ use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -512,8 +513,26 @@ class PortalAdminController extends Controller
         // 2. Update User record
         $user->name = $validated['name'];
         $user->email = $email;
-        $user->is_active = $request->boolean('is_active', true);
-        $user->telegram_username = !empty($validated['telegram_username']) ? ltrim($validated['telegram_username'], '@') : null;
+        $isActive = $request->boolean('is_active', true);
+        $user->is_active = $isActive;
+
+        if ($request->boolean('unlink_telegram')) {
+            $user->telegram_id = null;
+            $user->telegram_username = null;
+        } else {
+            $newUsername = !empty($validated['telegram_username']) ? ltrim($validated['telegram_username'], '@') : null;
+            // If telegram username changed or cleared by admin, clear telegram_id as well
+            if ($user->telegram_username !== $newUsername) {
+                $user->telegram_id = null;
+                $user->telegram_username = $newUsername;
+            }
+        }
+
+        if (!$isActive) {
+            try {
+                DB::table('sessions')->where('user_id', $user->id)->delete();
+            } catch (\Throwable $e) {}
+        }
 
         if (!empty($validated['password'])) {
             $user->password = \Illuminate\Support\Facades\Hash::make($validated['password']);
@@ -568,10 +587,36 @@ class PortalAdminController extends Controller
             return back()->withErrors(['error' => 'The primary testing admin account cannot be deactivated.']);
         }
 
-        $user->update(['is_active' => !$user->is_active]);
+        $newStatus = !$user->is_active;
+        $user->update(['is_active' => $newStatus]);
 
-        $statusStr = $user->is_active ? 'activated' : 'deactivated';
+        if (!$newStatus) {
+            try {
+                DB::table('sessions')->where('user_id', $user->id)->delete();
+            } catch (\Throwable $e) {}
+        }
+
+        $statusStr = $newStatus ? 'activated' : 'suspended';
         return back()->with('status', "User {$user->name} {$statusStr}.");
+    }
+
+    /**
+     * Unlink Telegram account from a user.
+     */
+    public function unlinkTelegram(User $user): RedirectResponse
+    {
+        abort_unless(Auth::user()->hasRole(['system_admin', 'hod']), 403);
+
+        $user->update([
+            'telegram_id' => null,
+            'telegram_username' => null,
+        ]);
+
+        try {
+            DB::table('sessions')->where('user_id', $user->id)->delete();
+        } catch (\Throwable $e) {}
+
+        return back()->with('status', "Telegram account unlinked for {$user->name}. The employee can link again via Telegram.");
     }
 
     /**

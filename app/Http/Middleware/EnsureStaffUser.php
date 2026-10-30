@@ -23,6 +23,17 @@ class EnsureStaffUser
 
         $user = Auth::user();
 
+        if (!$user->is_active) {
+            Auth::logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            if ($request->expectsJson()) {
+                return response()->json(['error' => 'Account suspended. Please contact administrator.'], 403);
+            }
+            return redirect()->route('portal.login')->withErrors(['email' => 'Your account has been deactivated. Please contact the administrator.']);
+        }
+
         if (!$user->isStaff()) {
             if ($request->expectsJson()) {
                 return response()->json(['error' => 'Unauthorized. Staff privileges required.'], 403);

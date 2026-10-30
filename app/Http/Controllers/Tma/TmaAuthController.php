@@ -26,6 +26,15 @@ class TmaAuthController extends Controller
         // 0. If user already has an active web session
         if (Auth::check()) {
             $user = Auth::user();
+            if (!$user->is_active) {
+                Auth::logout();
+                $request->session()->invalidate();
+                return response()->json([
+                    'status' => 'suspended',
+                    'message' => 'Your account has been suspended by an administrator. Please contact the IT Helpdesk.',
+                ], 403);
+            }
+
             $user->loadMissing('employee.branch', 'employee.department', 'roles');
             return response()->json([
                 'status' => 'authenticated',
@@ -41,6 +50,13 @@ class TmaAuthController extends Controller
             $employee = Employee::where('employee_code', $request->input('dev_employee_code'))->first();
             if ($employee && $employee->user) {
                 $user = $employee->user;
+                if (!$user->is_active) {
+                    return response()->json([
+                        'status' => 'suspended',
+                        'message' => 'Your account has been suspended by an administrator. Please contact the IT Helpdesk.',
+                    ], 403);
+                }
+
                 $user->loadMissing('employee.branch', 'employee.department', 'roles');
                 Auth::login($user);
                 return response()->json([
@@ -69,9 +85,22 @@ class TmaAuthController extends Controller
         $telegramId = (int) $tgUser['id'];
 
         // 3. Find user linked to this telegram_id
-        $user = User::where('telegram_id', $telegramId)->where('is_active', true)->with('employee.branch', 'employee.department', 'roles')->first();
+        $user = User::where('telegram_id', $telegramId)->with('employee.branch', 'employee.department', 'roles')->first();
 
         if ($user) {
+            if (!$user->is_active) {
+                return response()->json([
+                    'status' => 'suspended',
+                    'message' => 'Your account has been suspended by an administrator. Please contact the IT Helpdesk.',
+                    'telegram_user' => [
+                        'id' => $tgUser['id'],
+                        'first_name' => $tgUser['first_name'] ?? '',
+                        'last_name' => $tgUser['last_name'] ?? '',
+                        'username' => $tgUser['username'] ?? '',
+                    ],
+                ], 403);
+            }
+
             Auth::login($user);
 
             return response()->json([
@@ -124,14 +153,19 @@ class TmaAuthController extends Controller
         }
 
         // Check if employee code exists in pre-approved roster
-        $employee = Employee::where('employee_code', trim($validated['employee_code']))
-            ->where('is_active', true)
-            ->first();
+        $employee = Employee::where('employee_code', trim($validated['employee_code']))->first();
 
-        if (!$employee) {
+        if (!$employee || !$employee->is_active) {
             return response()->json([
-                'error' => 'Employee ID not found in approved company roster. Please contact HR or Help Desk.',
+                'error' => 'Employee ID not found or account is deactivated. Please contact HR or Help Desk.',
             ], 422);
+        }
+
+        if ($employee->user && !$employee->user->is_active) {
+            return response()->json([
+                'status' => 'suspended',
+                'error' => 'Your account has been suspended by an administrator. Please contact the IT Helpdesk.',
+            ], 403);
         }
 
         // Check if this employee ID is already linked to another telegram account
@@ -229,11 +263,10 @@ class TmaAuthController extends Controller
 
         foreach ($candidates as $user) {
             if (!$user->is_active) {
-                if ($isAdminIdentifier || in_array(strtolower($user->email), $sampleDemoEmails, true)) {
-                    $user->update(['is_active' => true]);
-                } else {
-                    continue;
-                }
+                return response()->json([
+                    'status' => 'suspended',
+                    'error' => 'This account has been suspended by an administrator. Please contact the IT Helpdesk.',
+                ], 403);
             }
 
             // Verify password

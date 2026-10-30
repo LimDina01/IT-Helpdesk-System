@@ -2,7 +2,8 @@
 function tmaApp() {
     return {
         loading: true,
-        authState: 'unlinked', // 'unlinked', 'authenticated', 'web_login_required'
+        authState: 'unlinked', // 'unlinked', 'authenticated', 'web_login_required', 'suspended'
+        suspendedMessage: '',
         hasPendingRequest: false,
         pendingEmployeeCode: '',
         telegramUser: {},
@@ -639,9 +640,16 @@ function tmaApp() {
                 },
                 body: JSON.stringify({ init_data: initData })
             })
-            .then(res => res.json())
-            .then(data => {
+            .then(async res => {
+                const data = await res.json();
                 this.loading = false;
+                if (res.status === 403 || data.status === 'suspended') {
+                    this.authState = 'suspended';
+                    this.suspendedMessage = data.message || data.error || 'Your account has been suspended by an administrator.';
+                    if (data.telegram_user) this.telegramUser = data.telegram_user;
+                    this.currentUser = {};
+                    return;
+                }
                 if (data.status === 'authenticated') {
                     this.authState = 'authenticated';
                     this.currentUser = data.user;
@@ -684,6 +692,11 @@ function tmaApp() {
                 const data = await res.json();
                 this.loggingIn = false;
                 if (!res.ok) {
+                    if (res.status === 403 && data.status === 'suspended') {
+                        this.authState = 'suspended';
+                        this.suspendedMessage = data.error || data.message || 'Your account has been suspended by an administrator.';
+                        return;
+                    }
                     this.webLoginError = data.error || 'Login failed. Please check credentials.';
                 } else {
                     this.authState = 'authenticated';
@@ -736,9 +749,15 @@ function tmaApp() {
                 },
                 body: JSON.stringify({ dev_employee_code: empCode })
             })
-            .then(res => res.json())
-            .then(data => {
+            .then(async res => {
+                const data = await res.json();
                 this.loading = false;
+                if (res.status === 403 || data.status === 'suspended') {
+                    this.authState = 'suspended';
+                    this.suspendedMessage = data.message || 'Your account has been suspended by an administrator.';
+                    this.currentUser = {};
+                    return;
+                }
                 if (data.status === 'authenticated') {
                     this.authState = 'authenticated';
                     this.currentUser = data.user;
@@ -802,9 +821,16 @@ function tmaApp() {
                     'Cache-Control': 'no-cache'
                 }
             })
-            .then(res => res.json())
-            .then(data => {
+            .then(async res => {
+                const data = await res.json();
                 this.loadingTickets = false;
+                if (res.status === 403 || data.status === 'suspended') {
+                    this.authState = 'suspended';
+                    this.suspendedMessage = data.message || 'Your account has been suspended by an administrator.';
+                    this.activeTickets = [];
+                    this.historyTickets = [];
+                    return;
+                }
                 this.activeTickets = data.active || [];
                 this.historyTickets = data.history || [];
                 this.approvalTickets = data.approvals || [];
@@ -969,6 +995,15 @@ function tmaApp() {
                 const data = await res.json();
                 this.sendingReply = false;
                 if (!res.ok) {
+                    if (res.status === 403 && (data.status === 'suspended' || (data.message && data.message.includes('suspended')))) {
+                        this.authState = 'suspended';
+                        this.suspendedMessage = data.message || 'Your account has been suspended by an administrator.';
+                        this.activeTicketModal = false;
+                        if (window.Telegram?.WebApp?.showAlert) {
+                            window.Telegram.WebApp.showAlert(this.suspendedMessage);
+                        }
+                        return;
+                    }
                     this.replyError = data.message || Object.values(data.errors || {})[0]?.[0] || 'Failed to send message';
                     if (window.Telegram?.WebApp?.showAlert) {
                         window.Telegram.WebApp.showAlert(this.replyError);

@@ -62,6 +62,64 @@
         </div>
     </div>
 
+    <!-- SUSPENDED ACCOUNT SCREEN -->
+    <div x-show="!loading && authState === 'suspended'"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0 translate-y-2"
+         x-transition:enter-end="opacity-100 translate-y-0"
+         class="flex-1 flex flex-col justify-center p-5">
+        <div class="tg-theme-card rounded-3xl shadow-xl border border-rose-200/80 p-6 space-y-6 relative text-center">
+            <!-- Language Switcher in Card Top Right -->
+            <div class="absolute top-4 right-4">
+                <button @click="toggleLocale()"
+                        type="button"
+                        title="Switch Language / ប្តូរភាសា"
+                        class="inline-flex items-center bg-slate-100 p-0.5 rounded-full border border-slate-200/90 active:scale-95 transition-all duration-150">
+                    <span :class="locale === 'en' ? 'bg-rose-600 text-white shadow-2xs font-bold' : 'text-slate-500 font-medium'"
+                          class="px-1.5 py-0.5 rounded-full text-[10px] transition-all">EN</span>
+                    <span :class="locale === 'km' ? 'bg-rose-600 text-white shadow-2xs font-bold' : 'text-slate-500 font-medium'"
+                          class="px-1.5 py-0.5 rounded-full text-[10px] transition-all">ខ្មែរ</span>
+                </button>
+            </div>
+
+            <div class="w-16 h-16 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center mx-auto text-3xl font-black shadow-lg shadow-rose-500/10 border border-rose-200">
+                🚫
+            </div>
+
+            <div class="space-y-1.5">
+                <h1 class="text-xl font-extrabold text-slate-800" x-text="locale === 'km' ? 'គណនីត្រូវបានផ្អាក' : 'Account Suspended'">Account Suspended</h1>
+                <p class="text-xs text-rose-600 font-semibold leading-relaxed" x-text="suspendedMessage || (locale === 'km' ? 'គណនីរបស់អ្នកត្រូវបានផ្អាកដោយអ្នកគ្រប់គ្រង IT។' : 'Your account access has been suspended by an administrator.')"></p>
+                <p class="text-xs text-slate-500 mt-2 leading-relaxed" x-text="locale === 'km' ? 'ប្រសិនបើអ្នកគិតថាមានការភាន់ច្រឡំ ឬត្រូវការបើកដំណើរការឡើងវិញ សូមទាក់ទងមកកាន់ IT Help Desk ឬធនធានមនុស្ស (HR)។' : 'If you believe this is an error or require access restored, please contact the IT Help Desk or HR department.'"></p>
+            </div>
+
+            <div class="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 text-left text-xs space-y-1.5">
+                <div class="flex items-center justify-between text-slate-600">
+                    <span class="font-medium">Status:</span>
+                    <span class="text-rose-600 font-bold uppercase tracking-wider text-[10px] bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200">Suspended / Deactivated</span>
+                </div>
+                <template x-if="telegramUser && telegramUser.id">
+                    <div class="flex items-center justify-between text-slate-600">
+                        <span class="font-medium">Telegram ID:</span>
+                        <span class="font-mono text-slate-800 font-semibold" x-text="telegramUser.id"></span>
+                    </div>
+                </template>
+                <template x-if="telegramUser && telegramUser.username">
+                    <div class="flex items-center justify-between text-slate-600">
+                        <span class="font-medium">Username:</span>
+                        <span class="font-mono text-slate-800 font-semibold" x-text="'@' + telegramUser.username"></span>
+                    </div>
+                </template>
+            </div>
+
+            <div class="pt-2">
+                <button type="button" @click="checkAuth()"
+                        class="w-full py-2.5 bg-slate-100 hover:bg-slate-200 active:scale-[0.98] text-slate-700 rounded-xl font-bold text-xs transition">
+                    <span x-text="locale === 'km' ? 'ពិនិត្យឡើងវិញ' : 'Check Status Again'">Check Status Again</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- ONBOARDING & LINK REQUEST SCREEN (Option B: Requires Help Desk Approval) -->
     <div x-show="!loading && authState === 'unlinked'"
          x-transition:enter="transition ease-out duration-200"
