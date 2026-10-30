@@ -9,6 +9,16 @@ class CompanyHoliday extends Model
 {
     use HasFactory;
 
+    protected static function booted(): void
+    {
+        static::saved(function () {
+            \App\Services\BusinessHoursService::clearHolidayCache();
+        });
+        static::deleted(function () {
+            \App\Services\BusinessHoursService::clearHolidayCache();
+        });
+    }
+
     protected $fillable = [
         'name',
         'holiday_date',

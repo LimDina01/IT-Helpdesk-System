@@ -28,6 +28,24 @@ class BusinessHoursService
     public const WORK_END_MINUTE = 0;
 
     /**
+     * In-memory static cache for holidays to eliminate N+1 query storms during SLA loops.
+     */
+    protected static ?\Illuminate\Support\Collection $cachedHolidays = null;
+
+    public static function clearHolidayCache(): void
+    {
+        static::$cachedHolidays = null;
+    }
+
+    protected function getHolidays(): \Illuminate\Support\Collection
+    {
+        if (static::$cachedHolidays === null) {
+            static::$cachedHolidays = CompanyHoliday::all();
+        }
+        return static::$cachedHolidays;
+    }
+
+    /**
      * Check if a given date is a working day (Monday-Saturday, excluding Sundays and custom holidays).
      */
     public function isWorkingDay(CarbonInterface $date): bool
@@ -39,11 +57,11 @@ class BusinessHoursService
             return false;
         }
 
-        // 2. Check custom company holidays table (Database-agnostic)
+        // 2. Check custom company holidays table (Database-agnostic with memory cache)
         $dateString = $d->format('Y-m-d');
         $monthDay = $d->format('m-d');
 
-        $holidays = CompanyHoliday::all();
+        $holidays = $this->getHolidays();
 
         foreach ($holidays as $holiday) {
             $holidayCarbon = Carbon::parse($holiday->holiday_date);

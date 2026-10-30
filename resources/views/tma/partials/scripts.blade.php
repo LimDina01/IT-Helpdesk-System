@@ -863,7 +863,20 @@ function tmaApp() {
             fetch(`/tma/api/tickets/${id}`, {
                 headers: { 'Accept': 'application/json' }
             })
-            .then(res => res.json())
+            .then(res => {
+                if (res.status === 403) {
+                    return res.json().then(data => {
+                        if (data.status === 'suspended') {
+                            this.suspendedMessage = data.message || 'Your account has been suspended by an administrator.';
+                            this.authStatus = 'suspended';
+                            this.activeTicketModal = false;
+                        }
+                        throw new Error('Forbidden');
+                    });
+                }
+                if (!res.ok) throw new Error('Network error');
+                return res.json();
+            })
             .then(data => {
                 this.selectedTicket = data.ticket;
                 this.messages = data.messages || [];
@@ -880,6 +893,15 @@ function tmaApp() {
                 this.updateBackButton();
                 this.scrollToBottom(true);
                 this.startChatPolling(id);
+            })
+            .catch(err => {
+                if (this.authStatus !== 'suspended') {
+                    if (window.Telegram?.WebApp?.showAlert) {
+                        window.Telegram.WebApp.showAlert('Unable to load ticket details. Please check your connection and try again.');
+                    } else {
+                        alert('Unable to load ticket details. Please check your connection and try again.');
+                    }
+                }
             });
         },
 
@@ -1040,7 +1062,10 @@ function tmaApp() {
                 },
                 body: JSON.stringify({ comments: this.approvalComment })
             })
-            .then(res => res.json())
+            .then(res => {
+                if (!res.ok) throw new Error('Approve failed');
+                return res.json();
+            })
             .then(() => {
                 this.actioningApproval = false;
                 this.showApprovePrompt = false;
@@ -1050,6 +1075,11 @@ function tmaApp() {
             })
             .catch(() => {
                 this.actioningApproval = false;
+                if (window.Telegram?.WebApp?.showAlert) {
+                    window.Telegram.WebApp.showAlert('Approval submission failed. Please try again.');
+                } else {
+                    alert('Approval submission failed. Please try again.');
+                }
             });
         },
 
@@ -1065,7 +1095,10 @@ function tmaApp() {
                 },
                 body: JSON.stringify({ reason: this.rejectionReason })
             })
-            .then(res => res.json())
+            .then(res => {
+                if (!res.ok) throw new Error('Reject failed');
+                return res.json();
+            })
             .then(() => {
                 this.actioningApproval = false;
                 this.showRejectPrompt = false;
@@ -1075,6 +1108,11 @@ function tmaApp() {
             })
             .catch(() => {
                 this.actioningApproval = false;
+                if (window.Telegram?.WebApp?.showAlert) {
+                    window.Telegram.WebApp.showAlert('Rejection submission failed. Please try again.');
+                } else {
+                    alert('Rejection submission failed. Please try again.');
+                }
             });
         },
 
@@ -1088,11 +1126,22 @@ function tmaApp() {
                     'Accept': 'application/json'
                 }
             })
-            .then(res => res.json())
+            .then(res => {
+                if (!res.ok) throw new Error('Confirm failed');
+                return res.json();
+            })
             .then(() => {
                 this.confirmingAction = false;
                 this.loadTickets(true);
                 this.openTicketDetail(this.selectedTicket.id);
+            })
+            .catch(() => {
+                this.confirmingAction = false;
+                if (window.Telegram?.WebApp?.showAlert) {
+                    window.Telegram.WebApp.showAlert('Resolution confirmation failed. Please try again.');
+                } else {
+                    alert('Resolution confirmation failed. Please try again.');
+                }
             });
         },
 
@@ -1107,12 +1156,22 @@ function tmaApp() {
                 },
                 body: JSON.stringify({ reason: this.reopenReason })
             })
-            .then(res => res.json())
+            .then(res => {
+                if (!res.ok) throw new Error('Reopen failed');
+                return res.json();
+            })
             .then(() => {
                 this.showReopenPrompt = false;
                 this.reopenReason = '';
                 this.loadTickets(true);
                 this.openTicketDetail(this.selectedTicket.id);
+            })
+            .catch(() => {
+                if (window.Telegram?.WebApp?.showAlert) {
+                    window.Telegram.WebApp.showAlert('Reopen ticket failed. Please try again.');
+                } else {
+                    alert('Reopen ticket failed. Please try again.');
+                }
             });
         },
 
