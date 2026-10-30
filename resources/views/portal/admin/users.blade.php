@@ -97,13 +97,13 @@
                     <span class="text-[10px] px-1.5 py-0.2 rounded-full {{ $filter === 'all' ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-200 text-slate-600' }}">{{ $totalCount }}</span>
                 </a>
                 <a href="{{ route('portal.admin.users', ['filter' => 'portal']) }}" class="px-3.5 py-1.5 rounded-xl transition flex items-center space-x-1.5 {{ $filter === 'portal' ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-600 hover:text-slate-900' }}">
-                    <span>🌐</span>
-                    <span>Web Portal Enabled</span>
+                    <span>🛠️</span>
+                    <span>IT Staff Portal</span>
                     <span class="text-[10px] px-1.5 py-0.2 rounded-full {{ $filter === 'portal' ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-200 text-slate-600' }}">{{ $staffCount }}</span>
                 </a>
                 <a href="{{ route('portal.admin.users', ['filter' => 'tma']) }}" class="px-3.5 py-1.5 rounded-xl transition flex items-center space-x-1.5 {{ $filter === 'tma' ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-600 hover:text-slate-900' }}">
                     <span>📱</span>
-                    <span>TMA Only</span>
+                    <span>TMA Requesters</span>
                     <span class="text-[10px] px-1.5 py-0.2 rounded-full {{ $filter === 'tma' ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-200 text-slate-600' }}">{{ $tmaCount }}</span>
                 </a>
             </div>
@@ -146,6 +146,7 @@
                         <th class="py-3 px-4">Telegram Linked</th>
                         <th class="py-3 px-4">Assigned Roles</th>
                         <th class="py-3 px-4">Account Status</th>
+                        <th class="py-3 px-4">Portal Access</th>
                         <th class="py-3 px-6 text-right">Actions</th>
                     </tr>
                 </thead>
@@ -219,10 +220,24 @@
                                 </span>
                             </td>
 
+                            <td class="py-3.5 px-4 whitespace-nowrap">
+                                @if($user->can_access_portal)
+                                    <span class="inline-flex items-center space-x-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200" title="User is authorized to log in via Web Portal">
+                                        <span>🌐</span>
+                                        <span>Granted</span>
+                                    </span>
+                                @else
+                                    <span class="inline-flex items-center space-x-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200" title="User can only use Telegram TMA">
+                                        <span>🔒</span>
+                                        <span>Not Granted</span>
+                                    </span>
+                                @endif
+                            </td>
+
                             <td class="py-3.5 px-6 text-right whitespace-nowrap space-x-2">
                                 <button type="button"
                                         @click="openEditModal({{ json_encode($user) }})"
-                                        class="text-[11px] text-blue-600 hover:text-blue-800 font-bold hover:underline inline-flex items-center space-x-1">
+                                        class="text-[11px] text-blue-600 hover:text-blue-800 font-bold hover:underline inline-flex items-center space-x-1 cursor-pointer">
                                     <span>✏️</span>
                                     <span>Edit</span>
                                 </button>
@@ -230,16 +245,16 @@
                                 @if($user->can_access_portal)
                                     <button type="button"
                                             @click="targetUser = {{ json_encode($user) }}; userRoles = {{ json_encode($user->roles->pluck('id')) }}; roleModal = true"
-                                            class="text-[11px] text-indigo-600 hover:underline font-semibold">
+                                            class="text-[11px] text-indigo-600 hover:underline font-semibold cursor-pointer">
                                         Roles
                                     </button>
                                 @endif
 
                                 @if($user->id !== Auth::id() && $user->id !== 1 && $user->email !== 'admin@cbvh.com.kh')
                                     <!-- Toggle Portal Access Button -->
-                                    <form method="POST" action="{{ route('portal.admin.users.toggle-portal', $user->id) }}" class="inline-block" onsubmit="return confirm('{{ $user->can_access_portal ? 'Revoke Web Portal login access for ' . $user->name . '? They will only be able to use Telegram TMA.' : 'Grant Web Portal login access to ' . $user->name . '? They will be able to log in via browser.' }}');">
+                                    <form method="POST" action="{{ route('portal.admin.users.toggle-portal', $user->id) }}" class="inline-block" onsubmit="return confirm('{{ $user->can_access_portal ? 'Revoke Web Portal login access for ' . addslashes($user->name) . '?' : 'Grant Web Portal login access to ' . addslashes($user->name) . '?' }}');">
                                         @csrf
-                                        <button type="submit" class="text-[11px] {{ $user->can_access_portal ? 'text-amber-600 hover:text-amber-800' : 'text-blue-600 hover:text-blue-800' }} hover:underline font-semibold">
+                                        <button type="submit" class="text-[11px] {{ $user->can_access_portal ? 'text-amber-600 hover:text-amber-800' : 'text-blue-600 hover:text-blue-800' }} hover:underline font-semibold cursor-pointer">
                                             {{ $user->can_access_portal ? 'Revoke Portal' : 'Grant Portal' }}
                                         </button>
                                     </form>
@@ -247,7 +262,7 @@
                                     <!-- Suspend / Activate User Button -->
                                     <form method="POST" action="{{ route('portal.admin.users.toggle', $user->id) }}" class="inline-block">
                                         @csrf
-                                        <button type="submit" class="text-[11px] {{ $user->is_active ? 'text-rose-600 hover:underline' : 'text-emerald-600 hover:underline' }} font-semibold">
+                                        <button type="submit" class="text-[11px] {{ $user->is_active ? 'text-rose-600 hover:underline' : 'text-emerald-600 hover:underline' }} font-semibold cursor-pointer">
                                             {{ $user->is_active ? 'Suspend' : 'Activate' }}
                                         </button>
                                     </form>
@@ -256,7 +271,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="py-8 text-center text-slate-400 text-xs">No users found.</td>
+                            <td colspan="7" class="py-8 text-center text-slate-400 text-xs">No users found.</td>
                         </tr>
                     @endforelse
                 </tbody>
