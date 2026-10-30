@@ -195,4 +195,39 @@ class HodApprovalWorkflowTest extends TestCase
         $this->assertEquals('resolved_confirmed', $opsResolvedRes->json('approved_by_me.0.status'));
         $this->assertEquals(1, $opsResolvedRes->json('history_count'));
     }
+
+    public function test_hold_requests_are_visible_in_cockpit_urgent_queue_and_dashboard_approvals_view(): void
+    {
+        $admin = User::where('email', 'admin@cbvh.com.kh')->first();
+        $ticket = Ticket::create([
+            'ticket_code' => Ticket::generateTicketCode(),
+            'requester_id' => $this->requester->id,
+            'branch_id' => $this->branch->id,
+            'category_id' => $this->serviceCategory->id,
+            'status' => 'in_progress',
+            'priority' => 'medium',
+            'subject' => 'Need spare fan for server',
+            'description' => 'Waiting for vendor replacement fan',
+            'hold_requested_category' => 'hardware_procurement',
+            'hold_requested_reason' => 'Vendor out of stock until next Tuesday',
+            'hold_requested_at' => now(),
+            'hold_requested_by_id' => $admin->id,
+        ]);
+
+        $this->assertTrue($ticket->isHoldPending());
+
+        // 1. Cockpit view contains ticket in urgentTickets and has pendingHoldCount
+        $cockpitRes = $this->actingAs($admin)->get('/portal/cockpit');
+        $cockpitRes->assertStatus(200);
+        $cockpitRes->assertViewHas('pendingHoldCount', 1);
+        $urgentTickets = $cockpitRes->viewData('urgentTickets');
+        $this->assertTrue($urgentTickets->contains('id', $ticket->id));
+
+        // 2. Dashboard Approvals tab lists the hold request
+        $dashboardRes = $this->actingAs($admin)->get('/portal?view=pending_approvals');
+        $dashboardRes->assertStatus(200);
+        $dashboardRes->assertViewHas('pendingHoldCount', 1);
+        $dashboardTickets = $dashboardRes->viewData('tickets');
+        $this->assertTrue($dashboardTickets->contains('id', $ticket->id));
+    }
 }

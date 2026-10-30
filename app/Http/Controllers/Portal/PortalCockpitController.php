@@ -38,6 +38,7 @@ class PortalCockpitController extends Controller
 
         $reopenedCount = Ticket::where('status', 'reopened')->count();
         $pendingApprovalsCount = Ticket::where('status', 'pending_approval')->count();
+        $pendingHoldCount = Ticket::whereNotNull('hold_requested_at')->count();
         $unassignedTriageCount = Ticket::where('status', 'submitted')->count();
 
         // Total active in fulfillment
@@ -76,20 +77,21 @@ class PortalCockpitController extends Controller
                 return $tech;
             });
 
-        // 3. Urgent Intervention Queue (Blocked, SLA Breaches, Reopened, Criticals, Approvals)
+        // 3. Urgent Intervention Queue (Blocked, Hold Requests, SLA Breaches, Reopened, Criticals, Approvals)
         $urgentQuery = Ticket::with(['requester', 'branch', 'category', 'technician', 'approvals'])
             ->where(function ($q) {
                 $q->where('status', 'blocked')
                   ->orWhere('status', 'reopened')
                   ->orWhere('priority', 'critical')
                   ->orWhere('status', 'pending_approval')
+                  ->orWhereNotNull('hold_requested_at')
                   ->orWhere(function ($sub) {
                       $sub->where('status', 'assigned')
                           ->whereNull('acknowledged_at')
                           ->where('assigned_at', '<', Carbon::now()->subMinutes(30));
                   });
             })
-            ->orderByRaw("CASE priority WHEN 'critical' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END")
+            ->orderByRaw("CASE WHEN hold_requested_at IS NOT NULL THEN 0 WHEN priority = 'critical' THEN 1 WHEN priority = 'high' THEN 2 WHEN priority = 'medium' THEN 3 ELSE 4 END")
             ->orderByDesc('created_at');
 
         $urgentTickets = $urgentQuery->limit(20)->get();
@@ -106,6 +108,7 @@ class PortalCockpitController extends Controller
             'slaBreachCount',
             'reopenedCount',
             'pendingApprovalsCount',
+            'pendingHoldCount',
             'unassignedTriageCount',
             'totalFulfillmentCount',
             'technicians',

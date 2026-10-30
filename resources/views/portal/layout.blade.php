@@ -65,11 +65,18 @@
                             <span>⚡</span>
                             <span>HOD Cockpit</span>
                             @php
-                                $cockpitUrgentCount = \App\Models\Ticket::whereIn('status', ['blocked', 'reopened', 'pending_approval'])->count();
+                                $cockpitUrgentCount = \App\Models\Ticket::where(function($q) {
+                                    $q->whereIn('status', ['blocked', 'reopened', 'pending_approval'])
+                                      ->orWhereNotNull('hold_requested_at');
+                                })->count();
+                                $pendingHoldNavbarCount = \App\Models\Ticket::whereNotNull('hold_requested_at')->count();
                             @endphp
                             @if($cockpitUrgentCount > 0)
-                                <span class="bg-purple-500 text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full animate-pulse">
-                                    {{ $cockpitUrgentCount }}
+                                <span class="bg-purple-500 text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full animate-pulse inline-flex items-center gap-1" title="{{ $cockpitUrgentCount }} urgent items ({{ $pendingHoldNavbarCount }} hold requests)">
+                                    @if($pendingHoldNavbarCount > 0)
+                                        <span>⏸</span>
+                                    @endif
+                                    <span>{{ $cockpitUrgentCount }}</span>
                                 </span>
                             @endif
                         </a>

@@ -130,9 +130,20 @@
         <!-- Approvals -->
         <a href="{{ route('portal.dashboard', ['view' => 'pending_approvals', 'branch_id' => $branchFilter, 'priority' => $priorityFilter]) }}"
            class="{{ $viewTab === 'pending_approvals' ? 'ring-2 ring-purple-600 bg-purple-50/70 border-purple-600' : 'bg-white hover:border-purple-400' }} p-3.5 rounded-2xl border border-slate-200/80 shadow-xs transition block group">
-            <div class="text-[10px] font-bold uppercase tracking-wider text-purple-700">Approvals</div>
+            <div class="flex items-center justify-between">
+                <div class="text-[10px] font-bold uppercase tracking-wider text-purple-700">Approvals</div>
+                @if(isset($pendingHoldCount) && $pendingHoldCount > 0)
+                    <span class="text-[9px] bg-amber-500 text-slate-950 font-bold px-1.5 py-0.2 rounded-full animate-pulse">⏸ {{ $pendingHoldCount }} Hold</span>
+                @endif
+            </div>
             <div class="text-2xl font-black text-purple-700 mt-1">{{ $pendingApprovalsCount }}</div>
-            <div class="text-[10px] text-slate-400 mt-0.5 truncate">HOD & IT sign-off</div>
+            <div class="text-[10px] text-slate-400 mt-0.5 truncate">
+                @if(isset($pendingHoldCount) && $pendingHoldCount > 0)
+                    {{ $pendingHoldCount }} hold + {{ max(0, $pendingApprovalsCount - $pendingHoldCount) }} sign-offs
+                @else
+                    HOD & IT sign-off
+                @endif
+            </div>
         </a>
 
         <!-- My Tasks -->
@@ -146,9 +157,20 @@
         <!-- Blocked / Hold -->
         <a href="{{ route('portal.dashboard', ['view' => 'blocked', 'branch_id' => $branchFilter, 'priority' => $priorityFilter]) }}"
            class="{{ $viewTab === 'blocked' ? 'ring-2 ring-amber-600 bg-amber-50/70 border-amber-600' : 'bg-white hover:border-amber-400' }} p-3.5 rounded-2xl border border-slate-200/80 shadow-xs transition block group">
-            <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-amber-600">Blocked</div>
+            <div class="flex items-center justify-between">
+                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-amber-600">Blocked</div>
+                @if(isset($pendingHoldCount) && $pendingHoldCount > 0)
+                    <span class="text-[9px] bg-amber-500 text-slate-950 font-bold px-1.5 py-0.2 rounded-full">⏸ {{ $pendingHoldCount }}</span>
+                @endif
+            </div>
             <div class="text-2xl font-black text-amber-600 mt-1">{{ $blockedCount }}</div>
-            <div class="text-[10px] text-slate-400 mt-0.5 truncate">Vendor / parts hold</div>
+            <div class="text-[10px] text-slate-400 mt-0.5 truncate">
+                @if(isset($pendingHoldCount) && $pendingHoldCount > 0)
+                    {{ $pendingHoldCount }} hold pending review
+                @else
+                    Vendor / parts hold
+                @endif
+            </div>
         </a>
 
         <!-- Pending Confirmation (Clickable Queue) -->
@@ -402,6 +424,12 @@
                                             <span class="bg-purple-100 text-purple-800 font-bold px-1.5 py-0.5 rounded text-[9px] uppercase">Awaiting Accept</span>
                                         @elseif($t->status === 'in_progress')
                                             <span class="bg-indigo-100 text-indigo-800 font-bold px-1.5 py-0.5 rounded text-[9px] uppercase">In Progress</span>
+                                            @if($t->isHoldPending())
+                                                <span class="bg-amber-100 text-amber-900 border border-amber-300 font-extrabold px-1.5 py-0.5 rounded text-[9px] uppercase flex items-center space-x-1 animate-pulse" title="Technician requested Hold (Reason: {{ $t->hold_requested_reason }})">
+                                                    <span>⏸</span>
+                                                    <span>Hold Approval</span>
+                                                </span>
+                                            @endif
                                         @elseif($t->status === 'clarifying')
                                             <span class="bg-amber-100 text-amber-900 font-bold px-1.5 py-0.5 rounded text-[9px] uppercase">Needs Info</span>
                                         @elseif($t->status === 'blocked')
@@ -468,6 +496,16 @@
                             <!-- Action Buttons -->
                             <td class="py-2.5 px-3 text-right whitespace-nowrap">
                                 <div class="flex items-center justify-end space-x-1">
+                                    <!-- Hold Approval Review for HOD / Manager -->
+                                    @if($t->isHoldPending() && Auth::user()->hasAnyRole(['system_admin', 'hod']))
+                                        <a href="{{ route('portal.tickets.show', $t->id) }}"
+                                           class="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-[11px] px-2.5 py-1 rounded-lg shadow-2xs transition flex items-center space-x-1"
+                                           title="Review hold request and approve/reject">
+                                            <span>⏸</span>
+                                            <span>Review Hold</span>
+                                        </a>
+                                    @endif
+
                                     <!-- Technician or Admin Quick Accept or Resume Button -->
                                     @if(in_array($t->status, ['assigned', 'reopened']) && ($t->current_technician_id === Auth::id() || Auth::user()->hasAnyRole(['system_admin', 'hod'])))
                                         <form method="POST" action="{{ route('portal.tickets.accept', $t->id) }}" class="inline">

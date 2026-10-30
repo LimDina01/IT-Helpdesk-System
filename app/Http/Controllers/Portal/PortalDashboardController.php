@@ -42,7 +42,8 @@ class PortalDashboardController extends Controller
 
         $blockedCount = Ticket::where('status', 'blocked')->count();
         $pendingConfirmCount = Ticket::where('status', 'pending_confirmation')->count();
-        $pendingApprovalsCount = Ticket::where('status', 'pending_approval')->count();
+        $pendingHoldCount = Ticket::whereNotNull('hold_requested_at')->count();
+        $pendingApprovalsCount = Ticket::where('status', 'pending_approval')->count() + $pendingHoldCount;
         $pendingLinkRequestsCount = TelegramLinkRequest::where('status', 'pending')->count();
         $allActiveCount = Ticket::whereIn('status', [
             'pending_approval', 'submitted', 'clarifying', 'assigned', 'in_progress', 'blocked', 'pending_confirmation', 'reopened'
@@ -77,8 +78,12 @@ class PortalDashboardController extends Controller
 
         switch ($viewTab) {
             case 'pending_approvals':
-                $query->where('status', 'pending_approval')
-                    ->orderByDesc('created_at');
+                $query->where(function ($q) {
+                    $q->where('status', 'pending_approval')
+                      ->orWhereNotNull('hold_requested_at');
+                })
+                ->orderByRaw("CASE WHEN hold_requested_at IS NOT NULL THEN 0 ELSE 1 END")
+                ->orderByDesc('created_at');
                 break;
 
             case 'my_tasks':
@@ -91,14 +96,18 @@ class PortalDashboardController extends Controller
 
             case 'all_active':
                 $query->whereIn('status', ['pending_approval', 'submitted', 'clarifying', 'assigned', 'in_progress', 'blocked', 'pending_confirmation', 'reopened'])
-                    ->orderByRaw("CASE status WHEN 'reopened' THEN 1 WHEN 'pending_approval' THEN 2 WHEN 'submitted' THEN 3 WHEN 'assigned' THEN 4 WHEN 'in_progress' THEN 5 WHEN 'blocked' THEN 6 WHEN 'clarifying' THEN 7 WHEN 'pending_confirmation' THEN 8 ELSE 9 END")
+                    ->orderByRaw("CASE WHEN hold_requested_at IS NOT NULL THEN 0 WHEN status = 'reopened' THEN 1 WHEN status = 'pending_approval' THEN 2 WHEN status = 'submitted' THEN 3 WHEN status = 'assigned' THEN 4 WHEN status = 'in_progress' THEN 5 WHEN status = 'blocked' THEN 6 WHEN status = 'clarifying' THEN 7 WHEN status = 'pending_confirmation' THEN 8 ELSE 9 END")
                     ->orderByRaw("CASE priority WHEN 'critical' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END")
                     ->orderByDesc('created_at');
                 break;
 
             case 'blocked':
-                $query->where('status', 'blocked')
-                    ->orderByDesc('updated_at');
+                $query->where(function ($q) {
+                    $q->where('status', 'blocked')
+                      ->orWhereNotNull('hold_requested_at');
+                })
+                ->orderByRaw("CASE WHEN hold_requested_at IS NOT NULL THEN 0 ELSE 1 END")
+                ->orderByDesc('updated_at');
                 break;
 
             case 'pending_confirmation':
@@ -163,6 +172,7 @@ class PortalDashboardController extends Controller
             'blockedCount',
             'pendingConfirmCount',
             'pendingApprovalsCount',
+            'pendingHoldCount',
             'pendingLinkRequestsCount',
             'technicians',
             'branches',

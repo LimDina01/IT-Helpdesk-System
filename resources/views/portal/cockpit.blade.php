@@ -53,13 +53,26 @@
 
         <!-- Blocked / Hold -->
         <a href="{{ route('portal.dashboard', ['view' => 'blocked']) }}" 
-           class="group bg-white hover:bg-amber-50/50 rounded-2xl p-4 border border-slate-200/80 hover:border-amber-400 hover:shadow-md transition-all duration-150 block">
+           class="group bg-white hover:bg-amber-50/50 rounded-2xl p-4 border border-slate-200/80 hover:border-amber-400 hover:shadow-md transition-all duration-150 block relative">
             <div class="flex items-center justify-between">
                 <div class="text-[11px] font-extrabold uppercase tracking-wider text-amber-600">Blocked / Hold</div>
                 <span class="text-xs text-amber-400 group-hover:translate-x-0.5 transition-transform font-bold">→</span>
             </div>
-            <div class="text-3xl font-black text-amber-600 mt-1">{{ $blockedCount }}</div>
-            <div class="text-[10px] text-slate-400 group-hover:text-amber-700 mt-0.5">Vendor or procurement hold</div>
+            <div class="flex items-baseline space-x-2 mt-1">
+                <span class="text-3xl font-black text-amber-600">{{ $blockedCount }}</span>
+                @if(isset($pendingHoldCount) && $pendingHoldCount > 0)
+                    <span class="text-[10px] font-bold bg-amber-500 text-slate-950 px-2 py-0.5 rounded-full animate-pulse" title="{{ $pendingHoldCount }} hold requests waiting for your approval">
+                        ⏸ {{ $pendingHoldCount }} Approval Req
+                    </span>
+                @endif
+            </div>
+            <div class="text-[10px] text-slate-400 group-hover:text-amber-700 mt-0.5">
+                @if(isset($pendingHoldCount) && $pendingHoldCount > 0)
+                    {{ $pendingHoldCount }} hold approval pending
+                @else
+                    Vendor or procurement hold
+                @endif
+            </div>
         </a>
 
         <!-- Pending Approvals -->
@@ -227,7 +240,9 @@
                                         {{ $ticket->subject }}
                                     </a>
                                     <div class="text-[10px] text-slate-500 mt-0.5">
-                                        @if($ticket->status === 'blocked')
+                                        @if($ticket->isHoldPending())
+                                            <span class="text-amber-800 font-bold">⏸ Hold Requested: {{ Str::limit($ticket->hold_requested_reason, 40) }}</span>
+                                        @elseif($ticket->status === 'blocked')
                                             <span class="text-amber-700 font-semibold">🛑 Reason: {{ Str::limit($ticket->blocked_reason, 40) }}</span>
                                         @elseif($ticket->status === 'reopened')
                                             <span class="text-rose-700 font-semibold">🔄 Reopened by requester</span>
@@ -248,7 +263,12 @@
                                 </td>
 
                                 <td class="py-3 px-3 whitespace-nowrap">
-                                    @if($ticket->status === 'blocked')
+                                    @if($ticket->isHoldPending())
+                                        <span class="bg-amber-100 text-amber-900 border border-amber-300 font-bold px-2 py-0.5 rounded text-[10px] uppercase flex items-center space-x-1 animate-pulse">
+                                            <span>⏸</span>
+                                            <span>Hold Approval</span>
+                                        </span>
+                                    @elseif($ticket->status === 'blocked')
                                         <span class="bg-amber-100 text-amber-900 font-bold px-2 py-0.5 rounded text-[10px] uppercase">Blocked</span>
                                     @elseif($ticket->status === 'reopened')
                                         <span class="bg-rose-100 text-rose-900 font-bold px-2 py-0.5 rounded text-[10px] uppercase">Reopened</span>
@@ -260,15 +280,22 @@
                                 </td>
 
                                 <td class="py-3 px-3 text-right whitespace-nowrap space-x-1">
-                                    <button type="button"
-                                            @click="targetTicketId = {{ $ticket->id }}; targetTicketCode = '{{ $ticket->ticket_code }}'; newPriority = '{{ $ticket->priority }}'; priorityModal = true"
-                                            class="text-[11px] bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-2.5 py-1 rounded-lg border border-slate-200 transition">
-                                        ⚡ Override
-                                    </button>
-                                    <a href="{{ route('portal.tickets.show', $ticket->id) }}"
-                                       class="text-[11px] bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold px-2.5 py-1 rounded-lg border border-blue-200 transition">
-                                        Open &rarr;
-                                    </a>
+                                    @if($ticket->isHoldPending())
+                                        <a href="{{ route('portal.tickets.show', $ticket->id) }}"
+                                           class="text-[11px] bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold px-2.5 py-1 rounded-lg shadow-xs transition">
+                                            Review Hold &rarr;
+                                        </a>
+                                    @else
+                                        <button type="button"
+                                                @click="targetTicketId = {{ $ticket->id }}; targetTicketCode = '{{ $ticket->ticket_code }}'; newPriority = '{{ $ticket->priority }}'; priorityModal = true"
+                                                class="text-[11px] bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-2.5 py-1 rounded-lg border border-slate-200 transition">
+                                            ⚡ Override
+                                        </button>
+                                        <a href="{{ route('portal.tickets.show', $ticket->id) }}"
+                                           class="text-[11px] bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold px-2.5 py-1 rounded-lg border border-blue-200 transition">
+                                            Open &rarr;
+                                        </a>
+                                    @endif
                                 </td>
                             </tr>
                         @empty
