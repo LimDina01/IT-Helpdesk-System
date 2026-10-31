@@ -496,6 +496,7 @@
             <form :action="'{{ url('portal/admin/users') }}/' + editForm.id" method="POST" class="space-y-4">
                 @csrf
                 @method('PUT')
+                <input type="hidden" name="is_it_staff" :value="isTargetStaff ? '1' : '0'">
 
                 <!-- Row 1: Name & Email -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -591,7 +592,11 @@
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             @foreach($allRoles->whereIn('name', ['technician', 'helpdesk', 'system_admin', 'hod']) as $role)
                                 <label class="flex items-center space-x-2.5 p-2.5 bg-white rounded-xl border border-slate-200 hover:border-indigo-400 cursor-pointer transition shadow-2xs">
-                                    <input type="checkbox" name="roles[]" value="{{ $role->id }}" :checked="editForm.roles.includes({{ $role->id }})" class="rounded text-indigo-600 focus:ring-indigo-500">
+                                    <input type="checkbox" name="roles[]" value="{{ $role->id }}"
+                                           :checked="editForm.roles.includes({{ $role->id }})"
+                                           :disabled="!isTargetStaff"
+                                           @change="if ($event.target.checked) { if (!editForm.roles.includes({{ $role->id }})) editForm.roles.push({{ $role->id }}); } else { editForm.roles = editForm.roles.filter(id => id !== {{ $role->id }}); }"
+                                           class="rounded text-indigo-600 focus:ring-indigo-500">
                                     <div>
                                         <div class="text-xs font-bold text-slate-800">{{ $role->label }}</div>
                                         <div class="text-[10px] text-slate-400 font-mono">{{ $role->name }}</div>
@@ -624,7 +629,11 @@
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
                             @foreach($allRoles->whereIn('name', ['requester', 'hod']) as $role)
                                 <label class="flex items-center space-x-2.5 p-2.5 bg-white rounded-xl border border-slate-200 hover:border-indigo-400 cursor-pointer transition shadow-2xs">
-                                    <input type="checkbox" name="roles[]" value="{{ $role->id }}" :checked="editForm.roles.includes({{ $role->id }})" class="rounded text-indigo-600 focus:ring-indigo-500">
+                                    <input type="checkbox" name="roles[]" value="{{ $role->id }}"
+                                           :checked="editForm.roles.includes({{ $role->id }})"
+                                           :disabled="isTargetStaff"
+                                           @change="if ($event.target.checked) { if (!editForm.roles.includes({{ $role->id }})) editForm.roles.push({{ $role->id }}); } else { editForm.roles = editForm.roles.filter(id => id !== {{ $role->id }}); }"
+                                           class="rounded text-indigo-600 focus:ring-indigo-500">
                                     <div>
                                         <div class="text-xs font-bold text-slate-800">{{ $role->name === 'hod' ? 'Department Head (Approver)' : 'Employee (Requester)' }}</div>
                                         <div class="text-[10px] text-slate-400 font-mono">{{ $role->name === 'hod' ? 'TMA Step 1 Approver' : 'Standard Requester' }}</div>

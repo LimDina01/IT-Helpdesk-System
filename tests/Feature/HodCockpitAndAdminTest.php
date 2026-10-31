@@ -506,7 +506,7 @@ class HodCockpitAndAdminTest extends TestCase
 
         // 1. Create a regular TMA employee user first
         $dept1 = Department::first();
-        $dept2 = Department::skip(1)->first();
+        $dept2 = Department::where('code', '!=', 'IT')->skip(1)->first();
         $branch = Branch::first();
         $hodRole = Role::where('name', 'hod')->firstOrFail();
         $requesterRole = Role::where('name', 'requester')->firstOrFail();
@@ -552,6 +552,49 @@ class HodCockpitAndAdminTest extends TestCase
         $this->assertEquals('Dina Promoted (HOD)', $user->employee->full_name);
         $this->assertEquals($dept2->id, $user->employee->department_id);
         $this->assertEquals('+855 98 111 222', $user->employee->phone);
+
+        // 3. Admin edits user again: unchecks HOD (demoting back to Requester)
+        $demoteResponse = $this->put(route('portal.admin.users.update', $user->id), [
+            'name' => 'Dina Demoted',
+            'email' => 'dina.hod@cbvh.com.kh',
+            'employee_code' => 'EMP-7788',
+            'department_id' => $dept2->id,
+            'branch_id' => $branch->id,
+            'phone' => '+855 98 111 222',
+            'is_active' => 1,
+            'roles' => [$requesterRole->id], // Only requester checked!
+        ]);
+        $demoteResponse->assertSessionHasNoErrors();
+
+        $user->refresh();
+        $this->assertFalse($user->hasRole('hod'));
+        $this->assertTrue($user->hasRole('requester'));
+        $this->assertFalse($user->can_access_portal);
+    }
+
+    public function test_demoting_seeded_hod_emp_1008_removes_hod_role(): void
+    {
+        $this->actingAs($this->adminUser);
+
+        $user1008 = User::where('email', 'hod.ops@cbvh.com.kh')->firstOrFail();
+        $this->assertTrue($user1008->hasRole('hod'));
+
+        $requesterRole = Role::where('name', 'requester')->firstOrFail();
+
+        $response = $this->put(route('portal.admin.users.update', $user1008->id), [
+            'name' => $user1008->name,
+            'email' => $user1008->email,
+            'employee_code' => $user1008->employee->employee_code,
+            'department_id' => $user1008->employee->department_id,
+            'branch_id' => $user1008->employee->branch_id,
+            'is_it_staff' => 0,
+            'roles' => [$requesterRole->id], // HOD is unchecked!
+        ]);
+
+        $response->assertSessionHasNoErrors();
+        $user1008->refresh();
+        $this->assertFalse($user1008->hasRole('hod'));
+        $this->assertTrue($user1008->hasRole('requester'));
     }
 
     public function test_technician_hold_request_requires_it_hod_approval_before_pausing_sla(): void

@@ -506,7 +506,9 @@ class PortalAdminController extends Controller
 
         $email = strtolower(trim($validated['email']));
 
-        $isStaff = $user->isItStaff() || (!empty($validated['roles']) && Role::whereIn('id', $validated['roles'])->whereIn('name', ['technician', 'helpdesk', 'system_admin'])->exists());
+        $isStaff = $request->has('is_it_staff')
+            ? $request->boolean('is_it_staff')
+            : ($user->isItStaff() && empty($user->employee_id));
 
         if ($isStaff) {
             // Standalone IT staff account: never attach employee records
@@ -563,28 +565,32 @@ class PortalAdminController extends Controller
         $user->save();
 
         // 3. Update roles (with primary admin protection)
-        $roleIds = !empty($validated['roles']) ? $validated['roles'] : ($request->filled('tma_role') ? [(int) $request->input('tma_role')] : []);
+        $roleIds = !empty($validated['roles']) ? array_map('intval', $validated['roles']) : [];
 
-        if (!empty($roleIds)) {
-            $adminRoleId = Role::where('name', 'system_admin')->value('id');
-            $requesterRoleId = Role::where('name', 'requester')->value('id');
-            $hodRoleId = Role::where('name', 'hod')->value('id');
+        $adminRoleId = Role::where('name', 'system_admin')->value('id');
+        $requesterRoleId = Role::where('name', 'requester')->value('id');
+        $hodRoleId = Role::where('name', 'hod')->value('id');
 
+        if (!$isStaff) {
+            // For TMA bank employees: must always have at least requester role
+            if ($requesterRoleId && !in_array($requesterRoleId, $roleIds)) {
+                $roleIds[] = $requesterRoleId;
+            }
+            // Strip any IT technical roles from TMA bank employees
+            $itRoleIds = Role::whereIn('name', ['technician', 'helpdesk', 'system_admin'])->pluck('id')->toArray();
+            $roleIds = array_values(array_diff($roleIds, $itRoleIds));
+        } else {
             // Protect primary admin from losing system_admin role
             if (($user->id === 1 || $user->email === 'admin@cbvh.com.kh') && $adminRoleId && !in_array($adminRoleId, $roleIds)) {
                 $roleIds[] = $adminRoleId;
             }
-
-            // For TMA bank employees: if HOD role is selected, always include requester role as well
-            if (!$isStaff && in_array($hodRoleId, $roleIds) && $requesterRoleId && !in_array($requesterRoleId, $roleIds)) {
-                $roleIds[] = $requesterRoleId;
-            }
-
             // For IT staff: strip requester role
-            if ($isStaff && $requesterRoleId && in_array($requesterRoleId, $roleIds)) {
-                $roleIds = array_diff($roleIds, [$requesterRoleId]);
+            if ($requesterRoleId && in_array($requesterRoleId, $roleIds)) {
+                $roleIds = array_values(array_diff($roleIds, [$requesterRoleId]));
             }
+        }
 
+        if (!empty($roleIds)) {
             $user->roles()->sync($roleIds);
         }
 
