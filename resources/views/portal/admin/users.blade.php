@@ -221,15 +221,22 @@
                             </td>
 
                             <td class="py-3.5 px-4 whitespace-nowrap">
-                                @if($user->can_access_portal)
-                                    <span class="inline-flex items-center space-x-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200" title="User is authorized to log in via Web Portal">
-                                        <span>🌐</span>
-                                        <span>Granted</span>
-                                    </span>
+                                @if($user->isStaff())
+                                    @if($user->can_access_portal)
+                                        <span class="inline-flex items-center space-x-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200" title="User is authorized to log in via Web Portal">
+                                            <span>🌐</span>
+                                            <span>Granted</span>
+                                        </span>
+                                    @else
+                                        <span class="inline-flex items-center space-x-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200" title="Web Portal access is revoked">
+                                            <span>🔒</span>
+                                            <span>Not Granted</span>
+                                        </span>
+                                    @endif
                                 @else
-                                    <span class="inline-flex items-center space-x-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200" title="User can only use Telegram TMA">
-                                        <span>🔒</span>
-                                        <span>Not Granted</span>
+                                    <span class="inline-flex items-center space-x-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-50 text-slate-400 border border-slate-200" title="Telegram Mini App only (TMA Requester)">
+                                        <span>📱</span>
+                                        <span>TMA Only</span>
                                     </span>
                                 @endif
                             </td>
@@ -242,7 +249,7 @@
                                     <span>Edit</span>
                                 </button>
 
-                                @if($user->can_access_portal)
+                                @if($user->isStaff() && $user->can_access_portal)
                                     <button type="button"
                                             @click="targetUser = {{ json_encode($user) }}; userRoles = {{ json_encode($user->roles->pluck('id')) }}; roleModal = true"
                                             class="text-[11px] text-indigo-600 hover:underline font-semibold cursor-pointer">
@@ -250,7 +257,7 @@
                                     </button>
                                 @endif
 
-                                @if($user->id !== Auth::id() && $user->id !== 1 && $user->email !== 'admin@cbvh.com.kh')
+                                @if($user->isStaff() && $user->id !== Auth::id() && $user->id !== 1 && $user->email !== 'admin@cbvh.com.kh')
                                     <!-- Toggle Portal Access Button -->
                                     <form method="POST" action="{{ route('portal.admin.users.toggle-portal', $user->id) }}" class="inline-block" onsubmit="return confirm('{{ $user->can_access_portal ? 'Revoke Web Portal login access for ' . addslashes($user->name) . '?' : 'Grant Web Portal login access to ' . addslashes($user->name) . '?' }}');">
                                         @csrf

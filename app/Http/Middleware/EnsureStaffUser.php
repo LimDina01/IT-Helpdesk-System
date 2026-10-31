@@ -34,6 +34,13 @@ class EnsureStaffUser
             return redirect()->route('portal.login')->withErrors(['email' => 'Your account has been deactivated. Please contact the administrator.']);
         }
 
+        if (!$user->isStaff()) {
+            if ($request->expectsJson()) {
+                return response()->json(['error' => 'Unauthorized. Web Portal access is restricted to IT Staff and Management.'], 403);
+            }
+            abort(403, 'Unauthorized. Web Portal access is restricted to IT Staff and Management.');
+        }
+
         if (!$user->can_access_portal) {
             if ($request->expectsJson()) {
                 return response()->json(['error' => 'Unauthorized. Web Portal access is not enabled for your account.'], 403);

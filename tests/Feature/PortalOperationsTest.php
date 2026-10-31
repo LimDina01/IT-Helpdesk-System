@@ -107,12 +107,14 @@ class PortalOperationsTest extends TestCase
     public function test_ad_user_with_portal_access_logs_in_without_altering_roles(): void
     {
         $adUser = User::create([
-            'name' => 'Permitted AD User',
+            'name' => 'Permitted AD Helpdesk',
             'email' => 'permitted.ad@cbvh.com.kh',
             'password' => \Illuminate\Support\Facades\Hash::make('Temporary123!'),
             'can_access_portal' => true,
             'is_active' => true,
         ]);
+        $helpdeskRole = \App\Models\Role::where('name', 'helpdesk')->first();
+        $adUser->roles()->attach($helpdeskRole->id);
 
         $mockLdap = $this->createMock(\App\Services\LdapAuthService::class);
         $mockLdap->method('isEnabled')->willReturn(true);
@@ -129,7 +131,31 @@ class PortalOperationsTest extends TestCase
 
         $response->assertRedirect('/portal');
         $this->assertAuthenticatedAs($adUser);
+        $this->assertTrue($adUser->refresh()->hasRole('helpdesk'));
         $this->assertFalse($adUser->refresh()->hasRole('technician'));
+    }
+
+    public function test_tma_requester_is_strictly_denied_login_to_web_portal(): void
+    {
+        $requester = User::where('email', 'sokha.chan@cbvh.com.kh')->first();
+        $this->assertFalse($requester->isStaff());
+
+        $response = $this->post('/portal/login', [
+            'email' => 'sokha.chan@cbvh.com.kh',
+            'password' => 'Password123!',
+        ]);
+
+        $response->assertSessionHasErrors('email');
+        $this->assertGuest();
+
+        // Even if can_access_portal is true, lack of staff role strictly blocks portal access
+        $requester->update(['can_access_portal' => true]);
+        $response2 = $this->post('/portal/login', [
+            'email' => 'sokha.chan@cbvh.com.kh',
+            'password' => 'Password123!',
+        ]);
+        $response2->assertSessionHasErrors('email');
+        $this->assertGuest();
     }
 
     public function test_helpdesk_can_assign_technician_and_record_assignment_history(): void

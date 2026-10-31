@@ -16,7 +16,7 @@ class PortalAuthController extends Controller
      */
     public function showLogin(): View|RedirectResponse
     {
-        if (Auth::check() && Auth::user()->can_access_portal) {
+        if (Auth::check() && Auth::user()->isStaff() && Auth::user()->can_access_portal) {
             return redirect()->route('portal.dashboard');
         }
 
@@ -43,8 +43,12 @@ class PortalAuthController extends Controller
                     return back()->withErrors(['email' => 'This account has been deactivated. Please contact the administrator.']);
                 }
 
+                if (!$ldapUser->isStaff()) {
+                    return back()->withErrors(['email' => 'Access denied. The Web Portal is restricted to IT Technical Staff and Management. Regular employees must use Telegram TMA.']);
+                }
+
                 if (!$ldapUser->can_access_portal) {
-                    return back()->withErrors(['email' => 'Access denied. Web Portal access is not enabled for your account. Please use the Telegram TMA app.']);
+                    return back()->withErrors(['email' => 'Access denied. Web Portal access is disabled for your account. Please contact an administrator.']);
                 }
 
                 Auth::login($ldapUser, $remember);
@@ -128,8 +132,12 @@ class PortalAuthController extends Controller
                     }
                 }
 
+                if (!$localUser->isStaff()) {
+                    return back()->withErrors(['email' => 'Access denied. The Web Portal is restricted to IT Technical Staff and Management. Regular employees must use Telegram TMA.']);
+                }
+
                 if (!$localUser->can_access_portal) {
-                    return back()->withErrors(['email' => 'Access denied. Web Portal access is not enabled for your account. Please use the Telegram TMA app.']);
+                    return back()->withErrors(['email' => 'Access denied. Web Portal access is disabled for your account. Please contact an administrator.']);
                 }
 
                 Auth::login($localUser, $remember);

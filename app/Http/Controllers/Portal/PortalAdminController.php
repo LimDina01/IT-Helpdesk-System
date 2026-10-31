@@ -281,14 +281,14 @@ class PortalAdminController extends Controller
         if ($filter === 'portal') {
             $query->whereHas('roles', fn($q) => $q->whereIn('name', ['technician', 'helpdesk', 'system_admin']));
         } elseif ($filter === 'tma') {
-            $query->whereHas('roles', fn($q) => $q->where('name', 'requester'));
+            $query->whereDoesntHave('roles', fn($q) => $q->whereIn('name', ['technician', 'helpdesk', 'system_admin']));
         }
 
         $users = $query->paginate(25)->withQueryString();
 
         $totalCount = User::count();
         $staffCount = User::whereHas('roles', fn($q) => $q->whereIn('name', ['technician', 'helpdesk', 'system_admin']))->count();
-        $tmaCount = User::whereHas('roles', fn($q) => $q->where('name', 'requester'))->count();
+        $tmaCount = User::whereDoesntHave('roles', fn($q) => $q->whereIn('name', ['technician', 'helpdesk', 'system_admin']))->count();
 
         // Operational IT Staff roles (for staff modal)
         $roles = Role::whereIn('name', ['technician', 'helpdesk', 'system_admin', 'hod'])->get();
