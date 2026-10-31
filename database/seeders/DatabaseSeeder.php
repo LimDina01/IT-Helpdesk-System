@@ -30,19 +30,19 @@ class DatabaseSeeder extends Seeder
 
         $roleModels = [];
         foreach ($roles as $r) {
-            $roleModels[$r['name']] = Role::create($r);
+            $roleModels[$r['name']] = Role::firstOrCreate(['name' => $r['name']], $r);
         }
 
         // 2. Branches
         $branches = [
-            ['name' => 'Phnom Penh Head Office', 'code' => 'HQ-PP'],
-            ['name' => 'Toul Kork Branch', 'code' => 'TK-01'],
-            ['name' => 'Downtown Branch', 'code' => 'DT-02'],
-            ['name' => 'Siem Reap Regional Office', 'code' => 'SR-01'],
+            ['name' => 'CBVH Head Office Phnom Penh', 'code' => 'HQ-PP'],
+            ['name' => 'Bak Touk Branch Phnom Penh', 'code' => 'BT-PP'],
+            ['name' => 'Battambang Branch', 'code' => 'BTB-01'],
+            ['name' => 'Vanhong – Siem Reap', 'code' => 'VH-SR'],
         ];
         $branchModels = [];
         foreach ($branches as $b) {
-            $branchModels[$b['code']] = Branch::create($b);
+            $branchModels[$b['code']] = Branch::firstOrCreate(['code' => $b['code']], $b);
         }
 
         // 3. Departments
@@ -57,111 +57,125 @@ class DatabaseSeeder extends Seeder
         ];
         $deptModels = [];
         foreach ($departments as $d) {
-            $deptModels[$d['code']] = Department::create($d);
+            $deptModels[$d['code']] = Department::firstOrCreate(['code' => $d['code']], $d);
         }
 
         // 4. Pre-approved Employees Roster (TMA Bank Employees)
         $defaultPassword = Hash::make('Password123!');
         $employeesData = [
             ['employee_code' => 'EMP-1001', 'full_name' => 'Sokha Chan', 'email' => 'sokha.chan@cbvh.com.kh', 'phone' => '+855 12 111 222', 'branch' => 'HQ-PP', 'dept' => 'OPS', 'telegram_id' => 123456789, 'telegram_username' => 'sokhachan_demo', 'is_hod' => false],
-            ['employee_code' => 'EMP-1002', 'full_name' => 'Bopha Keo', 'email' => 'bopha.keo@cbvh.com.kh', 'phone' => '+855 12 333 444', 'branch' => 'TK-01', 'dept' => 'FIN', 'is_hod' => false],
-            ['employee_code' => 'EMP-1003', 'full_name' => 'Vicheka Long', 'email' => 'vicheka.long@cbvh.com.kh', 'phone' => '+855 12 555 666', 'branch' => 'DT-02', 'dept' => 'SALES', 'is_hod' => false],
+            ['employee_code' => 'EMP-1002', 'full_name' => 'Bopha Keo', 'email' => 'bopha.keo@cbvh.com.kh', 'phone' => '+855 12 333 444', 'branch' => 'BT-PP', 'dept' => 'FIN', 'is_hod' => false],
+            ['employee_code' => 'EMP-1003', 'full_name' => 'Vicheka Long', 'email' => 'vicheka.long@cbvh.com.kh', 'phone' => '+855 12 555 666', 'branch' => 'BTB-01', 'dept' => 'SALES', 'is_hod' => false],
             ['employee_code' => 'EMP-1004', 'full_name' => 'Rathana Chea', 'email' => 'rathana.chea@cbvh.com.kh', 'phone' => '+855 12 777 888', 'branch' => 'HQ-PP', 'dept' => 'HR', 'is_hod' => false],
-            ['employee_code' => 'EMP-1005', 'full_name' => 'Seyha Pich', 'email' => 'seyha.pich@cbvh.com.kh', 'phone' => '+855 12 999 111', 'branch' => 'DT-02', 'dept' => 'MGT', 'is_hod' => false],
-            ['employee_code' => 'EMP-1006', 'full_name' => 'Sreyneang Mao', 'email' => 'sreyneang.mao@cbvh.com.kh', 'phone' => '+855 12 222 555', 'branch' => 'TK-01', 'dept' => 'LOAN', 'is_hod' => false],
-            ['employee_code' => 'EMP-1007', 'full_name' => 'Piseth Heng', 'email' => 'piseth.heng@cbvh.com.kh', 'phone' => '+855 12 444 888', 'branch' => 'SR-01', 'dept' => 'SALES', 'is_hod' => false],
+            ['employee_code' => 'EMP-1005', 'full_name' => 'Seyha Pich', 'email' => 'seyha.pich@cbvh.com.kh', 'phone' => '+855 12 999 111', 'branch' => 'VH-SR', 'dept' => 'MGT', 'is_hod' => false],
+            ['employee_code' => 'EMP-1006', 'full_name' => 'Sreyneang Mao', 'email' => 'sreyneang.mao@cbvh.com.kh', 'phone' => '+855 12 222 555', 'branch' => 'BT-PP', 'dept' => 'LOAN', 'is_hod' => false],
+            ['employee_code' => 'EMP-1007', 'full_name' => 'Piseth Heng', 'email' => 'piseth.heng@cbvh.com.kh', 'phone' => '+855 12 444 888', 'branch' => 'VH-SR', 'dept' => 'SALES', 'is_hod' => false],
             ['employee_code' => 'EMP-1008', 'full_name' => 'Chantha Som (Operations HOD)', 'email' => 'hod.ops@cbvh.com.kh', 'phone' => '+855 12 777 999', 'branch' => 'HQ-PP', 'dept' => 'OPS', 'is_hod' => true],
             ['employee_code' => 'EMP-1009', 'full_name' => 'Chhayly Tep (Finance HOD)', 'email' => 'hod.fin@cbvh.com.kh', 'phone' => '+855 12 888 333', 'branch' => 'HQ-PP', 'dept' => 'FIN', 'is_hod' => true],
         ];
 
         $empModels = [];
         foreach ($employeesData as $e) {
-            $emp = Employee::create([
-                'employee_code' => $e['employee_code'],
-                'full_name' => $e['full_name'],
-                'email' => $e['email'],
-                'phone' => $e['phone'],
-                'branch_id' => $branchModels[$e['branch']]->id,
-                'department_id' => $deptModels[$e['dept']]->id,
-                'is_active' => true,
-            ]);
+            $emp = Employee::firstOrCreate(
+                ['employee_code' => $e['employee_code']],
+                [
+                    'full_name' => $e['full_name'],
+                    'email' => $e['email'],
+                    'phone' => $e['phone'],
+                    'branch_id' => $branchModels[$e['branch']]->id,
+                    'department_id' => $deptModels[$e['dept']]->id,
+                    'is_active' => true,
+                ]
+            );
             $empModels[$e['employee_code']] = $emp;
         }
 
         // 5. Staff Users (IT Operations & Management Portal Team)
         // IT HOD & System Admin (User ID 1: Primary Testing Admin)
-        $hodUser = User::create([
-            'employee_id' => null, // Standalone IT Account
-            'name' => 'Vannak Ouk (HOD / Admin)',
-            'email' => 'admin@cbvh.com.kh',
-            'password' => $defaultPassword,
-            'can_access_portal' => true,
-            'is_active' => true,
-        ]);
-        $hodUser->roles()->attach([$roleModels['system_admin']->id, $roleModels['hod']->id]);
+        $hodUser = User::firstOrCreate(
+            ['email' => 'admin@cbvh.com.kh'],
+            [
+                'employee_id' => null, // Standalone IT Account
+                'name' => 'Vannak Ouk (HOD / Admin)',
+                'password' => $defaultPassword,
+                'can_access_portal' => true,
+                'is_active' => true,
+            ]
+        );
+        $hodUser->roles()->syncWithoutDetaching([$roleModels['system_admin']->id, $roleModels['hod']->id]);
 
         // Senior Admin
-        $dinaUser = User::create([
-            'employee_id' => null, // Standalone IT Account
-            'name' => 'Dina LIM (Senior Admin)',
-            'email' => 'dina.lim@cbvh66.com',
-            'password' => $defaultPassword,
-            'can_access_portal' => true,
-            'is_active' => true,
-        ]);
-        $dinaUser->roles()->attach([$roleModels['system_admin']->id, $roleModels['hod']->id]);
+        $dinaUser = User::firstOrCreate(
+            ['email' => 'dina.lim@cbvh66.com'],
+            [
+                'employee_id' => null, // Standalone IT Account
+                'name' => 'Dina LIM (Senior Admin)',
+                'password' => $defaultPassword,
+                'can_access_portal' => true,
+                'is_active' => true,
+            ]
+        );
+        $dinaUser->roles()->syncWithoutDetaching([$roleModels['system_admin']->id, $roleModels['hod']->id]);
 
         // Help Desk Specialist
-        $helpdeskUser = User::create([
-            'employee_id' => null, // Standalone IT Account
-            'name' => 'Kosal Meng (Help Desk)',
-            'email' => 'helpdesk@cbvh.com.kh',
-            'password' => $defaultPassword,
-            'can_access_portal' => true,
-            'is_active' => true,
-        ]);
-        $helpdeskUser->roles()->attach([$roleModels['helpdesk']->id]);
+        $helpdeskUser = User::firstOrCreate(
+            ['email' => 'helpdesk@cbvh.com.kh'],
+            [
+                'employee_id' => null, // Standalone IT Account
+                'name' => 'Kosal Meng (Help Desk)',
+                'password' => $defaultPassword,
+                'can_access_portal' => true,
+                'is_active' => true,
+            ]
+        );
+        $helpdeskUser->roles()->syncWithoutDetaching([$roleModels['helpdesk']->id]);
 
         // Technician 1 (Hardware / POS specialist)
-        $tech1User = User::create([
-            'employee_id' => null, // Standalone IT Account
-            'name' => 'Dara Sam (IT Technician)',
-            'email' => 'tech1@cbvh.com.kh',
-            'password' => $defaultPassword,
-            'can_access_portal' => true,
-            'is_active' => true,
-        ]);
-        $tech1User->roles()->attach([$roleModels['technician']->id]);
+        $tech1User = User::firstOrCreate(
+            ['email' => 'tech1@cbvh.com.kh'],
+            [
+                'employee_id' => null, // Standalone IT Account
+                'name' => 'Dara Sam (IT Technician)',
+                'password' => $defaultPassword,
+                'can_access_portal' => true,
+                'is_active' => true,
+            ]
+        );
+        $tech1User->roles()->syncWithoutDetaching([$roleModels['technician']->id]);
 
         // Technician 2 (Multi-role: Technician + Help Desk backup)
-        $tech2User = User::create([
-            'employee_id' => null, // Standalone staff account
-            'name' => 'Sopheap Nuon (Senior Tech & Triage)',
-            'email' => 'tech2@cbvh.com.kh',
-            'password' => $defaultPassword,
-            'can_access_portal' => true,
-            'is_active' => true,
-        ]);
-        $tech2User->roles()->attach([$roleModels['technician']->id, $roleModels['helpdesk']->id]);
+        $tech2User = User::firstOrCreate(
+            ['email' => 'tech2@cbvh.com.kh'],
+            [
+                'employee_id' => null, // Standalone staff account
+                'name' => 'Sopheap Nuon (Senior Tech & Triage)',
+                'password' => $defaultPassword,
+                'can_access_portal' => true,
+                'is_active' => true,
+            ]
+        );
+        $tech2User->roles()->syncWithoutDetaching([$roleModels['technician']->id, $roleModels['helpdesk']->id]);
 
         // 6. TMA Bank Employees & Department Approvers (Users)
         foreach ($employeesData as $e) {
-            $user = User::create([
-                'employee_id' => $empModels[$e['employee_code']]->id,
-                'name' => $e['full_name'],
-                'email' => $e['email'],
-                'telegram_id' => $e['telegram_id'] ?? null,
-                'telegram_username' => $e['telegram_username'] ?? null,
-                'password' => $defaultPassword,
-                'can_access_portal' => (bool) ($e['is_hod'] ?? false),
-                'is_active' => true,
-            ]);
+            $user = User::firstOrCreate(
+                ['email' => $e['email']],
+                [
+                    'employee_id' => $empModels[$e['employee_code']]->id,
+                    'name' => $e['full_name'],
+                    'telegram_id' => $e['telegram_id'] ?? null,
+                    'telegram_username' => $e['telegram_username'] ?? null,
+                    'password' => $defaultPassword,
+                    'can_access_portal' => (bool) ($e['is_hod'] ?? false),
+                    'is_active' => true,
+                ]
+            );
 
             $rolesToAttach = [$roleModels['requester']->id];
             if (!empty($e['is_hod'])) {
                 $rolesToAttach[] = $roleModels['hod']->id;
             }
-            $user->roles()->attach($rolesToAttach);
+            $user->roles()->syncWithoutDetaching($rolesToAttach);
         }
 
         // 6. Company Holidays (Excluding Sundays which are handled by rule)
@@ -182,7 +196,7 @@ class DatabaseSeeder extends Seeder
         ];
 
         foreach ($holidays as $h) {
-            CompanyHoliday::create($h);
+            CompanyHoliday::firstOrCreate(['holiday_date' => $h['holiday_date'], 'name' => $h['name']], $h);
         }
 
         // 7. Ticket Categories
@@ -381,10 +395,12 @@ class DatabaseSeeder extends Seeder
                     default => null,
                 };
             }
-            $parent = TicketCategory::create($cat);
+            $parent = TicketCategory::firstOrCreate(['name' => $cat['name'], 'parent_id' => null], $cat);
 
             foreach ($children as $childName) {
-                TicketCategory::create([
+                TicketCategory::firstOrCreate(
+                    ['parent_id' => $parent->id, 'name' => $childName],
+                    [
                     'parent_id' => $parent->id,
                     'name' => $childName,
                     'name_km' => match($childName) {
