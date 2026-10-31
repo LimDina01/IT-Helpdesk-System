@@ -32,19 +32,23 @@ class TicketApprovalService
         $ticket->update(['status' => 'pending_approval']);
 
         $deptId = $ticket->requester->employee?->department_id;
-        $hasDeptHod = $deptId && $deptId != 2 && User::whereHas('roles', fn($q) => $q->where('name', 'hod'))
+        $branchId = $ticket->branch_id ?? $ticket->requester->employee?->branch_id;
+
+        // Check if requester's branch & department has a designated HOD (excluding IT Department / IT HOD)
+        $hasDeptHod = $deptId && $branchId && $deptId != 2 && User::whereHas('roles', fn($q) => $q->where('name', 'hod'))
             ->where('email', '!=', 'admin@cbvh.com.kh')
-            ->whereHas('employee', fn($q) => $q->where('department_id', $deptId))
+            ->whereHas('employee', fn($q) => $q->where('department_id', $deptId)->where('branch_id', $branchId))
             ->exists();
 
         if ($hasDeptHod) {
-            // Normal 2-Stage Approval: Step 1 is Department HOD
+            // Normal 2-Stage Approval: Step 1 is Branch Department HOD
             $step1 = TicketApproval::create([
                 'ticket_id' => $ticket->id,
                 'step_number' => 1,
                 'step_name' => 'Department HOD Approval',
                 'role_name' => 'department_hod',
                 'department_id' => $deptId,
+                'branch_id' => $branchId,
                 'status' => 'pending',
             ]);
 
@@ -54,21 +58,23 @@ class TicketApprovalService
                 'step_name' => 'IT Manager Approval',
                 'role_name' => 'it_manager',
                 'department_id' => null,
+                'branch_id' => null, // IT HOD is Centralized at HQ for all bank branches
                 'status' => 'pending',
             ]);
 
-            // Notify Step 1 approvers (Department HOD)
+            // Notify Step 1 approvers (Branch Department HOD)
             $this->notifyStepApprover($step1, $ticket);
         } else {
-            // Requester department has NO designated HOD -> Auto-pass Step 1 and route directly to IT HOD (Step 2)
+            // Requester branch department has NO designated HOD -> Auto-pass Step 1 and route directly to Central IT HOD (Step 2)
             $step1 = TicketApproval::create([
                 'ticket_id' => $ticket->id,
                 'step_number' => 1,
                 'step_name' => 'Department HOD Approval',
                 'role_name' => 'department_hod',
                 'department_id' => $deptId,
+                'branch_id' => $branchId,
                 'status' => 'approved',
-                'comments' => 'Department has no designated HOD — automatically routed to IT Review.',
+                'comments' => 'Branch department has no designated HOD — automatically routed to Central IT Review.',
                 'actioned_at' => now(),
             ]);
 
@@ -78,6 +84,7 @@ class TicketApprovalService
                 'step_name' => 'IT Manager Approval',
                 'role_name' => 'it_manager',
                 'department_id' => null,
+                'branch_id' => null,
                 'status' => 'pending',
             ]);
 
@@ -86,7 +93,7 @@ class TicketApprovalService
                 'sender_id' => $ticket->requester_id,
                 'visibility' => 'system_event',
                 'message_type' => 'status_change',
-                'body' => 'ℹ️ Requester department has no designated HOD. Request routed directly to IT Manager for approval.',
+                'body' => 'ℹ️ Requester branch department has no designated HOD. Request routed directly to Central IT Manager for approval.',
             ]);
 
             // Notify Step 2 (IT HOD) immediately!
@@ -145,6 +152,7 @@ class TicketApprovalService
         $userDeptCode = $user->employee?->department?->code;
         $userEmpCode = $user->employee?->employee_code;
         $userDeptId = $user->employee?->department_id;
+        $userBranchId = $user->employee?->branch_id;
         $isItHod = ($userDeptCode === 'IT')
             || ($userDeptId === 2)
             || ($user->email === 'admin@cbvh.com.kh')
@@ -153,29 +161,34 @@ class TicketApprovalService
 
         // ========================================================
         // Process 1: Department HOD Approval (Strictly Step 1)
+        // Branch + Department specific
         // ========================================================
         if ($approval->role_name === 'department_hod' || $approval->step_number === 1) {
-            // IT HOD (EMP-1007) MUST NOT approve Step 1! IT HOD is strictly Step 2.
+            // Central IT HOD MUST NOT approve Step 1! IT HOD is strictly Step 2.
             if ($isItHod) {
                 return false;
             }
 
             $targetDeptId = $approval->department_id ?? $ticket->requester->employee?->department_id;
+            $targetBranchId = $approval->branch_id ?? $ticket->branch_id ?? $ticket->requester->employee?->branch_id;
 
-            // Direct match ONLY: User MUST be the designated HOD of the requester's department
-            if ($userDeptId && $targetDeptId && $userDeptId === $targetDeptId && $user->hasRole('hod')) {
+            // Direct match ONLY: User MUST be the designated HOD of the requester's department AND branch
+            if ($userDeptId && $targetDeptId && $userDeptId === $targetDeptId
+                && $userBranchId && $targetBranchId && $userBranchId === $targetBranchId
+                && $user->hasRole('hod')) {
                 return true;
             }
 
-            // Strictly NO approval across different departments
+            // Strictly NO approval across different departments or branches
             return false;
         }
 
         // ========================================================
         // Process 2: IT Department HOD Approval (Strictly Step 2)
+        // Centralized at HQ for all bank branches
         // ========================================================
         if ($approval->role_name === 'it_manager' || $approval->step_number === 2) {
-            // Non-IT Department HOD (EMP-1008) MUST NOT approve Step 2!
+            // Non-IT Department HOD MUST NOT approve Step 2!
             return $isItHod && $user->hasRole(['hod', 'system_admin']);
         }
 
@@ -371,12 +384,13 @@ class TicketApprovalService
     {
         if ($step->role_name === 'department_hod') {
             $deptId = $step->department_id ?? $ticket->requester->employee?->department_id;
+            $branchId = $step->branch_id ?? $ticket->branch_id ?? $ticket->requester->employee?->branch_id;
             $approvers = User::whereHas('roles', fn($q) => $q->where('name', 'hod'))
-                ->whereHas('employee', fn($q) => $q->where('department_id', $deptId))
+                ->whereHas('employee', fn($q) => $q->where('department_id', $deptId)->where('branch_id', $branchId))
                 ->whereNotNull('telegram_id')
                 ->get();
         } else {
-            // Process 2: IT Department HOD
+            // Process 2: Central IT Department HOD (HQ)
             $approvers = User::whereHas('roles', fn($q) => $q->whereIn('name', ['hod', 'system_admin']))
                 ->where(function ($q) {
                     $q->whereDoesntHave('employee')

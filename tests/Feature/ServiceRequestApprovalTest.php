@@ -349,4 +349,96 @@ class ServiceRequestApprovalTest extends TestCase
         $ticket->refresh();
         $this->assertEquals('submitted', $ticket->status);
     }
+
+    public function test_branch_specific_hod_approval_isolation_and_central_it_hod_resolution(): void
+    {
+        // Requester in Battambang Sales
+        $btbRequester = User::where('email', 'vicheka.long@cbvh.com.kh')->firstOrFail();
+        $btbBranch = Branch::where('code', 'BTB-01')->firstOrFail();
+        $btbHod = User::where('email', 'hod.btb@cbvh.com.kh')->firstOrFail();
+
+        $ticket = Ticket::create([
+            'ticket_code' => 'TICK-TEST-BTB',
+            'requester_id' => $btbRequester->id,
+            'branch_id' => $btbBranch->id,
+            'category_id' => $this->procurementCat->id,
+            'ticket_type' => 'service_request',
+            'priority' => 'medium',
+            'status' => 'submitted',
+            'subject' => 'Sales Tablet for Battambang Branch',
+            'description' => 'Need tablet for loan officer field visits.',
+        ]);
+
+        $approvalService = app(TicketApprovalService::class);
+        $approvalService->createApprovalChain($ticket);
+        $ticket->refresh();
+
+        $step1 = $ticket->approvals()->where('step_number', 1)->first();
+        $step2 = $ticket->approvals()->where('step_number', 2)->first();
+
+        $this->assertEquals('pending', $step1->status);
+        $this->assertEquals($btbBranch->id, $step1->branch_id);
+
+        // 1. HQ Operations HOD cannot approve Battambang Sales request
+        $this->assertFalse($approvalService->canUserApprove($this->opsHodUser, $step1));
+
+        // 2. Central IT HOD cannot approve Step 1
+        $this->assertFalse($approvalService->canUserApprove($this->itHodUser, $step1));
+
+        // 3. Battambang Sales HOD CAN approve Step 1
+        $this->assertTrue($approvalService->canUserApprove($btbHod, $step1));
+
+        // 4. Battambang HOD approves Step 1
+        $this->assertTrue($approvalService->approve($step1, $btbHod, 'Approved for Battambang field operations'));
+        $step1->refresh();
+        $this->assertEquals('approved', $step1->status);
+
+        // 5. Battambang HOD cannot approve Step 2 (Central IT HOD only)
+        $this->assertFalse($approvalService->canUserApprove($btbHod, $step2));
+
+        // 6. Central IT HOD (HQ) CAN approve Step 2 for Battambang request
+        $this->assertTrue($approvalService->canUserApprove($this->itHodUser, $step2));
+        $this->assertTrue($approvalService->approve($step2, $this->itHodUser, 'IT budget approved for branch equipment'));
+
+        $ticket->refresh();
+        $this->assertEquals('submitted', $ticket->status);
+    }
+
+    public function test_branch_without_designated_department_hod_auto_passes_step_1_to_central_it(): void
+    {
+        // Requester at Bak Touk in Finance (Bak Touk has no local Finance HOD)
+        $bakToukRequester = User::where('email', 'bopha.keo@cbvh.com.kh')->firstOrFail();
+        $bakToukBranch = Branch::where('code', 'BT-PP')->firstOrFail();
+
+        $ticket = Ticket::create([
+            'ticket_code' => 'TICK-TEST-NO-HOD',
+            'requester_id' => $bakToukRequester->id,
+            'branch_id' => $bakToukBranch->id,
+            'category_id' => $this->procurementCat->id,
+            'ticket_type' => 'service_request',
+            'priority' => 'low',
+            'status' => 'submitted',
+            'subject' => 'Specialized Financial Calculator',
+            'description' => 'Calculator needed for Bak Touk branch.',
+        ]);
+
+        $approvalService = app(TicketApprovalService::class);
+        $approvalService->createApprovalChain($ticket);
+        $ticket->refresh();
+
+        $step1 = $ticket->approvals()->where('step_number', 1)->first();
+        $step2 = $ticket->approvals()->where('step_number', 2)->first();
+
+        // Step 1 should be auto-passed since Bak Touk branch has no local Finance HOD
+        $this->assertEquals('approved', $step1->status);
+        $this->assertStringContainsString('Branch department has no designated HOD', $step1->comments);
+
+        // Step 2 is immediately pending and Central IT HOD can approve right away
+        $this->assertEquals('pending', $step2->status);
+        $this->assertTrue($approvalService->canUserApprove($this->itHodUser, $step2));
+
+        $this->assertTrue($approvalService->approve($step2, $this->itHodUser, 'Directly approved by IT HOD'));
+        $ticket->refresh();
+        $this->assertEquals('submitted', $ticket->status);
+    }
 }

@@ -16,6 +16,7 @@ class TicketApproval extends Model
         'step_name',
         'role_name',
         'department_id',
+        'branch_id',
         'approver_id',
         'status',
         'comments',
@@ -43,6 +44,11 @@ class TicketApproval extends Model
     public function department(): BelongsTo
     {
         return $this->belongsTo(Department::class);
+    }
+
+    public function branch(): BelongsTo
+    {
+        return $this->belongsTo(Branch::class);
     }
 
     public function isPending(): bool

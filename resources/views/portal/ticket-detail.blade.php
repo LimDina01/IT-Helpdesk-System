@@ -588,8 +588,16 @@
                         <div class="font-bold text-xs text-slate-800">{{ $approval->step_name }}</div>
                         <div class="text-[11px] text-slate-500 mt-0.5">
                             Role: <strong>{{ ucwords(str_replace('_', ' ', $approval->role_name)) }}</strong>
-                            @if($approval->department_id && $ticket->requester->employee?->department)
-                                <span>({{ $ticket->requester->employee->department->name }})</span>
+                            @if($approval->role_name === 'department_hod')
+                                @php
+                                    $stepDept = $approval->department ?? $ticket->requester->employee?->department;
+                                    $stepBranch = $approval->branch ?? $ticket->branch;
+                                @endphp
+                                @if($stepDept || $stepBranch)
+                                    <span class="text-slate-600 font-medium">({{ $stepDept?->name ?? 'Dept' }} &bull; {{ $stepBranch?->name ?? 'Branch' }})</span>
+                                @endif
+                            @elseif($approval->role_name === 'it_manager')
+                                <span class="text-indigo-600 font-medium">(Central IT &bull; Head Office)</span>
                             @endif
                         </div>
 

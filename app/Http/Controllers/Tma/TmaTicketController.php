@@ -244,6 +244,8 @@ class TmaTicketController extends Controller
                 'step_number' => $app->step_number,
                 'step_name' => $app->step_name,
                 'role_name' => $app->role_name,
+                'department_name' => $app->department?->name,
+                'branch_name' => $app->branch?->name,
                 'status' => $app->status,
                 'comments' => $app->comments,
                 'approver_name' => $app->approver->name ?? null,

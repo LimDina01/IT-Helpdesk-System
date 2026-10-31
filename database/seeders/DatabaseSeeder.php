@@ -72,6 +72,7 @@ class DatabaseSeeder extends Seeder
             ['employee_code' => 'EMP-1007', 'full_name' => 'Piseth Heng', 'email' => 'piseth.heng@cbvh.com.kh', 'phone' => '+855 12 444 888', 'branch' => 'VH-SR', 'dept' => 'SALES', 'is_hod' => false],
             ['employee_code' => 'EMP-1008', 'full_name' => 'Chantha Som (Operations HOD)', 'email' => 'hod.ops@cbvh.com.kh', 'phone' => '+855 12 777 999', 'branch' => 'HQ-PP', 'dept' => 'OPS', 'is_hod' => true],
             ['employee_code' => 'EMP-1009', 'full_name' => 'Chhayly Tep (Finance HOD)', 'email' => 'hod.fin@cbvh.com.kh', 'phone' => '+855 12 888 333', 'branch' => 'HQ-PP', 'dept' => 'FIN', 'is_hod' => true],
+            ['employee_code' => 'EMP-1010', 'full_name' => 'Vireak Morm (Battambang Sales HOD)', 'email' => 'hod.btb@cbvh.com.kh', 'phone' => '+855 12 666 777', 'branch' => 'BTB-01', 'dept' => 'SALES', 'is_hod' => true],
         ];
 
         $empModels = [];
