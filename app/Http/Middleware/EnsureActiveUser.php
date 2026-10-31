@@ -15,8 +15,10 @@ class EnsureActiveUser
      */
     public function handle(Request $request, Closure $next): Response
     {
-        if (Auth::check()) {
-            $user = Auth::user();
+        $activeGuard = Auth::guard('tma')->check() ? 'tma' : (Auth::guard('web')->check() ? 'web' : null);
+
+        if ($activeGuard) {
+            $user = Auth::guard($activeGuard)->user();
 
             if (!$user->is_active) {
                 // Instantly purge user sessions and log out
@@ -24,7 +26,7 @@ class EnsureActiveUser
                     DB::table('sessions')->where('user_id', $user->id)->delete();
                 } catch (\Throwable $e) {}
 
-                Auth::logout();
+                Auth::guard($activeGuard)->logout();
                 $request->session()->invalidate();
                 $request->session()->regenerateToken();
 

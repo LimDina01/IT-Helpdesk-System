@@ -23,11 +23,11 @@ class TmaAuthController extends Controller
      */
     public function authenticate(Request $request): JsonResponse
     {
-        // 0. If user already has an active web session
-        if (Auth::check()) {
-            $user = Auth::user();
+        // 0. If user already has an active TMA web session
+        if (Auth::guard('tma')->check()) {
+            $user = Auth::guard('tma')->user();
             if (!$user->is_active) {
-                Auth::logout();
+                Auth::guard('tma')->logout();
                 $request->session()->invalidate();
                 return response()->json([
                     'status' => 'suspended',
@@ -58,7 +58,7 @@ class TmaAuthController extends Controller
                 }
 
                 $user->loadMissing('employee.branch', 'employee.department', 'roles');
-                Auth::login($user);
+                Auth::guard('tma')->login($user);
                 return response()->json([
                     'status' => 'authenticated',
                     'login_method' => 'dev_login',
@@ -101,7 +101,7 @@ class TmaAuthController extends Controller
                 ], 403);
             }
 
-            Auth::login($user);
+            Auth::guard('tma')->login($user);
 
             return response()->json([
                 'status' => 'authenticated',
@@ -292,7 +292,7 @@ class TmaAuthController extends Controller
             ], 401);
         }
 
-        Auth::login($authenticatedUser, (bool) ($validated['remember'] ?? true));
+        Auth::guard('tma')->login($authenticatedUser, (bool) ($validated['remember'] ?? true));
 
         return response()->json([
             'status' => 'authenticated',
@@ -334,7 +334,7 @@ class TmaAuthController extends Controller
      */
     public function logout(): JsonResponse
     {
-        Auth::logout();
+        Auth::guard('tma')->logout();
         request()->session()->invalidate();
         request()->session()->regenerateToken();
 

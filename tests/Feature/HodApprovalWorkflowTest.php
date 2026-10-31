@@ -39,7 +39,7 @@ class HodApprovalWorkflowTest extends TestCase
         // -------------------------------------------------------------
         // STAGE 1: IT HOD (EMP-1007) initially has 0 pending approvals
         // -------------------------------------------------------------
-        $this->actingAs($this->itHod);
+        $this->actingAs($this->itHod, 'tma');
 
         $authRes = $this->postJson('/tma/api/auth');
         $authRes->assertStatus(200);
@@ -60,7 +60,7 @@ class HodApprovalWorkflowTest extends TestCase
         // -------------------------------------------------------------
         // STAGE 2: Requester in Operations submits a service request
         // -------------------------------------------------------------
-        $this->actingAs($this->requester);
+        $this->actingAs($this->requester, 'tma');
 
         $createRes = $this->postJson('/tma/api/tickets', [
             'ticket_type' => 'service_request',
@@ -84,7 +84,7 @@ class HodApprovalWorkflowTest extends TestCase
         // STAGE 3: IT HOD (EMP-1007) CANNOT approve Step 1 (Operations HOD must)
         // IT HOD still sees 0 pending approvals
         // -------------------------------------------------------------
-        $this->actingAs($this->itHod);
+        $this->actingAs($this->itHod, 'tma');
 
         $itHodTicketsRes = $this->getJson('/tma/api/tickets');
         $this->assertEquals(0, $itHodTicketsRes->json('pending_approvals_count'), 'IT HOD should have 0 pending approvals while Step 1 is awaiting Operations HOD');
@@ -105,7 +105,7 @@ class HodApprovalWorkflowTest extends TestCase
         // -------------------------------------------------------------
         // STAGE 4: Operations HOD (EMP-1008) sees 1 pending approval and approves Step 1
         // -------------------------------------------------------------
-        $this->actingAs($this->opsHod);
+        $this->actingAs($this->opsHod, 'tma');
 
         $opsTicketsRes = $this->getJson('/tma/api/tickets');
         $this->assertEquals(1, $opsTicketsRes->json('pending_approvals_count'));
@@ -134,7 +134,7 @@ class HodApprovalWorkflowTest extends TestCase
         // -------------------------------------------------------------
         // STAGE 6: Now IT HOD (EMP-1007) sees 1 pending approval (Step 2 is active)
         // -------------------------------------------------------------
-        $this->actingAs($this->itHod);
+        $this->actingAs($this->itHod, 'tma');
 
         $itHodReadyRes = $this->getJson('/tma/api/tickets');
         $this->assertEquals(1, $itHodReadyRes->json('pending_approvals_count'), 'IT HOD now has 1 pending approval for Step 2');
@@ -165,7 +165,7 @@ class HodApprovalWorkflowTest extends TestCase
         ]);
 
         // Operations HOD checks TMA phone
-        $this->actingAs($this->opsHod);
+        $this->actingAs($this->opsHod, 'tma');
         $opsTrackingRes = $this->getJson('/tma/api/tickets');
         $this->assertCount(1, $opsTrackingRes->json('approved_by_me'));
         $this->assertEquals('in_progress', $opsTrackingRes->json('approved_by_me.0.status'));
@@ -174,7 +174,7 @@ class HodApprovalWorkflowTest extends TestCase
         $this->assertEquals(0, $opsTrackingRes->json('active_count'));
 
         // IT HOD checks TMA phone
-        $this->actingAs($this->itHod);
+        $this->actingAs($this->itHod, 'tma');
         $itTrackingRes = $this->getJson('/tma/api/tickets');
         $this->assertCount(1, $itTrackingRes->json('approved_by_me'));
         $this->assertEquals('in_progress', $itTrackingRes->json('approved_by_me.0.status'));
@@ -189,7 +189,7 @@ class HodApprovalWorkflowTest extends TestCase
         ]);
 
         // Both HODs see ticket in approved_by_me and history_count reflects resolved actioned ticket
-        $this->actingAs($this->opsHod);
+        $this->actingAs($this->opsHod, 'tma');
         $opsResolvedRes = $this->getJson('/tma/api/tickets');
         $this->assertCount(1, $opsResolvedRes->json('approved_by_me'));
         $this->assertEquals('resolved_confirmed', $opsResolvedRes->json('approved_by_me.0.status'));

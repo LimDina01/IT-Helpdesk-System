@@ -49,7 +49,7 @@ class ServiceRequestApprovalTest extends TestCase
 
     public function test_submitting_incident_skips_approval_and_enters_triage(): void
     {
-        $this->actingAs($this->requester);
+        $this->actingAs($this->requester, 'tma');
 
         $response = $this->postJson('/tma/api/tickets', [
             'ticket_type' => 'incident',
@@ -71,7 +71,7 @@ class ServiceRequestApprovalTest extends TestCase
 
     public function test_submitting_service_request_creates_2_step_approval_chain(): void
     {
-        $this->actingAs($this->requester);
+        $this->actingAs($this->requester, 'tma');
 
         $response = $this->postJson('/tma/api/tickets', [
             'ticket_type' => 'service_request',
@@ -251,7 +251,7 @@ class ServiceRequestApprovalTest extends TestCase
             'body' => 'I need this by Monday please.',
         ]);
 
-        $this->actingAs($this->requester);
+        $this->actingAs($this->requester, 'tma');
         $response = $this->getJson("/tma/api/tickets/{$ticket->id}");
 
         $response->assertStatus(200);

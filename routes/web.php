@@ -38,7 +38,7 @@ Route::prefix('tma/api')->group(function () {
     Route::get('/form-data', [TmaTicketController::class, 'getFormData'])->name('tma.form-data');
 
     // Authenticated Requester Endpoints
-    Route::middleware('auth')->group(function () {
+    Route::middleware('auth:tma')->group(function () {
         Route::get('/tickets', [TmaTicketController::class, 'index'])->name('tma.tickets.index');
         Route::post('/tickets', [TmaTicketController::class, 'store'])->name('tma.tickets.store');
         Route::get('/tickets/{ticket}', [TmaTicketController::class, 'show'])->name('tma.tickets.show');
@@ -53,7 +53,7 @@ Route::prefix('tma/api')->group(function () {
 
 // Authorized Private Attachment Download for TMA
 Route::get('/tma/tickets/{ticket}/attachments/{attachment}/download', [TmaTicketController::class, 'downloadAttachment'])
-    ->middleware('auth')
+    ->middleware('auth:tma')
     ->name('tma.attachments.download');
 
 /*

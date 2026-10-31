@@ -57,7 +57,7 @@ class TmaRequesterPortalTest extends TestCase
                 'employee_code' => 'EMP-1001',
             ],
         ]);
-        $this->assertAuthenticated();
+        $this->assertAuthenticated('tma');
     }
 
     public function test_telegram_auth_rejects_tampered_signature(): void
@@ -104,7 +104,7 @@ class TmaRequesterPortalTest extends TestCase
 
         $file = UploadedFile::fake()->create('printer_error.jpg', 500, 'image/jpeg');
 
-        $response = $this->actingAs($user)->postJson('/tma/api/tickets', [
+        $response = $this->actingAs($user, 'tma')->postJson('/tma/api/tickets', [
             'branch_id' => $branch->id,
             'category_id' => $category->id,
             'priority' => 'high',
@@ -160,7 +160,7 @@ class TmaRequesterPortalTest extends TestCase
         ]);
 
         // 4. Requester fetches ticket via TMA endpoint
-        $response = $this->actingAs($requester)->getJson("/tma/api/tickets/{$ticket->id}");
+        $response = $this->actingAs($requester, 'tma')->getJson("/tma/api/tickets/{$ticket->id}");
 
         $response->assertStatus(200);
         $messages = $response->json('messages');
@@ -189,7 +189,7 @@ class TmaRequesterPortalTest extends TestCase
         ]);
 
         // Requester confirms [Yes, Solved]
-        $response = $this->actingAs($requester)->postJson("/tma/api/tickets/{$ticket->id}/confirm");
+        $response = $this->actingAs($requester, 'tma')->postJson("/tma/api/tickets/{$ticket->id}/confirm");
         $response->assertStatus(200);
 
         $ticket->refresh();
@@ -215,7 +215,7 @@ class TmaRequesterPortalTest extends TestCase
         ]);
 
         // Requester rejects [No, Still Broken]
-        $response = $this->actingAs($requester)->postJson("/tma/api/tickets/{$ticket->id}/reopen", [
+        $response = $this->actingAs($requester, 'tma')->postJson("/tma/api/tickets/{$ticket->id}/reopen", [
             'reason' => 'Disconnected again after 5 minutes.',
         ]);
         $response->assertStatus(200);
@@ -248,7 +248,7 @@ class TmaRequesterPortalTest extends TestCase
                 'name' => 'Sokha Chan',
             ],
         ]);
-        $this->assertAuthenticated();
+        $this->assertAuthenticated('tma');
     }
 
     public function test_web_login_authenticates_with_telegram_username(): void
@@ -265,7 +265,7 @@ class TmaRequesterPortalTest extends TestCase
                 'name' => 'Sokha Chan',
             ],
         ]);
-        $this->assertAuthenticated();
+        $this->assertAuthenticated('tma');
     }
 
     public function test_ticket_image_attachment_preview_and_metadata(): void
@@ -276,7 +276,7 @@ class TmaRequesterPortalTest extends TestCase
 
         // Create ticket with image attachment
         $imageFile = UploadedFile::fake()->create('error_screenshot.png', 640, 'image/png');
-        $response = $this->actingAs($requester)->postJson('/tma/api/tickets', [
+        $response = $this->actingAs($requester, 'tma')->postJson('/tma/api/tickets', [
             'branch_id' => $branch->id,
             'category_id' => $category->id,
             'priority' => 'high',
@@ -288,7 +288,7 @@ class TmaRequesterPortalTest extends TestCase
         $ticketId = $response->json('ticket_id');
 
         // Fetch ticket details via API
-        $detailResponse = $this->actingAs($requester)->getJson("/tma/api/tickets/{$ticketId}");
+        $detailResponse = $this->actingAs($requester, 'tma')->getJson("/tma/api/tickets/{$ticketId}");
         $detailResponse->assertStatus(200);
 
         $messages = $detailResponse->json('messages');
@@ -300,7 +300,7 @@ class TmaRequesterPortalTest extends TestCase
 
         // Test streaming preview response
         $previewUrl = $attachments[0]['preview_url'];
-        $streamResponse = $this->actingAs($requester)->get($previewUrl);
+        $streamResponse = $this->actingAs($requester, 'tma')->get($previewUrl);
         $streamResponse->assertStatus(200);
         $streamResponse->assertHeader('Content-Type', 'image/png');
     }
@@ -331,7 +331,7 @@ class TmaRequesterPortalTest extends TestCase
             'body' => 'I will bring a replacement HDMI cable shortly.',
         ]);
 
-        $response = $this->actingAs($requester)->getJson('/tma/api/tickets');
+        $response = $this->actingAs($requester, 'tma')->getJson('/tma/api/tickets');
         $response->assertStatus(200);
 
         $tickets = $response->json('tickets');
@@ -362,11 +362,11 @@ class TmaRequesterPortalTest extends TestCase
         ]);
 
         // When requester opens ticket, presence is set
-        $this->actingAs($requester)->getJson("/tma/api/tickets/{$ticket->id}");
+        $this->actingAs($requester, 'tma')->getJson("/tma/api/tickets/{$ticket->id}");
         $this->assertTrue(\Illuminate\Support\Facades\Cache::has("ticket_presence_{$ticket->id}_{$requester->id}"));
 
         // When requester closes modal, leave endpoint is called
-        $leaveResponse = $this->actingAs($requester)->postJson("/tma/api/tickets/{$ticket->id}/leave");
+        $leaveResponse = $this->actingAs($requester, 'tma')->postJson("/tma/api/tickets/{$ticket->id}/leave");
         $leaveResponse->assertStatus(200);
         $leaveResponse->assertJson(['status' => 'left']);
 
@@ -395,7 +395,7 @@ class TmaRequesterPortalTest extends TestCase
         $response->assertJson([
             'status' => 'suspended',
         ]);
-        $this->assertGuest();
+        $this->assertGuest('tma');
     }
 
     public function test_suspended_authenticated_user_is_rejected_and_logged_out_by_middleware(): void
@@ -403,13 +403,13 @@ class TmaRequesterPortalTest extends TestCase
         $user = User::where('email', 'sokha.chan@cbvh.com.kh')->first();
         $user->update(['is_active' => false]);
 
-        $response = $this->actingAs($user)->getJson('/tma/api/tickets');
+        $response = $this->actingAs($user, 'tma')->getJson('/tma/api/tickets');
 
         $response->assertStatus(403);
         $response->assertJson([
             'status' => 'suspended',
         ]);
-        $this->assertGuest();
+        $this->assertGuest('tma');
     }
 
     public function test_suspended_user_cannot_use_tma_web_login(): void
@@ -479,6 +479,26 @@ class TmaRequesterPortalTest extends TestCase
         $user->refresh();
         $this->assertFalse((bool)$user->is_active);
         $this->assertDatabaseMissing('sessions', ['user_id' => $user->id]);
+    }
+
+    public function test_tma_session_and_portal_session_are_completely_isolated(): void
+    {
+        $requester = User::where('email', 'sokha.chan@cbvh.com.kh')->first();
+
+        // 1. Log in to TMA via TMA web login
+        $loginResponse = $this->postJson('/tma/api/login', [
+            'login' => 'EMP-1001',
+            'password' => 'Password123!',
+        ]);
+        $loginResponse->assertStatus(200);
+
+        // 2. User is authenticated on TMA guard, but guest on Portal (web) guard
+        $this->assertAuthenticated('tma');
+        $this->assertGuest('web');
+
+        // 3. Trying to access /portal redirects to login (no auto-login bleed)
+        $portalResponse = $this->get('/portal');
+        $portalResponse->assertRedirect(route('login'));
     }
 }
 

@@ -279,16 +279,16 @@ class PortalAdminController extends Controller
             ->orderBy('name');
 
         if ($filter === 'portal') {
-            $query->whereHas('roles', fn($q) => $q->whereIn('name', ['technician', 'helpdesk', 'system_admin']));
+            $query->whereHas('roles', fn($q) => $q->whereIn('name', ['technician', 'helpdesk', 'system_admin', 'hod']));
         } elseif ($filter === 'tma') {
-            $query->whereDoesntHave('roles', fn($q) => $q->whereIn('name', ['technician', 'helpdesk', 'system_admin']));
+            $query->whereDoesntHave('roles', fn($q) => $q->whereIn('name', ['technician', 'helpdesk', 'system_admin', 'hod']));
         }
 
         $users = $query->paginate(25)->withQueryString();
 
         $totalCount = User::count();
-        $staffCount = User::whereHas('roles', fn($q) => $q->whereIn('name', ['technician', 'helpdesk', 'system_admin']))->count();
-        $tmaCount = User::whereDoesntHave('roles', fn($q) => $q->whereIn('name', ['technician', 'helpdesk', 'system_admin']))->count();
+        $staffCount = User::whereHas('roles', fn($q) => $q->whereIn('name', ['technician', 'helpdesk', 'system_admin', 'hod']))->count();
+        $tmaCount = User::whereDoesntHave('roles', fn($q) => $q->whereIn('name', ['technician', 'helpdesk', 'system_admin', 'hod']))->count();
 
         // Operational IT Staff roles (for staff modal)
         $roles = Role::whereIn('name', ['technician', 'helpdesk', 'system_admin', 'hod'])->get();
@@ -550,6 +550,10 @@ class PortalAdminController extends Controller
             $validated['roles'][] = $adminRoleId;
         }
         $user->roles()->sync($validated['roles']);
+        if (!$user->fresh()->isStaff()) {
+            $user->can_access_portal = false;
+            $user->save();
+        }
 
         return back()->with('status', "User '{$user->name}' updated successfully.");
     }
@@ -573,6 +577,10 @@ class PortalAdminController extends Controller
         }
 
         $user->roles()->sync($validated['roles']);
+        if (!$user->fresh()->isStaff()) {
+            $user->can_access_portal = false;
+            $user->save();
+        }
 
         return back()->with('status', "Roles updated for {$user->name}.");
     }
@@ -611,6 +619,10 @@ class PortalAdminController extends Controller
     public function togglePortalAccess(User $user): RedirectResponse
     {
         abort_unless(Auth::user()->hasRole(['system_admin', 'hod']), 403);
+
+        if (!$user->isStaff()) {
+            return back()->withErrors(['error' => 'Web Portal access is only applicable to IT Technical Staff and Management. Regular employees use Telegram TMA.']);
+        }
 
         if ($user->id === Auth::id()) {
             return back()->withErrors(['error' => 'You cannot revoke your own web portal access.']);
