@@ -51,9 +51,8 @@ Route::prefix('tma/api')->group(function () {
     });
 });
 
-// Authorized Private Attachment Download for TMA
+// Authorized Private Attachment Download for TMA (Supports TMA session, Web Portal session, or Temporary Signed URL)
 Route::get('/tma/tickets/{ticket}/attachments/{attachment}/download', [TmaTicketController::class, 'downloadAttachment'])
-    ->middleware('auth:tma')
     ->name('tma.attachments.download');
 
 /*

@@ -256,6 +256,7 @@
                                             <div class="space-y-1.5 max-w-[85%] sm:max-w-[78%]">
                                                 <template x-for="att in m.attachments.filter(a => !a.is_image)" :key="att.id">
                                                     <a :href="att.download_url" target="_blank"
+                                                       @click="openAttachmentLink($event, att.download_url)"
                                                        class="flex items-center space-x-2.5 p-2.5 rounded-2xl bg-white border border-slate-200/90 hover:bg-slate-50 transition shadow-xs">
                                                         <div :class="getFileBadgeClass(att.original_filename, true)" class="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-[10px] shrink-0 shadow-2xs">
                                                             <span x-text="getFileExtension(att.original_filename)"></span>
@@ -350,6 +351,7 @@
                                                 <div class="space-y-1.5 w-full">
                                                     <template x-for="att in m.attachments.filter(a => !a.is_image)" :key="att.id">
                                                         <a :href="att.download_url" target="_blank"
+                                                           @click="openAttachmentLink($event, att.download_url)"
                                                            class="flex items-center space-x-2.5 p-2.5 rounded-2xl bg-white border border-slate-200/90 hover:bg-slate-50 transition shadow-xs">
                                                             <div :class="getFileBadgeClass(att.original_filename, false)" class="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-[10px] shrink-0 shadow-2xs">
                                                                 <span x-text="getFileExtension(att.original_filename)"></span>

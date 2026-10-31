@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
 use App\Services\TelegramNotificationService;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -232,8 +233,8 @@ class TmaTicketController extends Controller
                         'mime_type' => $a->mime_type,
                         'is_image' => str_starts_with($a->mime_type, 'image/'),
                         'file_size' => $a->formatted_size,
-                        'download_url' => route('tma.attachments.download', ['ticket' => $m->ticket_id, 'attachment' => $a->id]),
-                        'preview_url' => route('tma.attachments.download', ['ticket' => $m->ticket_id, 'attachment' => $a->id, 'preview' => 1]),
+                        'download_url' => URL::temporarySignedRoute('tma.attachments.download', now()->addDays(7), ['ticket' => $m->ticket_id, 'attachment' => $a->id]),
+                        'preview_url' => URL::temporarySignedRoute('tma.attachments.download', now()->addDays(7), ['ticket' => $m->ticket_id, 'attachment' => $a->id, 'preview' => 1]),
                     ]),
                 ];
             });
@@ -615,7 +616,25 @@ class TmaTicketController extends Controller
      */
     public function downloadAttachment(Ticket $ticket, TicketAttachment $attachment, Request $request): \Symfony\Component\HttpFoundation\Response
     {
-        $this->authorize('downloadAttachment', [$ticket, $attachment]);
+        $isTmaAuth = Auth::guard('tma')->check();
+        $isWebAuth = Auth::guard('web')->check();
+        $hasValidSig = $request->hasValidSignature();
+
+        if (!$isTmaAuth && !$isWebAuth && !$hasValidSig) {
+            abort(403, 'Unauthorized or expired attachment link.');
+        }
+
+        if ($isTmaAuth || $isWebAuth) {
+            $user = Auth::guard('tma')->user() ?? Auth::guard('web')->user();
+            $this->authorizeForUser($user, 'downloadAttachment', [$ticket, $attachment]);
+        } else {
+            if ($attachment->ticket_id !== $ticket->id) {
+                abort(404, 'Attachment does not belong to this ticket.');
+            }
+            if ($attachment->message && $attachment->message->visibility === 'internal_staff_only') {
+                abort(403, 'Internal note attachments cannot be viewed externally.');
+            }
+        }
 
         if (!Storage::disk('attachments')->exists($attachment->storage_path)) {
             abort(404, 'File not found on storage disk.');
@@ -626,12 +645,14 @@ class TmaTicketController extends Controller
             return $this->getThumbnailResponse($attachment);
         }
 
-        if (str_starts_with($attachment->mime_type, 'image/')) {
+        // Stream PDF or images inline for instant viewing in browser without forcing download
+        if (str_starts_with($attachment->mime_type, 'image/') || $attachment->mime_type === 'application/pdf') {
             return Storage::disk('attachments')->response(
                 $attachment->storage_path,
                 $attachment->original_filename,
                 [
                     'Content-Type' => $attachment->mime_type,
+                    'Content-Disposition' => 'inline; filename="' . $attachment->original_filename . '"',
                     'Cache-Control' => 'private, max-age=86400, stale-while-revalidate=604800',
                 ]
             );

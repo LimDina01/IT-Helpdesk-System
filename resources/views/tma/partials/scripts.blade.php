@@ -104,7 +104,6 @@ function tmaApp() {
             return !!(
                 this.currentUser?.is_hod ||
                 this.formData?.user?.is_hod ||
-                this.currentUser?.employee_code === 'EMP-1007' ||
                 (Array.isArray(this.currentUser?.roles) && this.currentUser.roles.some(r => ['hod', 'system_admin'].includes(r)))
             );
         },
@@ -973,9 +972,76 @@ function tmaApp() {
             this.loadTickets(true);
         },
 
-        handleReplyFiles(e) {
-            this.replyFiles = Array.from(e.target.files);
+        openAttachmentLink(e, url) {
+            if (window.Telegram?.WebApp?.openLink) {
+                e.preventDefault();
+                window.Telegram.WebApp.openLink(url);
+            }
+        },
+
+        compressImage(file, maxWidth = 1920, maxHeight = 1920, quality = 0.82) {
+            if (!file.type.startsWith('image/') || file.type === 'image/svg+xml' || file.type === 'image/gif') {
+                return Promise.resolve(file);
+            }
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.src = event.target.result;
+                    img.onload = () => {
+                        let width = img.width;
+                        let height = img.height;
+
+                        if (width > maxWidth || height > maxHeight) {
+                            if (width > height) {
+                                height = Math.round((height * maxWidth) / width);
+                                width = maxWidth;
+                            } else {
+                                width = Math.round((width * maxHeight) / height);
+                                height = maxHeight;
+                            }
+                        }
+
+                        const canvas = document.createElement('canvas');
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+
+                        canvas.toBlob((blob) => {
+                            if (!blob || blob.size >= file.size) {
+                                resolve(file);
+                            } else {
+                                const compressedFile = new File([blob], file.name, {
+                                    type: file.type || 'image/jpeg',
+                                    lastModified: Date.now()
+                                });
+                                resolve(compressedFile);
+                            }
+                        }, file.type || 'image/jpeg', quality);
+                    };
+                    img.onerror = () => resolve(file);
+                };
+                reader.onerror = () => resolve(file);
+            });
+        },
+
+        async handleReplyFiles(e) {
+            const rawFiles = Array.from(e.target.files);
             this.replyError = '';
+            for (const file of rawFiles) {
+                if (file.size > 26214400) {
+                    this.replyError = `File "${file.name}" exceeds the 25MB limit.`;
+                    continue;
+                }
+                if (file.type.startsWith('image/')) {
+                    const compressed = await this.compressImage(file);
+                    this.replyFiles.push(compressed);
+                } else {
+                    this.replyFiles.push(file);
+                }
+            }
             // Refocus text field so user can seamlessly continue typing
             this.$nextTick(() => {
                 const input = document.getElementById('chatTextInput');
@@ -1014,7 +1080,16 @@ function tmaApp() {
                 body: formData
             })
             .then(async res => {
-                const data = await res.json();
+                let data = {};
+                try {
+                    data = await res.json();
+                } catch (err) {
+                    if (res.status === 413) {
+                        data = { message: 'File is too large for the server. Please attach a smaller file.' };
+                    } else {
+                        data = { message: `Server error (${res.status}). Please try again.` };
+                    }
+                }
                 this.sendingReply = false;
                 if (!res.ok) {
                     if (res.status === 403 && (data.status === 'suspended' || (data.message && data.message.includes('suspended')))) {
@@ -1043,7 +1118,7 @@ function tmaApp() {
             })
             .catch(() => {
                 this.sendingReply = false;
-                this.replyError = 'Network error while sending message. Please try again.';
+                this.replyError = 'Network error while sending reply. Please try again.';
                 if (window.Telegram?.WebApp?.showAlert) {
                     window.Telegram.WebApp.showAlert(this.replyError);
                 }
@@ -1223,8 +1298,22 @@ function tmaApp() {
             }
         },
 
-        handleNewTicketFiles(e) {
-            this.formAttachments = Array.from(e.target.files);
+        async handleNewTicketFiles(e) {
+            const rawFiles = Array.from(e.target.files);
+            this.formAttachments = [];
+            this.formError = '';
+            for (const file of rawFiles) {
+                if (file.size > 26214400) { // 25MB
+                    this.formError = `File "${file.name}" exceeds the 25MB limit. Please choose a smaller file.`;
+                    continue;
+                }
+                if (file.type.startsWith('image/')) {
+                    const compressed = await this.compressImage(file);
+                    this.formAttachments.push(compressed);
+                } else {
+                    this.formAttachments.push(file);
+                }
+            }
         },
 
         submitNewTicket() {
@@ -1261,10 +1350,19 @@ function tmaApp() {
                 body: formData
             })
             .then(async res => {
-                const data = await res.json();
+                let data = {};
+                try {
+                    data = await res.json();
+                } catch (err) {
+                    if (res.status === 413) {
+                        data = { message: 'File is too large for the server. Please attach a smaller file or image.' };
+                    } else {
+                        data = { message: `Server error (${res.status}). Please try again.` };
+                    }
+                }
                 this.submittingTicket = false;
                 if (!res.ok) {
-                    this.formError = data.message || 'Failed to submit ticket';
+                    this.formError = data.message || Object.values(data.errors || {})[0]?.[0] || 'Failed to submit ticket';
                 } else {
                     this.dismissKeyboard();
                     this.formSubject = '';
@@ -1279,7 +1377,7 @@ function tmaApp() {
             })
             .catch(() => {
                 this.submittingTicket = false;
-                this.formError = 'Network error while submitting ticket.';
+                this.formError = 'Network error while submitting ticket. Please check your connection and try again.';
             });
         },
 
