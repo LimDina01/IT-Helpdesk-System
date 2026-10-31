@@ -341,7 +341,6 @@ class PortalAdminController extends Controller
             'email' => 'required|email|max:150',
             'password' => 'nullable|string|min:6',
             'telegram_username' => 'nullable|string|max:100',
-            'employee_code' => 'nullable|string|max:50',
             'roles' => 'required|array|min:1',
             'roles.*' => 'exists:roles,id',
         ]);
@@ -349,27 +348,16 @@ class PortalAdminController extends Controller
         $email = strtolower(trim($validated['email']));
         $user = User::where('email', $email)->first();
 
-        // Check if employee code matches an existing employee
-        $employeeId = null;
-        if (!empty($validated['employee_code'])) {
-            $emp = \App\Models\Employee::where('employee_code', trim($validated['employee_code']))->first();
-            if ($emp) {
-                $employeeId = $emp->id;
-            }
-        }
-
         $passwordInput = !empty($validated['password']) ? $validated['password'] : null;
 
         if ($user) {
-            // Update existing user profile & promote roles without failing
+            // Update existing user profile & promote roles without failing (standalone IT account)
             $updateData = [
                 'name' => $validated['name'],
+                'employee_id' => null,
                 'can_access_portal' => true,
                 'is_active' => true,
             ];
-            if ($employeeId) {
-                $updateData['employee_id'] = $employeeId;
-            }
             if (!empty($validated['telegram_username'])) {
                 $updateData['telegram_username'] = ltrim($validated['telegram_username'], '@');
             }
@@ -386,14 +374,14 @@ class PortalAdminController extends Controller
             return back()->with('status', "IT Staff user '{$user->name}' ({$user->email}) updated and assigned roles successfully!");
         }
 
-        // Register new staff user
+        // Register new staff user (standalone IT account: employee_id is always null)
         $password = $passwordInput ?: 'Password123!';
         $newUser = User::create([
             'name' => $validated['name'],
             'email' => $email,
             'password' => \Illuminate\Support\Facades\Hash::make($password),
             'telegram_username' => !empty($validated['telegram_username']) ? ltrim($validated['telegram_username'], '@') : null,
-            'employee_id' => $employeeId,
+            'employee_id' => null,
             'can_access_portal' => true,
             'is_active' => true,
         ]);
@@ -421,7 +409,9 @@ class PortalAdminController extends Controller
             'department_id' => 'required|exists:departments,id',
             'branch_id' => 'required|exists:branches,id',
             'phone' => 'nullable|string|max:50',
-            'role' => 'required|in:requester,hod',
+            'role' => 'nullable|in:requester,hod',
+            'roles' => 'nullable|array',
+            'roles.*' => 'in:requester,hod',
             'password' => 'nullable|string|min:6',
             'telegram_username' => 'nullable|string|max:100',
         ]);
@@ -471,20 +461,22 @@ class PortalAdminController extends Controller
             ]);
         }
 
-        // 3. Assign role
-        $roleModel = Role::firstOrCreate(['name' => $validated['role']], [
-            'label' => $validated['role'] === 'hod' ? 'Head of Department' : 'Requester',
-        ]);
+        // 3. Assign roles (HODs always hold both Requester and HOD)
+        $selectedRoles = !empty($validated['roles']) ? $validated['roles'] : (!empty($validated['role']) ? [$validated['role']] : ['requester']);
+        $rolesToAttach = [];
+        $requesterRole = Role::firstOrCreate(['name' => 'requester'], ['label' => 'Requester']);
+        $rolesToAttach[] = $requesterRole->id;
 
-        if ($validated['role'] === 'hod') {
-            $requesterRole = Role::firstOrCreate(['name' => 'requester'], ['label' => 'Requester']);
-            $user->roles()->syncWithoutDetaching([$roleModel->id, $requesterRole->id]);
-        } else {
-            $user->roles()->syncWithoutDetaching([$roleModel->id]);
+        $isHod = in_array('hod', $selectedRoles, true);
+        if ($isHod) {
+            $hodRole = Role::firstOrCreate(['name' => 'hod'], ['label' => 'Head of Department']);
+            $rolesToAttach[] = $hodRole->id;
         }
 
+        $user->roles()->sync($rolesToAttach);
+
         $deptName = $employee->department?->name ?? 'Department';
-        $roleLabel = $validated['role'] === 'hod' ? 'Department HOD' : 'Requester';
+        $roleLabel = $isHod ? 'Department HOD & Requester' : 'Requester';
 
         return back()->with('status', "TMA User '{$user->name}' ({$employee->employee_code}) registered as {$roleLabel} in {$deptName}. Web login & Telegram link ready!");
     }
@@ -514,40 +506,44 @@ class PortalAdminController extends Controller
 
         $email = strtolower(trim($validated['email']));
 
-        // 1. Update or link Employee record
-        $employee = $user->employee;
-        if (!empty($validated['employee_code'])) {
-            $code = strtoupper(trim($validated['employee_code']));
-            if (!$employee) {
-                $employee = Employee::firstOrNew(['employee_code' => $code]);
-            } else {
-                $employee->employee_code = $code;
-            }
-        }
+        $isStaff = $user->isItStaff() || (!empty($validated['roles']) && Role::whereIn('id', $validated['roles'])->whereIn('name', ['technician', 'helpdesk', 'system_admin'])->exists());
 
-        if ($employee) {
-            $employee->full_name = $validated['name'];
-            $employee->email = $email;
-            if (isset($validated['department_id'])) {
-                $employee->department_id = $validated['department_id'];
+        if ($isStaff) {
+            // Standalone IT staff account: never attach employee records
+            $user->employee_id = null;
+        } else {
+            // 1. Update or link Employee record for TMA users
+            $employee = $user->employee;
+            if (!empty($validated['employee_code'])) {
+                $code = strtoupper(trim($validated['employee_code']));
+                if (!$employee) {
+                    $employee = Employee::firstOrNew(['employee_code' => $code]);
+                } else {
+                    $employee->employee_code = $code;
+                }
             }
-            if (isset($validated['branch_id'])) {
-                $employee->branch_id = $validated['branch_id'];
+
+            if ($employee) {
+                $employee->full_name = $validated['name'];
+                $employee->email = $email;
+                if (isset($validated['department_id'])) {
+                    $employee->department_id = $validated['department_id'];
+                }
+                if (isset($validated['branch_id'])) {
+                    $employee->branch_id = $validated['branch_id'];
+                }
+                if (isset($validated['phone'])) {
+                    $employee->phone = $validated['phone'];
+                }
+                $employee->save();
+                $user->employee_id = $employee->id;
             }
-            if (isset($validated['phone'])) {
-                $employee->phone = $validated['phone'];
-            }
-            $employee->is_active = $request->boolean('is_active', true);
-            $employee->save();
-            $user->employee_id = $employee->id;
         }
 
         // 2. Update User record
         $user->name = $validated['name'];
         $user->email = $email;
-        $isActive = $request->boolean('is_active', true);
-        $user->is_active = $isActive;
-        $user->can_access_portal = $request->boolean('can_access_portal');
+        $user->can_access_portal = $isStaff;
 
         if ($request->boolean('unlink_telegram')) {
             $user->telegram_id = null;
@@ -561,38 +557,35 @@ class PortalAdminController extends Controller
             }
         }
 
-        if (!$isActive) {
-            try {
-                DB::table('sessions')->where('user_id', $user->id)->delete();
-            } catch (\Throwable $e) {}
-        }
-
         if (!empty($validated['password'])) {
             $user->password = \Illuminate\Support\Facades\Hash::make($validated['password']);
         }
         $user->save();
 
         // 3. Update roles (with primary admin protection)
-        $roleIds = [];
-        if ($request->filled('tma_role')) {
-            $roleIds = [(int) $request->input('tma_role')];
-        } elseif (!empty($validated['roles'])) {
-            $roleIds = $validated['roles'];
-        }
+        $roleIds = !empty($validated['roles']) ? $validated['roles'] : ($request->filled('tma_role') ? [(int) $request->input('tma_role')] : []);
 
         if (!empty($roleIds)) {
             $adminRoleId = Role::where('name', 'system_admin')->value('id');
+            $requesterRoleId = Role::where('name', 'requester')->value('id');
+            $hodRoleId = Role::where('name', 'hod')->value('id');
+
+            // Protect primary admin from losing system_admin role
             if (($user->id === 1 || $user->email === 'admin@cbvh.com.kh') && $adminRoleId && !in_array($adminRoleId, $roleIds)) {
                 $roleIds[] = $adminRoleId;
             }
-            $user->roles()->sync($roleIds);
-            $requesterRoleId = Role::where('name', 'requester')->value('id');
-            if (!$user->fresh()->isStaff()) {
-                $user->can_access_portal = false;
-                $user->save();
-            } elseif ($user->isItStaff() && $requesterRoleId && !in_array($requesterRoleId, $roleIds)) {
-                $user->roles()->detach($requesterRoleId);
+
+            // For TMA bank employees: if HOD role is selected, always include requester role as well
+            if (!$isStaff && in_array($hodRoleId, $roleIds) && $requesterRoleId && !in_array($requesterRoleId, $roleIds)) {
+                $roleIds[] = $requesterRoleId;
             }
+
+            // For IT staff: strip requester role
+            if ($isStaff && $requesterRoleId && in_array($requesterRoleId, $roleIds)) {
+                $roleIds = array_diff($roleIds, [$requesterRoleId]);
+            }
+
+            $user->roles()->sync($roleIds);
         }
 
         return back()->with('status', "User '{$user->name}' updated successfully.");

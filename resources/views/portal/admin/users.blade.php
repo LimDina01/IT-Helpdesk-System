@@ -151,8 +151,6 @@
                         <th class="py-3 px-4 min-w-[200px]">Department & Branch</th>
                         <th class="py-3 px-4">Telegram Linked</th>
                         <th class="py-3 px-4">Assigned Roles</th>
-                        <th class="py-3 px-4">Account Status</th>
-                        <th class="py-3 px-4">Portal Access</th>
                         <th class="py-3 px-6 text-right">Actions</th>
                     </tr>
                 </thead>
@@ -169,7 +167,7 @@
                                 </div>
                                 <div class="text-[10px] text-slate-400">
                                     {{ $user->email ?? 'No email' }}
-                                    @if($user->employee)
+                                    @if($user->employee && !$user->isItStaff())
                                         &bull; <span class="font-mono text-indigo-600 font-bold">{{ $user->employee->employee_code }}</span>
                                     @endif
                                 </div>
@@ -223,33 +221,6 @@
                                 </div>
                             </td>
 
-                            <td class="py-3.5 px-4 whitespace-nowrap">
-                                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full border {{ $user->is_active ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200' }}">
-                                    {{ $user->is_active ? 'Active' : 'Suspended' }}
-                                </span>
-                            </td>
-
-                            <td class="py-3.5 px-4 whitespace-nowrap">
-                                @if($user->isItStaff())
-                                    @if($user->can_access_portal)
-                                        <span class="inline-flex items-center space-x-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200" title="User is authorized to log in via Web Portal">
-                                            <span>🌐</span>
-                                            <span>Granted</span>
-                                        </span>
-                                    @else
-                                        <span class="inline-flex items-center space-x-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200" title="Web Portal access is revoked">
-                                            <span>🔒</span>
-                                            <span>Not Granted</span>
-                                        </span>
-                                    @endif
-                                @else
-                                    <span class="inline-flex items-center space-x-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-50 text-slate-400 border border-slate-200" title="Telegram Mini App only (TMA Requester)">
-                                        <span>📱</span>
-                                        <span>TMA Only</span>
-                                    </span>
-                                @endif
-                            </td>
-
                             <td class="py-3.5 px-6 text-right whitespace-nowrap space-x-2">
                                 <button type="button"
                                         @click="openEditModal({{ json_encode($user) }}, {{ $user->isItStaff() ? 'true' : 'false' }})"
@@ -258,30 +229,12 @@
                                     <span>Edit</span>
                                 </button>
 
-                                @if($user->isItStaff() && $user->can_access_portal)
+                                @if($user->isItStaff())
                                     <button type="button"
                                             @click="targetUser = {{ json_encode($user) }}; userRoles = {{ json_encode($user->roles->pluck('id')) }}; roleModal = true"
                                             class="text-[11px] text-indigo-600 hover:underline font-semibold cursor-pointer">
                                         Roles
                                     </button>
-                                @endif
-
-                                @if($user->isItStaff() && $user->id !== Auth::id() && $user->id !== 1 && $user->email !== 'admin@cbvh.com.kh')
-                                    <!-- Toggle Portal Access Button -->
-                                    <form method="POST" action="{{ route('portal.admin.users.toggle-portal', $user->id) }}" class="inline-block" onsubmit="return confirm('{{ $user->can_access_portal ? 'Revoke Web Portal login access for ' . addslashes($user->name) . '?' : 'Grant Web Portal login access to ' . addslashes($user->name) . '?' }}');">
-                                        @csrf
-                                        <button type="submit" class="text-[11px] {{ $user->can_access_portal ? 'text-amber-600 hover:text-amber-800' : 'text-blue-600 hover:text-blue-800' }} hover:underline font-semibold cursor-pointer">
-                                            {{ $user->can_access_portal ? 'Revoke Portal' : 'Grant Portal' }}
-                                        </button>
-                                    </form>
-
-                                    <!-- Suspend / Activate User Button -->
-                                    <form method="POST" action="{{ route('portal.admin.users.toggle', $user->id) }}" class="inline-block">
-                                        @csrf
-                                        <button type="submit" class="text-[11px] {{ $user->is_active ? 'text-rose-600 hover:underline' : 'text-emerald-600 hover:underline' }} font-semibold cursor-pointer">
-                                            {{ $user->is_active ? 'Suspend' : 'Activate' }}
-                                        </button>
-                                    </form>
                                 @endif
                             </td>
                         </tr>
@@ -341,12 +294,6 @@
                         <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Telegram Username (Optional)</label>
                         <input type="text" name="telegram_username" placeholder="e.g. boran_sem" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500">
                     </div>
-                </div>
-
-                <div>
-                    <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Employee ID Code (Optional)</label>
-                    <input type="text" name="employee_code" placeholder="e.g. EMP-1005" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                    <p class="text-[10px] text-slate-400 mt-0.5">Links this staff member to company branch and employee records.</p>
                 </div>
 
                 <div>
@@ -453,10 +400,11 @@
 
                 <!-- Row 4: Role Selection in TMA -->
                 <div>
-                    <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1.5">TMA Account Role</label>
+                    <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1.5">TMA Account Roles</label>
+                    <p class="text-[10px] text-slate-400 mb-2">Select roles for this bank employee (Department HODs can hold both Requester and HOD):</p>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                         <label class="flex items-start space-x-2.5 p-3 rounded-2xl border border-slate-200 hover:bg-slate-50 cursor-pointer transition">
-                            <input type="radio" name="role" value="requester" checked class="mt-0.5 text-blue-600 focus:ring-blue-500">
+                            <input type="checkbox" name="roles[]" value="requester" checked class="mt-0.5 rounded text-blue-600 focus:ring-blue-500">
                             <div>
                                 <div class="text-xs font-bold text-slate-900">👤 Requester (Employee)</div>
                                 <div class="text-[10px] text-slate-500 mt-0.5">Standard staff member. Can submit tickets and chat with support.</div>
@@ -464,7 +412,7 @@
                         </label>
 
                         <label class="flex items-start space-x-2.5 p-3 rounded-2xl border border-slate-200 hover:bg-slate-50 cursor-pointer transition">
-                            <input type="radio" name="role" value="hod" class="mt-0.5 text-blue-600 focus:ring-blue-500">
+                            <input type="checkbox" name="roles[]" value="hod" class="mt-0.5 rounded text-blue-600 focus:ring-blue-500">
                             <div>
                                 <div class="text-xs font-bold text-slate-900">👔 Department HOD</div>
                                 <div class="text-[10px] text-slate-500 mt-0.5">Department Head. Approves Step 1 service requests for this department.</div>
@@ -562,8 +510,8 @@
                 </div>
 
                 <!-- Row 2: Employee Code & Phone -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
+                <div class="grid grid-cols-1" :class="!isTargetStaff ? 'sm:grid-cols-2' : ''" gap-3>
+                    <div x-show="!isTargetStaff">
                         <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Employee Code / ID</label>
                         <input type="text" name="employee_code" x-model="editForm.employee_code" placeholder="e.g. EMP-1008" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 uppercase">
                     </div>
@@ -623,34 +571,24 @@
                     </label>
                 </div>
 
-                <!-- Account Status Checkbox -->
-                <div class="p-3 bg-slate-50 rounded-2xl border border-slate-200">
-                    <label class="flex items-center space-x-2.5 cursor-pointer">
-                        <input type="checkbox" name="is_active" value="1" :checked="editForm.is_active == 1" class="rounded text-indigo-600 focus:ring-indigo-500">
-                        <span class="text-xs font-semibold text-slate-700">Account Active (Uncheck to suspend user access)</span>
-                    </label>
-                </div>
-
                 <!-- SECTION A: IT Staff Configuration (Only shown for IT Staff) -->
                 <div x-show="isTargetStaff" class="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
                     <div class="flex items-center justify-between">
                         <div>
                             <div class="text-xs font-bold text-slate-900 flex items-center space-x-1.5">
-                                <span>🌐</span>
-                                <span>Web Portal Access</span>
+                                <span>🛠️</span>
+                                <span>Assigned IT Roles</span>
                             </div>
-                            <p class="text-[10px] text-slate-500 mt-0.5">Allow this IT staff member to log into the Operations Web Portal.</p>
+                            <p class="text-[10px] text-slate-500 mt-0.5">Assign operational technical roles for this IT staff account:</p>
                         </div>
-                        <label class="flex items-center space-x-2 cursor-pointer bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-2xs">
-                            <input type="checkbox" name="can_access_portal" value="1" x-model="editForm.can_access_portal" class="rounded text-indigo-600 focus:ring-indigo-500">
-                            <span class="text-xs font-bold text-indigo-700">Allow Portal Login</span>
-                        </label>
+                        <span class="inline-flex items-center space-x-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
+                            <span>🌐</span>
+                            <span>IT Staff Portal</span>
+                        </span>
                     </div>
 
-                    <div class="border-t border-slate-200/80 pt-3 space-y-2">
-                        <label class="block text-[11px] font-bold text-slate-700 uppercase">Assigned IT Roles</label>
-                        <p class="text-[10px] text-slate-500">Assign operational IT roles for this account:</p>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
+                    <div class="border-t border-slate-200/80 pt-3">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             @foreach($allRoles->whereIn('name', ['technician', 'helpdesk', 'system_admin', 'hod']) as $role)
                                 <label class="flex items-center space-x-2.5 p-2.5 bg-white rounded-xl border border-slate-200 hover:border-indigo-400 cursor-pointer transition shadow-2xs">
                                     <input type="checkbox" name="roles[]" value="{{ $role->id }}" :checked="editForm.roles.includes({{ $role->id }})" class="rounded text-indigo-600 focus:ring-indigo-500">
@@ -681,11 +619,12 @@
                     </div>
 
                     <div class="border-t border-slate-200/80 pt-3 space-y-2">
-                        <label class="block text-[11px] font-bold text-slate-700 uppercase">Employee TMA Role</label>
+                        <label class="block text-[11px] font-bold text-slate-700 uppercase">Assigned TMA Roles</label>
+                        <p class="text-[10px] text-slate-500">Select roles for this employee (Department HODs can hold both Requester and HOD):</p>
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
                             @foreach($allRoles->whereIn('name', ['requester', 'hod']) as $role)
                                 <label class="flex items-center space-x-2.5 p-2.5 bg-white rounded-xl border border-slate-200 hover:border-indigo-400 cursor-pointer transition shadow-2xs">
-                                    <input type="radio" name="tma_role" value="{{ $role->id }}" :checked="editForm.tma_role == {{ $role->id }}" class="text-indigo-600 focus:ring-indigo-500">
+                                    <input type="checkbox" name="roles[]" value="{{ $role->id }}" :checked="editForm.roles.includes({{ $role->id }})" class="rounded text-indigo-600 focus:ring-indigo-500">
                                     <div>
                                         <div class="text-xs font-bold text-slate-800">{{ $role->name === 'hod' ? 'Department Head (Approver)' : 'Employee (Requester)' }}</div>
                                         <div class="text-[10px] text-slate-400 font-mono">{{ $role->name === 'hod' ? 'TMA Step 1 Approver' : 'Standard Requester' }}</div>

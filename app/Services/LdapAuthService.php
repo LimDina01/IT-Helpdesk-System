@@ -149,9 +149,10 @@ class LdapAuthService
             $requesterRole = \App\Models\Role::where('name', 'requester')->first();
 
             if ($localUser) {
-                // Ensure name and active status are kept in sync
+                // Ensure name and standalone status are kept in sync
                 $localUser->update([
                     'name' => $fullName ?: $localUser->name,
+                    'employee_id' => null,
                     'is_active' => true,
                     'can_access_portal' => true,
                 ]);
@@ -166,12 +167,13 @@ class LdapAuthService
                     }
                 }
             } else {
-                // Auto-create local user profile from Active Directory as IT Technician
+                // Auto-create local user profile from Active Directory as IT Technician (standalone account)
                 $email = $adEmail ?: (str_contains($username, '@') ? $username : "{$adUsername}@cbvh66.com");
                 $localUser = User::create([
                     'name' => $fullName ?: $adUsername,
                     'email' => strtolower($email),
                     'password' => \Illuminate\Support\Facades\Hash::make(\Illuminate\Support\Str::random(32)),
+                    'employee_id' => null,
                     'is_active' => true,
                     'can_access_portal' => true,
                 ]);
