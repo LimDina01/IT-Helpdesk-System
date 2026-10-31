@@ -145,24 +145,42 @@ class LdapAuthService
                     ->first();
             }
 
+            $techRole = \App\Models\Role::firstOrCreate(['name' => 'technician'], ['label' => 'IT Technician']);
+            $requesterRole = \App\Models\Role::where('name', 'requester')->first();
+
             if ($localUser) {
                 // Ensure name and active status are kept in sync
                 $localUser->update([
                     'name' => $fullName ?: $localUser->name,
                     'is_active' => true,
+                    'can_access_portal' => true,
                 ]);
+
+                // If user doesn't already have IT staff roles, assign them as IT technician (no auto requester)
+                if (!$localUser->isStaff()) {
+                    $localUser->roles()->sync([$techRole->id]);
+                } else {
+                    // Detach redundant requester role from IT staff
+                    if ($requesterRole) {
+                        $localUser->roles()->detach($requesterRole->id);
+                    }
+                }
             } else {
-                // Auto-create local user profile from Active Directory
+                // Auto-create local user profile from Active Directory as IT Technician
                 $email = $adEmail ?: (str_contains($username, '@') ? $username : "{$adUsername}@cbvh66.com");
                 $localUser = User::create([
                     'name' => $fullName ?: $adUsername,
                     'email' => strtolower($email),
                     'password' => \Illuminate\Support\Facades\Hash::make(\Illuminate\Support\Str::random(32)),
                     'is_active' => true,
+                    'can_access_portal' => true,
                 ]);
+
+                // Assign as IT technician (no auto requester)
+                $localUser->roles()->sync([$techRole->id]);
             }
 
-            return $localUser;
+            return $localUser->fresh(['roles', 'employee.department']);
         } catch (\Throwable $e) {
             Log::error("LDAP authentication exception: {$e->getMessage()}");
             if (is_resource($conn) || is_object($conn)) {

@@ -86,6 +86,27 @@ class User extends Authenticatable
         return $this->hasAnyRole(['helpdesk', 'technician', 'hod', 'system_admin']);
     }
 
+    public function isItStaff(): bool
+    {
+        if ($this->hasAnyRole(['technician', 'helpdesk', 'system_admin'])) {
+            return true;
+        }
+
+        if ($this->hasRole('hod')) {
+            $deptCode = $this->employee?->department?->code;
+            if (!$this->employee || $deptCode === 'IT' || $this->email === 'admin@cbvh.com.kh') {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public function isBusinessHod(): bool
+    {
+        return $this->hasRole('hod') && !$this->isItStaff();
+    }
+
     public function canAccessPortal(): bool
     {
         return (bool) $this->can_access_portal;

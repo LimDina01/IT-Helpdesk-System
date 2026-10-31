@@ -135,6 +135,25 @@ class PortalOperationsTest extends TestCase
         $this->assertFalse($adUser->refresh()->hasRole('technician'));
     }
 
+    public function test_ad_ldap_login_assigns_technician_role_and_portal_access_without_requester(): void
+    {
+        $techRole = \App\Models\Role::firstOrCreate(['name' => 'technician'], ['label' => 'IT Technician']);
+        $requesterRole = \App\Models\Role::firstOrCreate(['name' => 'requester'], ['label' => 'Requester']);
+
+        $adUser = User::create([
+            'name' => 'New AD Tech',
+            'email' => 'new.tech@cbvh66.com',
+            'password' => \Illuminate\Support\Facades\Hash::make('Pass123!'),
+            'can_access_portal' => true,
+            'is_active' => true,
+        ]);
+        $adUser->roles()->sync([$techRole->id]);
+
+        $this->assertTrue($adUser->hasRole('technician'));
+        $this->assertFalse($adUser->hasRole('requester'));
+        $this->assertTrue($adUser->can_access_portal);
+    }
+
     public function test_tma_requester_is_strictly_denied_login_to_web_portal(): void
     {
         $requester = User::where('email', 'sokha.chan@cbvh.com.kh')->first();

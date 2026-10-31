@@ -278,17 +278,36 @@ class PortalAdminController extends Controller
         $query = User::with(['roles', 'employee.department', 'employee.branch'])
             ->orderBy('name');
 
+        $staffFilterClosure = function ($q) {
+            $q->whereHas('roles', fn($r) => $r->whereIn('name', ['technician', 'helpdesk', 'system_admin']))
+              ->orWhere(function ($hodQ) {
+                  $hodQ->whereHas('roles', fn($r) => $r->where('name', 'hod'))
+                       ->where(function ($deptQ) {
+                           $deptQ->whereDoesntHave('employee')
+                                 ->orWhereHas('employee.department', fn($d) => $d->where('code', 'IT'));
+                       });
+              });
+        };
+
+        $tmaFilterClosure = function ($q) {
+            $q->whereDoesntHave('roles', fn($r) => $r->whereIn('name', ['technician', 'helpdesk', 'system_admin']))
+              ->where(function ($subQ) {
+                  $subQ->whereDoesntHave('roles', fn($r) => $r->where('name', 'hod'))
+                       ->orWhereHas('employee.department', fn($d) => $d->where('code', '!=', 'IT'));
+              });
+        };
+
         if ($filter === 'portal') {
-            $query->whereHas('roles', fn($q) => $q->whereIn('name', ['technician', 'helpdesk', 'system_admin', 'hod']));
+            $query->where($staffFilterClosure);
         } elseif ($filter === 'tma') {
-            $query->whereDoesntHave('roles', fn($q) => $q->whereIn('name', ['technician', 'helpdesk', 'system_admin', 'hod']));
+            $query->where($tmaFilterClosure);
         }
 
         $users = $query->paginate(25)->withQueryString();
 
         $totalCount = User::count();
-        $staffCount = User::whereHas('roles', fn($q) => $q->whereIn('name', ['technician', 'helpdesk', 'system_admin', 'hod']))->count();
-        $tmaCount = User::whereDoesntHave('roles', fn($q) => $q->whereIn('name', ['technician', 'helpdesk', 'system_admin', 'hod']))->count();
+        $staffCount = User::where($staffFilterClosure)->count();
+        $tmaCount = User::where($tmaFilterClosure)->count();
 
         // Operational IT Staff roles (for staff modal)
         $roles = Role::whereIn('name', ['technician', 'helpdesk', 'system_admin', 'hod'])->get();
@@ -359,6 +378,10 @@ class PortalAdminController extends Controller
             }
             $user->update($updateData);
             $user->roles()->sync($validated['roles']);
+            $requesterRoleId = Role::where('name', 'requester')->value('id');
+            if ($requesterRoleId) {
+                $user->roles()->detach($requesterRoleId);
+            }
 
             return back()->with('status', "IT Staff user '{$user->name}' ({$user->email}) updated and assigned roles successfully!");
         }
@@ -376,6 +399,10 @@ class PortalAdminController extends Controller
         ]);
 
         $newUser->roles()->sync($validated['roles']);
+        $requesterRoleId = Role::where('name', 'requester')->value('id');
+        if ($requesterRoleId) {
+            $newUser->roles()->detach($requesterRoleId);
+        }
 
         return back()->with('status', "IT Staff user '{$newUser->name}' ({$newUser->email}) registered successfully.");
     }
@@ -480,8 +507,9 @@ class PortalAdminController extends Controller
             'password' => 'nullable|string|min:6',
             'is_active' => 'nullable|boolean',
             'can_access_portal' => 'nullable|boolean',
-            'roles' => 'required|array|min:1',
+            'roles' => 'nullable|array',
             'roles.*' => 'exists:roles,id',
+            'tma_role' => 'nullable|exists:roles,id',
         ]);
 
         $email = strtolower(trim($validated['email']));
@@ -545,14 +573,26 @@ class PortalAdminController extends Controller
         $user->save();
 
         // 3. Update roles (with primary admin protection)
-        $adminRoleId = Role::where('name', 'system_admin')->value('id');
-        if (($user->id === 1 || $user->email === 'admin@cbvh.com.kh') && $adminRoleId && !in_array($adminRoleId, $validated['roles'])) {
-            $validated['roles'][] = $adminRoleId;
+        $roleIds = [];
+        if ($request->filled('tma_role')) {
+            $roleIds = [(int) $request->input('tma_role')];
+        } elseif (!empty($validated['roles'])) {
+            $roleIds = $validated['roles'];
         }
-        $user->roles()->sync($validated['roles']);
-        if (!$user->fresh()->isStaff()) {
-            $user->can_access_portal = false;
-            $user->save();
+
+        if (!empty($roleIds)) {
+            $adminRoleId = Role::where('name', 'system_admin')->value('id');
+            if (($user->id === 1 || $user->email === 'admin@cbvh.com.kh') && $adminRoleId && !in_array($adminRoleId, $roleIds)) {
+                $roleIds[] = $adminRoleId;
+            }
+            $user->roles()->sync($roleIds);
+            $requesterRoleId = Role::where('name', 'requester')->value('id');
+            if (!$user->fresh()->isStaff()) {
+                $user->can_access_portal = false;
+                $user->save();
+            } elseif ($user->isItStaff() && $requesterRoleId && !in_array($requesterRoleId, $roleIds)) {
+                $user->roles()->detach($requesterRoleId);
+            }
         }
 
         return back()->with('status', "User '{$user->name}' updated successfully.");
@@ -577,9 +617,12 @@ class PortalAdminController extends Controller
         }
 
         $user->roles()->sync($validated['roles']);
+        $requesterRoleId = Role::where('name', 'requester')->value('id');
         if (!$user->fresh()->isStaff()) {
             $user->can_access_portal = false;
             $user->save();
+        } elseif ($user->isItStaff() && $requesterRoleId && !in_array($requesterRoleId, $validated['roles'])) {
+            $user->roles()->detach($requesterRoleId);
         }
 
         return back()->with('status', "Roles updated for {$user->name}.");

@@ -11,6 +11,7 @@
     search: '',
     targetUser: {},
     userRoles: [],
+    isTargetStaff: false,
     editForm: {
         id: '',
         name: '',
@@ -23,10 +24,14 @@
         telegram_id: '',
         is_active: true,
         can_access_portal: false,
-        roles: []
+        roles: [],
+        tma_role: ''
     },
-    openEditModal(u) {
+    openEditModal(u, isStaff) {
         this.targetUser = u;
+        this.isTargetStaff = isStaff;
+        const hodRole = u.roles ? u.roles.find(r => r.name === 'hod') : null;
+        const reqRole = u.roles ? u.roles.find(r => r.name === 'requester') : null;
         this.editForm = {
             id: u.id,
             name: u.name,
@@ -39,7 +44,8 @@
             telegram_id: u.telegram_id || '',
             is_active: u.is_active ? 1 : 0,
             can_access_portal: u.can_access_portal ? 1 : 0,
-            roles: u.roles ? u.roles.map(r => r.id) : []
+            roles: u.roles ? u.roles.map(r => r.id) : [],
+            tma_role: hodRole ? hodRole.id : (reqRole ? reqRole.id : '')
         };
         this.editUserModal = true;
     }
@@ -199,10 +205,13 @@
                             <td class="py-3.5 px-4 whitespace-nowrap">
                                 <div class="flex flex-wrap gap-1">
                                     @foreach($user->roles as $role)
+                                        @if($user->isItStaff() && $role->name === 'requester')
+                                            @continue
+                                        @endif
                                         @if($role->name === 'system_admin')
                                             <span class="bg-red-100 text-red-800 font-extrabold text-[9px] uppercase px-1.5 py-0.2 rounded border border-red-200">Admin</span>
                                         @elseif($role->name === 'hod')
-                                            <span class="bg-purple-100 text-purple-800 font-extrabold text-[9px] uppercase px-1.5 py-0.2 rounded border border-purple-200">HOD</span>
+                                            <span class="bg-purple-100 text-purple-800 font-extrabold text-[9px] uppercase px-1.5 py-0.2 rounded border border-purple-200">{{ $user->isItStaff() ? 'IT HOD' : 'HOD' }}</span>
                                         @elseif($role->name === 'helpdesk')
                                             <span class="bg-blue-100 text-blue-800 font-extrabold text-[9px] uppercase px-1.5 py-0.2 rounded border border-blue-200">Help Desk</span>
                                         @elseif($role->name === 'technician')
@@ -221,7 +230,7 @@
                             </td>
 
                             <td class="py-3.5 px-4 whitespace-nowrap">
-                                @if($user->isStaff())
+                                @if($user->isItStaff())
                                     @if($user->can_access_portal)
                                         <span class="inline-flex items-center space-x-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200" title="User is authorized to log in via Web Portal">
                                             <span>🌐</span>
@@ -243,13 +252,13 @@
 
                             <td class="py-3.5 px-6 text-right whitespace-nowrap space-x-2">
                                 <button type="button"
-                                        @click="openEditModal({{ json_encode($user) }})"
+                                        @click="openEditModal({{ json_encode($user) }}, {{ $user->isItStaff() ? 'true' : 'false' }})"
                                         class="text-[11px] text-blue-600 hover:text-blue-800 font-bold hover:underline inline-flex items-center space-x-1 cursor-pointer">
                                     <span>✏️</span>
                                     <span>Edit</span>
                                 </button>
 
-                                @if($user->isStaff() && $user->can_access_portal)
+                                @if($user->isItStaff() && $user->can_access_portal)
                                     <button type="button"
                                             @click="targetUser = {{ json_encode($user) }}; userRoles = {{ json_encode($user->roles->pluck('id')) }}; roleModal = true"
                                             class="text-[11px] text-indigo-600 hover:underline font-semibold cursor-pointer">
@@ -257,7 +266,7 @@
                                     </button>
                                 @endif
 
-                                @if($user->isStaff() && $user->id !== Auth::id() && $user->id !== 1 && $user->email !== 'admin@cbvh.com.kh')
+                                @if($user->isItStaff() && $user->id !== Auth::id() && $user->id !== 1 && $user->email !== 'admin@cbvh.com.kh')
                                     <!-- Toggle Portal Access Button -->
                                     <form method="POST" action="{{ route('portal.admin.users.toggle-portal', $user->id) }}" class="inline-block" onsubmit="return confirm('{{ $user->can_access_portal ? 'Revoke Web Portal login access for ' . addslashes($user->name) . '?' : 'Grant Web Portal login access to ' . addslashes($user->name) . '?' }}');">
                                         @csrf
@@ -622,15 +631,15 @@
                     </label>
                 </div>
 
-                <!-- Portal Access & Roles Configuration -->
-                <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
+                <!-- SECTION A: IT Staff Configuration (Only shown for IT Staff) -->
+                <div x-show="isTargetStaff" class="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
                     <div class="flex items-center justify-between">
                         <div>
                             <div class="text-xs font-bold text-slate-900 flex items-center space-x-1.5">
                                 <span>🌐</span>
                                 <span>Web Portal Access</span>
                             </div>
-                            <p class="text-[10px] text-slate-500 mt-0.5">Allow this user to sign into the Web Portal with corporate credentials.</p>
+                            <p class="text-[10px] text-slate-500 mt-0.5">Allow this IT staff member to log into the Operations Web Portal.</p>
                         </div>
                         <label class="flex items-center space-x-2 cursor-pointer bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-2xs">
                             <input type="checkbox" name="can_access_portal" value="1" x-model="editForm.can_access_portal" class="rounded text-indigo-600 focus:ring-indigo-500">
@@ -639,15 +648,47 @@
                     </div>
 
                     <div class="border-t border-slate-200/80 pt-3 space-y-2">
-                        <label class="block text-[11px] font-bold text-slate-700 uppercase">Assigned Roles</label>
-                        <p class="text-[10px] text-slate-500">Check the roles this user holds across TMA and Web Portal:</p>
+                        <label class="block text-[11px] font-bold text-slate-700 uppercase">Assigned IT Roles</label>
+                        <p class="text-[10px] text-slate-500">Assign operational IT roles for this account:</p>
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
-                            @foreach($allRoles as $role)
+                            @foreach($allRoles->whereIn('name', ['technician', 'helpdesk', 'system_admin', 'hod']) as $role)
                                 <label class="flex items-center space-x-2.5 p-2.5 bg-white rounded-xl border border-slate-200 hover:border-indigo-400 cursor-pointer transition shadow-2xs">
                                     <input type="checkbox" name="roles[]" value="{{ $role->id }}" :checked="editForm.roles.includes({{ $role->id }})" class="rounded text-indigo-600 focus:ring-indigo-500">
                                     <div>
                                         <div class="text-xs font-bold text-slate-800">{{ $role->label }}</div>
                                         <div class="text-[10px] text-slate-400 font-mono">{{ $role->name }}</div>
+                                    </div>
+                                </label>
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECTION B: TMA Employee Configuration (Only shown for TMA bank employees) -->
+                <div x-show="!isTargetStaff" class="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <div class="text-xs font-bold text-slate-900 flex items-center space-x-1.5">
+                                <span>📱</span>
+                                <span>Telegram Mini App (TMA) Scope</span>
+                            </div>
+                            <p class="text-[10px] text-slate-500 mt-0.5">Bank employee accessing IT service requests via Telegram Mini App.</p>
+                        </div>
+                        <span class="inline-flex items-center space-x-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200">
+                            <span>📱</span>
+                            <span>TMA Only</span>
+                        </span>
+                    </div>
+
+                    <div class="border-t border-slate-200/80 pt-3 space-y-2">
+                        <label class="block text-[11px] font-bold text-slate-700 uppercase">Employee TMA Role</label>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
+                            @foreach($allRoles->whereIn('name', ['requester', 'hod']) as $role)
+                                <label class="flex items-center space-x-2.5 p-2.5 bg-white rounded-xl border border-slate-200 hover:border-indigo-400 cursor-pointer transition shadow-2xs">
+                                    <input type="radio" name="tma_role" value="{{ $role->id }}" :checked="editForm.tma_role == {{ $role->id }}" class="text-indigo-600 focus:ring-indigo-500">
+                                    <div>
+                                        <div class="text-xs font-bold text-slate-800">{{ $role->name === 'hod' ? 'Department Head (Approver)' : 'Employee (Requester)' }}</div>
+                                        <div class="text-[10px] text-slate-400 font-mono">{{ $role->name === 'hod' ? 'TMA Step 1 Approver' : 'Standard Requester' }}</div>
                                     </div>
                                 </label>
                             @endforeach
