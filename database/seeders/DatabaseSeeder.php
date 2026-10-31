@@ -53,25 +53,30 @@ class DatabaseSeeder extends Seeder
             ['name' => 'Operations & Logistics', 'code' => 'OPS'],
             ['name' => 'Human Resources', 'code' => 'HR'],
             ['name' => 'Sales & Customer Service', 'code' => 'SALES'],
+            ['name' => 'Credit & Lending', 'code' => 'LOAN'],
         ];
         $deptModels = [];
         foreach ($departments as $d) {
             $deptModels[$d['code']] = Department::create($d);
         }
 
-        // 4. Pre-approved Employees Roster
         // 4. Pre-approved Employees Roster (TMA Bank Employees)
+        $defaultPassword = Hash::make('Password123!');
         $employeesData = [
-            ['employee_code' => 'EMP-1001', 'full_name' => 'Sokha Chan', 'email' => 'sokha.chan@cbvh.com.kh', 'phone' => '+855 12 111 222', 'branch' => 'HQ-PP', 'dept' => 'OPS'],
-            ['employee_code' => 'EMP-1002', 'full_name' => 'Bopha Keo', 'email' => 'bopha.keo@cbvh.com.kh', 'phone' => '+855 12 333 444', 'branch' => 'TK-01', 'dept' => 'FIN'],
-            ['employee_code' => 'EMP-1003', 'full_name' => 'Vicheka Long', 'email' => 'vicheka.long@cbvh.com.kh', 'phone' => '+855 12 555 666', 'branch' => 'DT-02', 'dept' => 'SALES'],
-            ['employee_code' => 'EMP-1004', 'full_name' => 'Rathana Chea', 'email' => 'rathana.chea@cbvh.com.kh', 'phone' => '+855 12 777 888', 'branch' => 'HQ-PP', 'dept' => 'HR'],
-            ['employee_code' => 'EMP-1008', 'full_name' => 'Chantha Som', 'email' => 'hod.ops@cbvh.com.kh', 'phone' => '+855 12 777 999', 'branch' => 'HQ-PP', 'dept' => 'OPS'],
+            ['employee_code' => 'EMP-1001', 'full_name' => 'Sokha Chan', 'email' => 'sokha.chan@cbvh.com.kh', 'phone' => '+855 12 111 222', 'branch' => 'HQ-PP', 'dept' => 'OPS', 'telegram_id' => 123456789, 'telegram_username' => 'sokhachan_demo', 'is_hod' => false],
+            ['employee_code' => 'EMP-1002', 'full_name' => 'Bopha Keo', 'email' => 'bopha.keo@cbvh.com.kh', 'phone' => '+855 12 333 444', 'branch' => 'TK-01', 'dept' => 'FIN', 'is_hod' => false],
+            ['employee_code' => 'EMP-1003', 'full_name' => 'Vicheka Long', 'email' => 'vicheka.long@cbvh.com.kh', 'phone' => '+855 12 555 666', 'branch' => 'DT-02', 'dept' => 'SALES', 'is_hod' => false],
+            ['employee_code' => 'EMP-1004', 'full_name' => 'Rathana Chea', 'email' => 'rathana.chea@cbvh.com.kh', 'phone' => '+855 12 777 888', 'branch' => 'HQ-PP', 'dept' => 'HR', 'is_hod' => false],
+            ['employee_code' => 'EMP-1005', 'full_name' => 'Seyha Pich', 'email' => 'seyha.pich@cbvh.com.kh', 'phone' => '+855 12 999 111', 'branch' => 'DT-02', 'dept' => 'MGT', 'is_hod' => false],
+            ['employee_code' => 'EMP-1006', 'full_name' => 'Sreyneang Mao', 'email' => 'sreyneang.mao@cbvh.com.kh', 'phone' => '+855 12 222 555', 'branch' => 'TK-01', 'dept' => 'LOAN', 'is_hod' => false],
+            ['employee_code' => 'EMP-1007', 'full_name' => 'Piseth Heng', 'email' => 'piseth.heng@cbvh.com.kh', 'phone' => '+855 12 444 888', 'branch' => 'SR-01', 'dept' => 'SALES', 'is_hod' => false],
+            ['employee_code' => 'EMP-1008', 'full_name' => 'Chantha Som (Operations HOD)', 'email' => 'hod.ops@cbvh.com.kh', 'phone' => '+855 12 777 999', 'branch' => 'HQ-PP', 'dept' => 'OPS', 'is_hod' => true],
+            ['employee_code' => 'EMP-1009', 'full_name' => 'Chhayly Tep (Finance HOD)', 'email' => 'hod.fin@cbvh.com.kh', 'phone' => '+855 12 888 333', 'branch' => 'HQ-PP', 'dept' => 'FIN', 'is_hod' => true],
         ];
 
         $empModels = [];
         foreach ($employeesData as $e) {
-            $empModels[$e['employee_code']] = Employee::create([
+            $emp = Employee::create([
                 'employee_code' => $e['employee_code'],
                 'full_name' => $e['full_name'],
                 'email' => $e['email'],
@@ -80,12 +85,11 @@ class DatabaseSeeder extends Seeder
                 'department_id' => $deptModels[$e['dept']]->id,
                 'is_active' => true,
             ]);
+            $empModels[$e['employee_code']] = $emp;
         }
 
-        // 5. Staff Users (IT Operations Team)
-        $defaultPassword = Hash::make('Password123!');
-
-        // IT HOD & System Admin
+        // 5. Staff Users (IT Operations & Management Portal Team)
+        // IT HOD & System Admin (User ID 1: Primary Testing Admin)
         $hodUser = User::create([
             'employee_id' => null, // Standalone IT Account
             'name' => 'Vannak Ouk (HOD / Admin)',
@@ -96,16 +100,16 @@ class DatabaseSeeder extends Seeder
         ]);
         $hodUser->roles()->attach([$roleModels['system_admin']->id, $roleModels['hod']->id]);
 
-        // Operations Department HOD (Process 1 Approver: Requester Department HOD)
-        $opsHodUser = User::create([
-            'employee_id' => $empModels['EMP-1008']->id,
-            'name' => 'Chantha Som (Operations HOD)',
-            'email' => 'hod.ops@cbvh.com.kh',
+        // Senior Admin
+        $dinaUser = User::create([
+            'employee_id' => null, // Standalone IT Account
+            'name' => 'Dina LIM (Senior Admin)',
+            'email' => 'dina.lim@cbvh66.com',
             'password' => $defaultPassword,
             'can_access_portal' => true,
             'is_active' => true,
         ]);
-        $opsHodUser->roles()->attach([$roleModels['hod']->id, $roleModels['requester']->id]);
+        $dinaUser->roles()->attach([$roleModels['system_admin']->id, $roleModels['hod']->id]);
 
         // Help Desk Specialist
         $helpdeskUser = User::create([
@@ -140,17 +144,25 @@ class DatabaseSeeder extends Seeder
         ]);
         $tech2User->roles()->attach([$roleModels['technician']->id, $roleModels['helpdesk']->id]);
 
-        // Requester (Already linked employee for testing TMA)
-        $requesterUser = User::create([
-            'employee_id' => $empModels['EMP-1001']->id,
-            'telegram_id' => 123456789,
-            'telegram_username' => 'sokhachan_demo',
-            'name' => 'Sokha Chan',
-            'email' => 'sokha.chan@cbvh.com.kh',
-            'password' => $defaultPassword,
-            'is_active' => true,
-        ]);
-        $requesterUser->roles()->attach([$roleModels['requester']->id]);
+        // 6. TMA Bank Employees & Department Approvers (Users)
+        foreach ($employeesData as $e) {
+            $user = User::create([
+                'employee_id' => $empModels[$e['employee_code']]->id,
+                'name' => $e['full_name'],
+                'email' => $e['email'],
+                'telegram_id' => $e['telegram_id'] ?? null,
+                'telegram_username' => $e['telegram_username'] ?? null,
+                'password' => $defaultPassword,
+                'can_access_portal' => (bool) ($e['is_hod'] ?? false),
+                'is_active' => true,
+            ]);
+
+            $rolesToAttach = [$roleModels['requester']->id];
+            if (!empty($e['is_hod'])) {
+                $rolesToAttach[] = $roleModels['hod']->id;
+            }
+            $user->roles()->attach($rolesToAttach);
+        }
 
         // 6. Company Holidays (Excluding Sundays which are handled by rule)
         $holidays = [
