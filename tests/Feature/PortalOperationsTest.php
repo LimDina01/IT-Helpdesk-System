@@ -64,9 +64,19 @@ class PortalOperationsTest extends TestCase
 
     public function test_staff_can_login_with_employee_code(): void
     {
-        // EMP-1006 belongs to Kosal Meng (Help Desk)
+        $employee = \App\Models\Employee::create([
+            'employee_code' => 'EMP-9001',
+            'full_name' => 'Kosal Meng',
+            'email' => 'helpdesk@cbvh.com.kh',
+            'branch_id' => \App\Models\Branch::first()->id,
+            'department_id' => \App\Models\Department::first()->id,
+            'is_active' => true,
+        ]);
+        $staff = User::where('email', 'helpdesk@cbvh.com.kh')->first();
+        $staff->update(['employee_id' => $employee->id]);
+
         $response = $this->post('/portal/login', [
-            'email' => 'EMP-1006',
+            'email' => 'EMP-9001',
             'password' => 'Password123!',
         ]);
 

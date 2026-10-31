@@ -147,7 +147,9 @@ class TicketApprovalService
         $isItHod = ($userEmpCode === 'EMP-1007')
             || ($userDeptCode === 'IT')
             || ($userDeptId === 2)
-            || ($user->hasRole('system_admin') && ($userDeptId === 2 || $userDeptCode === 'IT'));
+            || ($user->email === 'admin@cbvh.com.kh')
+            || ($user->id === 1)
+            || ($user->hasRole('system_admin') && (!$user->employee || $userDeptCode === 'IT' || $userDeptId === 2));
 
         // ========================================================
         // Process 1: Department HOD Approval (Strictly Step 1)
@@ -376,7 +378,10 @@ class TicketApprovalService
         } else {
             // Process 2: IT Department HOD
             $approvers = User::whereHas('roles', fn($q) => $q->whereIn('name', ['hod', 'system_admin']))
-                ->whereHas('employee', fn($q) => $q->where('department_id', 2)->orWhere('employee_code', 'EMP-1007'))
+                ->where(function ($q) {
+                    $q->whereDoesntHave('employee')
+                      ->orWhereHas('employee', fn($emp) => $emp->where('department_id', 2)->orWhere('employee_code', 'EMP-1007'));
+                })
                 ->whereNotNull('telegram_id')
                 ->get();
         }

@@ -60,14 +60,12 @@ class DatabaseSeeder extends Seeder
         }
 
         // 4. Pre-approved Employees Roster
+        // 4. Pre-approved Employees Roster (TMA Bank Employees)
         $employeesData = [
             ['employee_code' => 'EMP-1001', 'full_name' => 'Sokha Chan', 'email' => 'sokha.chan@cbvh.com.kh', 'phone' => '+855 12 111 222', 'branch' => 'HQ-PP', 'dept' => 'OPS'],
             ['employee_code' => 'EMP-1002', 'full_name' => 'Bopha Keo', 'email' => 'bopha.keo@cbvh.com.kh', 'phone' => '+855 12 333 444', 'branch' => 'TK-01', 'dept' => 'FIN'],
             ['employee_code' => 'EMP-1003', 'full_name' => 'Vicheka Long', 'email' => 'vicheka.long@cbvh.com.kh', 'phone' => '+855 12 555 666', 'branch' => 'DT-02', 'dept' => 'SALES'],
             ['employee_code' => 'EMP-1004', 'full_name' => 'Rathana Chea', 'email' => 'rathana.chea@cbvh.com.kh', 'phone' => '+855 12 777 888', 'branch' => 'HQ-PP', 'dept' => 'HR'],
-            ['employee_code' => 'EMP-1005', 'full_name' => 'Dara Sam', 'email' => 'dara.sam@cbvh.com.kh', 'phone' => '+855 12 999 000', 'branch' => 'HQ-PP', 'dept' => 'IT'],
-            ['employee_code' => 'EMP-1006', 'full_name' => 'Kosal Meng', 'email' => 'kosal.meng@cbvh.com.kh', 'phone' => '+855 12 222 333', 'branch' => 'HQ-PP', 'dept' => 'IT'],
-            ['employee_code' => 'EMP-1007', 'full_name' => 'Vannak Ouk', 'email' => 'vannak.ouk@cbvh.com.kh', 'phone' => '+855 12 444 555', 'branch' => 'HQ-PP', 'dept' => 'IT'],
             ['employee_code' => 'EMP-1008', 'full_name' => 'Chantha Som', 'email' => 'hod.ops@cbvh.com.kh', 'phone' => '+855 12 777 999', 'branch' => 'HQ-PP', 'dept' => 'OPS'],
         ];
 
@@ -84,12 +82,12 @@ class DatabaseSeeder extends Seeder
             ]);
         }
 
-        // 5. Staff Users
+        // 5. Staff Users (IT Operations Team)
         $defaultPassword = Hash::make('Password123!');
 
-        // IT HOD & System Admin (Process 2 Approver: IT Manager)
+        // IT HOD & System Admin
         $hodUser = User::create([
-            'employee_id' => $empModels['EMP-1007']->id,
+            'employee_id' => null, // Standalone IT Account
             'name' => 'Vannak Ouk (HOD / Admin)',
             'email' => 'admin@cbvh.com.kh',
             'password' => $defaultPassword,
@@ -111,7 +109,7 @@ class DatabaseSeeder extends Seeder
 
         // Help Desk Specialist
         $helpdeskUser = User::create([
-            'employee_id' => $empModels['EMP-1006']->id,
+            'employee_id' => null, // Standalone IT Account
             'name' => 'Kosal Meng (Help Desk)',
             'email' => 'helpdesk@cbvh.com.kh',
             'password' => $defaultPassword,
@@ -122,7 +120,7 @@ class DatabaseSeeder extends Seeder
 
         // Technician 1 (Hardware / POS specialist)
         $tech1User = User::create([
-            'employee_id' => $empModels['EMP-1005']->id,
+            'employee_id' => null, // Standalone IT Account
             'name' => 'Dara Sam (IT Technician)',
             'email' => 'tech1@cbvh.com.kh',
             'password' => $defaultPassword,
