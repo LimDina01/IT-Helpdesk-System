@@ -33,7 +33,8 @@ class TicketApprovalService
 
         $deptId = $ticket->requester->employee?->department_id;
         $hasDeptHod = $deptId && $deptId != 2 && User::whereHas('roles', fn($q) => $q->where('name', 'hod'))
-            ->whereHas('employee', fn($q) => $q->where('department_id', $deptId)->where('employee_code', '!=', 'EMP-1007'))
+            ->where('email', '!=', 'admin@cbvh.com.kh')
+            ->whereHas('employee', fn($q) => $q->where('department_id', $deptId))
             ->exists();
 
         if ($hasDeptHod) {
@@ -144,8 +145,7 @@ class TicketApprovalService
         $userDeptCode = $user->employee?->department?->code;
         $userEmpCode = $user->employee?->employee_code;
         $userDeptId = $user->employee?->department_id;
-        $isItHod = ($userEmpCode === 'EMP-1007')
-            || ($userDeptCode === 'IT')
+        $isItHod = ($userDeptCode === 'IT')
             || ($userDeptId === 2)
             || ($user->email === 'admin@cbvh.com.kh')
             || ($user->id === 1)
@@ -380,7 +380,7 @@ class TicketApprovalService
             $approvers = User::whereHas('roles', fn($q) => $q->whereIn('name', ['hod', 'system_admin']))
                 ->where(function ($q) {
                     $q->whereDoesntHave('employee')
-                      ->orWhereHas('employee', fn($emp) => $emp->where('department_id', 2)->orWhere('employee_code', 'EMP-1007'));
+                      ->orWhereHas('employee', fn($emp) => $emp->where('department_id', 2)->orWhereHas('department', fn($d) => $d->where('code', 'IT')));
                 })
                 ->whereNotNull('telegram_id')
                 ->get();

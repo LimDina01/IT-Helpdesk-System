@@ -726,7 +726,7 @@ class TmaTicketController extends Controller
         $isHod = $user ? $user->hasRole(['hod', 'system_admin']) : false;
         $userDeptCode = $user?->employee?->department?->code;
         $userEmpCode = $user?->employee?->employee_code;
-        $isItHod = $isHod && ($userDeptCode === 'IT' || $userEmpCode === 'EMP-1007');
+        $isItHod = $isHod && ($userDeptCode === 'IT' || $userEmpCode === 'EMP-1007' || $user?->email === 'admin@cbvh.com.kh' || $user?->id === 1);
 
         $pendingApprovalsCount = 0;
         if ($isHod) {

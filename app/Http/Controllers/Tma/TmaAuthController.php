@@ -309,7 +309,7 @@ class TmaAuthController extends Controller
         $isHod = $user->hasRole(['hod', 'system_admin']);
         $userDeptCode = $user->employee?->department?->code;
         $userEmpCode = $user->employee?->employee_code;
-        $isItHod = $isHod && ($userDeptCode === 'IT' || $userEmpCode === 'EMP-1007' || $user->email === 'admin@cbvh.com.kh');
+        $isItHod = $isHod && ($userDeptCode === 'IT' || $user->email === 'admin@cbvh.com.kh' || $user->id === 1);
 
         return [
             'id' => $user->id,
