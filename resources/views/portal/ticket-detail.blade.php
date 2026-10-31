@@ -174,11 +174,12 @@
                     inputEl.focus();
                 }
             } else {
+                const errData = await res.json().catch(() => ({}));
                 if (!this.messageBody) {
                     this.messageBody = text;
                     if (inputEl) inputEl.value = text;
                 }
-                this.showToast('Failed to send message. Please retry.');
+                this.showToast(errData.message || Object.values(errData.errors || {})[0]?.[0] || 'Failed to send message. Please retry.');
             }
         } catch (e) {
             if (!this.messageBody) {

@@ -479,6 +479,40 @@ class PortalOperationsTest extends TestCase
         ]);
     }
 
+    public function test_staff_can_send_message_with_attachment_only_without_text(): void
+    {
+        $tech = User::where('email', 'tech1@cbvh.com.kh')->first();
+        $requester = User::where('email', 'sokha.chan@cbvh.com.kh')->first();
+        $ticket = $this->createSampleTicket($requester, $tech);
+
+        \Illuminate\Support\Facades\Storage::fake('attachments');
+        $file = \Illuminate\Http\UploadedFile::fake()->create('network_diagram.pdf', 500, 'application/pdf');
+
+        $response = $this->actingAs($tech)->postJson("/portal/tickets/{$ticket->id}/messages", [
+            'visibility' => 'requester_visible',
+            'attachments' => [$file],
+            // 'body' is omitted / empty!
+        ]);
+
+        $response->assertStatus(200);
+        $response->assertJson([
+            'status' => 'success',
+            'message' => 'Reply sent to requester.',
+        ]);
+
+        $this->assertDatabaseHas('ticket_messages', [
+            'ticket_id' => $ticket->id,
+            'message_type' => 'attachment',
+            'visibility' => 'requester_visible',
+            'body' => null,
+        ]);
+
+        $this->assertDatabaseHas('ticket_attachments', [
+            'ticket_id' => $ticket->id,
+            'original_filename' => 'network_diagram.pdf',
+        ]);
+    }
+
     public function test_sla_pause_tracking_pauses_clock_and_accumulates_duration_on_resume(): void
     {
         // Fix test time to Monday 08:00 AM so 4 hours falls squarely in the 08:00 - 12:00 morning shift

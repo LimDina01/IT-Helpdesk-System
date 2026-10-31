@@ -610,20 +610,22 @@ class PortalTicketController extends Controller
     public function addMessage(Request $request, Ticket $ticket, TelegramNotificationService $telegram): JsonResponse|RedirectResponse
     {
         $validated = $request->validate([
-            'body' => 'required|string',
+            'body' => 'required_without:attachments|nullable|string',
             'visibility' => 'required|in:requester_visible,internal_staff_only',
             'attachments.*' => 'nullable|file|max:25600|mimes:jpeg,jpg,png,webp,gif,bmp,heic,heif,pdf,doc,docx,xls,xlsx,txt,zip',
         ]);
 
         $user = Auth::user();
+        $hasFiles = $request->hasFile('attachments');
+        $bodyText = $validated['body'] ?? null;
 
-        DB::transaction(function () use ($ticket, $user, $validated, $request) {
+        DB::transaction(function () use ($ticket, $user, $validated, $request, $hasFiles, $bodyText) {
             $msg = TicketMessage::create([
                 'ticket_id' => $ticket->id,
                 'sender_id' => $user->id,
                 'visibility' => $validated['visibility'],
-                'message_type' => 'text',
-                'body' => $validated['body'],
+                'message_type' => $hasFiles && empty($bodyText) ? 'attachment' : 'text',
+                'body' => $bodyText,
             ]);
 
             if ($request->hasFile('attachments')) {
@@ -661,7 +663,8 @@ class PortalTicketController extends Controller
         // Trigger Telegram alert to requester only if public and requester is NOT active in chat right now
         $isRequesterActive = Cache::has("ticket_presence_{$ticket->id}_{$ticket->requester_id}");
         if (!$isRequesterActive && $validated['visibility'] === 'requester_visible' && $ticket->requester?->telegram_id) {
-            $telegram->sendStaffReplyAlert($ticket->requester, $ticket, $validated['body'], $user->name);
+            $alertBody = !empty($bodyText) ? $bodyText : '📎 Sent an attachment';
+            $telegram->sendStaffReplyAlert($ticket->requester, $ticket, $alertBody, $user->name);
         }
 
         $msgType = $validated['visibility'] === 'internal_staff_only' ? 'Internal note added.' : 'Reply sent to requester.';
