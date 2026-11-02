@@ -762,6 +762,7 @@ class TmaTicketController extends Controller
             'user' => [
                 'branch_id' => $userBranchId,
                 'branch_name' => $userBranchName,
+                'branch_code' => $emp?->branch?->code ?? $branches->first()?->code ?? 'HQ-PP',
                 'department_id' => $emp?->department_id,
                 'department_name' => $userDeptName,
                 'department_code' => $userDeptCode,

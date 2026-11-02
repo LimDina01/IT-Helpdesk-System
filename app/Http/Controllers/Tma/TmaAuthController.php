@@ -320,6 +320,7 @@ class TmaAuthController extends Controller
             'employee_code' => $user->employee?->employee_code ?? 'EMP',
             'branch' => $user->employee?->branch?->name ?? 'Headquarters',
             'branch_id' => $user->employee?->branch_id,
+            'branch_code' => $user->employee?->branch?->code ?? 'HQ-PP',
             'department' => $user->employee?->department?->name ?? 'General',
             'department_id' => $user->employee?->department_id,
             'department_code' => $userDeptCode,

@@ -500,5 +500,34 @@ class TmaRequesterPortalTest extends TestCase
         $portalResponse = $this->get('/portal');
         $portalResponse->assertRedirect(route('login'));
     }
+
+    public function test_tma_user_payload_and_form_data_contain_branch_code(): void
+    {
+        $loginResponse = $this->postJson('/tma/api/login', [
+            'login' => 'EMP-1001',
+            'password' => 'Password123!',
+        ]);
+
+        $loginResponse->assertOk()
+            ->assertJsonPath('status', 'authenticated')
+            ->assertJsonStructure([
+                'user' => [
+                    'id',
+                    'name',
+                    'employee_code',
+                    'branch',
+                    'branch_id',
+                    'branch_code',
+                    'department',
+                ],
+            ]);
+
+        $this->assertEquals('HQ-PP', $loginResponse->json('user.branch_code'));
+
+        $formDataResponse = $this->getJson(route('tma.form-data'));
+        $formDataResponse->assertOk()
+            ->assertJsonPath('user.branch_code', 'HQ-PP');
+    }
 }
+
 

@@ -16,8 +16,8 @@
                         <div class="text-xs font-bold text-slate-800 leading-tight truncate max-w-[120px]" x-text="currentUser.name"></div>
                         <div class="text-[10px] text-slate-500 font-medium flex items-center space-x-1 truncate max-w-[130px] mt-0.5">
                             <span class="font-mono text-slate-400 shrink-0" x-text="currentUser.employee_code"></span>
-                            <span x-show="userDepartment" class="text-slate-300">•</span>
-                            <span x-show="userDepartment" class="text-blue-600 font-semibold truncate" x-text="userDepartment"></span>
+                            <span x-show="userBranchCode" class="text-slate-300">•</span>
+                            <span x-show="userBranchCode" class="text-blue-600 font-semibold font-mono uppercase truncate" x-text="userBranchCode"></span>
                         </div>
                     </div>
                 </div>

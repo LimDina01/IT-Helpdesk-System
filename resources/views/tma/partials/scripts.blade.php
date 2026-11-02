@@ -122,6 +122,10 @@ function tmaApp() {
             return this.currentUser?.branch || this.formData?.user?.branch_name || '';
         },
 
+        get userBranchCode() {
+            return this.currentUser?.branch_code || this.formData?.user?.branch_code || '';
+        },
+
         get openCount() {
             return (this.activeTickets || []).filter(t => ['pending_approval', 'submitted', 'assigned', 'clarifying', 'reopened'].includes(t.status)).length;
         },
