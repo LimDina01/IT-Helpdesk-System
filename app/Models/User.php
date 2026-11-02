@@ -93,8 +93,8 @@ class User extends Authenticatable
         }
 
         if ($this->hasRole('hod')) {
-            $deptCode = $this->employee?->department?->code;
-            if (!$this->employee || $deptCode === 'IT' || $this->email === 'admin@cbvh.com.kh') {
+            // Standalone accounts with NO employee profile are IT Staff Portal HODs
+            if (empty($this->employee_id) || $this->email === 'admin@cbvh.com.kh') {
                 return true;
             }
         }

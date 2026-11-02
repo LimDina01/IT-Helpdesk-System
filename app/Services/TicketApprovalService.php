@@ -33,9 +33,12 @@ class TicketApprovalService
 
         $deptId = $ticket->requester->employee?->department_id;
         $branchId = $ticket->branch_id ?? $ticket->requester->employee?->branch_id;
+        $deptCode = $ticket->requester->employee?->department?->code;
+        $isItDept = ($deptCode === 'IT' || $deptId == 2);
 
         // Check if requester's branch & department has a designated HOD (excluding IT Department / IT HOD)
-        $hasDeptHod = $deptId && $branchId && $deptId != 2 && User::whereHas('roles', fn($q) => $q->where('name', 'hod'))
+        $hasDeptHod = !$isItDept && $deptId && $branchId && User::whereHas('roles', fn($q) => $q->where('name', 'hod'))
+            ->whereNotNull('employee_id')
             ->where('email', '!=', 'admin@cbvh.com.kh')
             ->whereHas('employee', fn($q) => $q->where('department_id', $deptId)->where('branch_id', $branchId))
             ->exists();
@@ -65,7 +68,15 @@ class TicketApprovalService
             // Notify Step 1 approvers (Branch Department HOD)
             $this->notifyStepApprover($step1, $ticket);
         } else {
-            // Requester branch department has NO designated HOD -> Auto-pass Step 1 and route directly to Central IT HOD (Step 2)
+            // If IT department or branch department has NO designated HOD -> Auto-pass Step 1 and route directly to Central IT HOD (Step 2)
+            $step1Comments = $isItDept
+                ? 'IT Department requester — automatically routed directly to Central IT HOD Approval.'
+                : 'Branch department has no designated HOD — automatically routed to Central IT Review.';
+
+            $systemMsgBody = $isItDept
+                ? 'ℹ️ IT Department requester: automatically routed directly to Central IT Manager for approval.'
+                : 'ℹ️ Requester branch department has no designated HOD. Request routed directly to Central IT Manager for approval.';
+
             $step1 = TicketApproval::create([
                 'ticket_id' => $ticket->id,
                 'step_number' => 1,
@@ -74,7 +85,7 @@ class TicketApprovalService
                 'department_id' => $deptId,
                 'branch_id' => $branchId,
                 'status' => 'approved',
-                'comments' => 'Branch department has no designated HOD — automatically routed to Central IT Review.',
+                'comments' => $step1Comments,
                 'actioned_at' => now(),
             ]);
 
@@ -93,7 +104,7 @@ class TicketApprovalService
                 'sender_id' => $ticket->requester_id,
                 'visibility' => 'system_event',
                 'message_type' => 'status_change',
-                'body' => 'ℹ️ Requester branch department has no designated HOD. Request routed directly to Central IT Manager for approval.',
+                'body' => $systemMsgBody,
             ]);
 
             // Notify Step 2 (IT HOD) immediately!
@@ -153,11 +164,9 @@ class TicketApprovalService
         $userEmpCode = $user->employee?->employee_code;
         $userDeptId = $user->employee?->department_id;
         $userBranchId = $user->employee?->branch_id;
-        $isItHod = ($userDeptCode === 'IT')
-            || ($userDeptId === 2)
+        $isItHod = $user->isItStaff()
             || ($user->email === 'admin@cbvh.com.kh')
-            || ($user->id === 1)
-            || ($user->hasRole('system_admin') && (!$user->employee || $userDeptCode === 'IT' || $userDeptId === 2));
+            || ($user->id === 1);
 
         // ========================================================
         // Process 1: Department HOD Approval (Strictly Step 1)
@@ -393,8 +402,7 @@ class TicketApprovalService
             // Process 2: Central IT Department HOD (HQ)
             $approvers = User::whereHas('roles', fn($q) => $q->whereIn('name', ['hod', 'system_admin']))
                 ->where(function ($q) {
-                    $q->whereDoesntHave('employee')
-                      ->orWhereHas('employee', fn($emp) => $emp->where('department_id', 2)->orWhereHas('department', fn($d) => $d->where('code', 'IT')));
+                    $q->whereDoesntHave('employee');
                 })
                 ->whereNotNull('telegram_id')
                 ->get();

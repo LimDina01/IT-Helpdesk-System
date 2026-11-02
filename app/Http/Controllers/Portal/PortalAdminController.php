@@ -279,22 +279,12 @@ class PortalAdminController extends Controller
             ->orderBy('name');
 
         $staffFilterClosure = function ($q) {
-            $q->whereHas('roles', fn($r) => $r->whereIn('name', ['technician', 'helpdesk', 'system_admin']))
-              ->orWhere(function ($hodQ) {
-                  $hodQ->whereHas('roles', fn($r) => $r->where('name', 'hod'))
-                       ->where(function ($deptQ) {
-                           $deptQ->whereDoesntHave('employee')
-                                 ->orWhereHas('employee.department', fn($d) => $d->where('code', 'IT'));
-                       });
-              });
+            $q->whereNull('employee_id')
+              ->whereHas('roles', fn($r) => $r->whereIn('name', ['technician', 'helpdesk', 'system_admin', 'hod']));
         };
 
         $tmaFilterClosure = function ($q) {
-            $q->whereDoesntHave('roles', fn($r) => $r->whereIn('name', ['technician', 'helpdesk', 'system_admin']))
-              ->where(function ($subQ) {
-                  $subQ->whereDoesntHave('roles', fn($r) => $r->where('name', 'hod'))
-                       ->orWhereHas('employee.department', fn($d) => $d->where('code', '!=', 'IT'));
-              });
+            $q->whereNotNull('employee_id');
         };
 
         if ($filter === 'portal') {

@@ -663,4 +663,80 @@ class HodCockpitAndAdminTest extends TestCase
         $this->assertFalse($ticket->isSlaPaused());
         $this->assertNull($ticket->blocked_at);
     }
+
+    public function test_employee_in_it_department_stays_in_tma_requesters_when_made_hod(): void
+    {
+        $this->actingAs($this->adminUser);
+
+        // 1. Create a bank employee whose department is Information Technology (code IT)
+        $itDept = \App\Models\Department::firstOrCreate(['code' => 'IT'], ['name' => 'Information Technology', 'is_active' => true]);
+        $hqBranch = \App\Models\Branch::firstOrCreate(['code' => 'HQ-PP'], ['name' => 'Headquarters', 'is_active' => true]);
+
+        $employee = \App\Models\Employee::create([
+            'employee_code' => 'EMP-IT-99',
+            'full_name' => 'Dina Lim (IT Dept Employee)',
+            'email' => 'dina.lim.emp@cbvh.com.kh',
+            'department_id' => $itDept->id,
+            'branch_id' => $hqBranch->id,
+        ]);
+
+        $user = \App\Models\User::create([
+            'name' => 'Dina Lim (IT Dept Employee)',
+            'email' => 'dina.lim.emp@cbvh.com.kh',
+            'password' => bcrypt('Password123!'),
+            'employee_id' => $employee->id,
+            'is_active' => true,
+        ]);
+
+        $requesterRole = \App\Models\Role::firstOrCreate(['name' => 'requester'], ['display_name' => 'Requester']);
+        $hodRole = \App\Models\Role::firstOrCreate(['name' => 'hod'], ['display_name' => 'Head of Department']);
+        $user->roles()->sync([$requesterRole->id, $hodRole->id]);
+
+        // 2. Verify account is classified as TMA Requester, NOT IT Staff
+        $this->assertFalse($user->isItStaff());
+        $this->assertTrue($user->isBusinessHod());
+
+        // 3. Admin portal list: User MUST be in TMA Requesters tab (?filter=tma) and NOT in IT Staff tab (?filter=portal)
+        $tmaListResponse = $this->get(route('portal.admin.users', ['filter' => 'tma']));
+        $tmaListResponse->assertOk();
+        $tmaListResponse->assertSee('dina.lim.emp@cbvh.com.kh');
+
+        $portalListResponse = $this->get(route('portal.admin.users', ['filter' => 'portal']));
+        $portalListResponse->assertOk();
+        $portalListResponse->assertDontSee('dina.lim.emp@cbvh.com.kh');
+
+        // 4. When this IT department employee submits a Service Request, Step 1 is auto-passed directly to Central IT HOD
+        $category = \App\Models\TicketCategory::firstOrCreate(
+            ['name' => 'IT Hardware Request'],
+            ['type' => 'service_request', 'requires_approval' => true, 'is_active' => true]
+        );
+
+        $ticket = \App\Models\Ticket::create([
+            'ticket_code' => 'SR-IT-001',
+            'ticket_type' => 'service_request',
+            'requester_id' => $user->id,
+            'category_id' => $category->id,
+            'branch_id' => $hqBranch->id,
+            'subject' => 'Need extra monitor for development',
+            'description' => 'Second screen required for testing',
+            'status' => 'submitted',
+            'priority' => 'medium',
+        ]);
+
+        $approvalService = app(\App\Services\TicketApprovalService::class);
+        $approvalService->createApprovalChain($ticket);
+        $ticket->refresh();
+
+        $this->assertEquals('pending_approval', $ticket->status);
+        $step1 = $ticket->approvals()->where('step_number', 1)->first();
+        $step2 = $ticket->approvals()->where('step_number', 2)->first();
+
+        // Step 1 was auto-approved because requester is from IT department
+        $this->assertEquals('approved', $step1->status);
+        $this->assertStringContainsString('IT Department requester', $step1->comments);
+
+        // Step 2 is pending for Central IT HOD
+        $this->assertEquals('pending', $step2->status);
+    }
 }
+
