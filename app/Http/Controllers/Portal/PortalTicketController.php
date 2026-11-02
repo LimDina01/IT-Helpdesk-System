@@ -64,18 +64,26 @@ class PortalTicketController extends Controller
         $currentApproval = $ticket->currentApproval();
         $canApproveCurrent = $currentApproval ? $approvalService->canUserApprove(Auth::user(), $currentApproval) : false;
 
-        $categoriesJson = TicketCategory::where('is_active', true)
-            ->with('parent')
+        $categoriesHierarchy = TicketCategory::where('is_active', true)
+            ->whereNull('parent_id')
+            ->with(['children' => function ($q) {
+                $q->where('is_active', true)->orderBy('name');
+            }])
             ->orderBy('name')
             ->get()
-            ->map(function ($cat) {
-                $prefix = $cat->parent ? ($cat->parent->name . ' → ') : '';
+            ->map(function ($parent) {
                 return [
-                    'id' => $cat->id,
-                    'name' => $cat->name,
-                    'full_name' => $prefix . $cat->name,
-                    'type' => $cat->type === 'service_request' ? 'service_request' : 'incident',
-                    'requires_approval' => (bool) $cat->requires_approval,
+                    'id' => $parent->id,
+                    'name' => $parent->name,
+                    'type' => $parent->type === 'service_request' ? 'service_request' : 'incident',
+                    'children' => $parent->children->map(function ($c) {
+                        return [
+                            'id' => $c->id,
+                            'name' => $c->name,
+                            'type' => $c->type === 'service_request' ? 'service_request' : 'incident',
+                            'requires_approval' => (bool) $c->requires_approval,
+                        ];
+                    })->values()->all(),
                 ];
             });
 
@@ -86,7 +94,7 @@ class PortalTicketController extends Controller
             'isOverdueAcknowledgement',
             'currentApproval',
             'canApproveCurrent',
-            'categoriesJson'
+            'categoriesHierarchy'
         ));
     }
 

@@ -10,11 +10,38 @@
     reassignDrawer: false,
     reclassifyModal: false,
     reclassifyType: '{{ $ticket->ticket_type }}',
-    reclassifyCatId: {{ $ticket->category_id }},
-    allCategories: {{ Js::from($categoriesJson) }},
-    getFilteredCategories() {
+    reclassifyParentId: {{ $ticket->category->parent_id ?? $ticket->category_id }},
+    reclassifySubId: {{ $ticket->category_id }},
+    categoryHierarchy: {{ Js::from($categoriesHierarchy) }},
+
+    getParentCategories() {
         const targetType = this.reclassifyType === 'incident' ? 'incident' : 'service_request';
-        return this.allCategories.filter(c => c.type === targetType);
+        return this.categoryHierarchy.filter(p => p.type === targetType);
+    },
+
+    getSubcategories() {
+        const parent = this.categoryHierarchy.find(p => p.id == this.reclassifyParentId);
+        if (!parent || !parent.children || parent.children.length === 0) {
+            return parent ? [{ id: parent.id, name: parent.name }] : [];
+        }
+        return parent.children;
+    },
+
+    onTypeChange() {
+        const parents = this.getParentCategories();
+        if (parents.length > 0) {
+            this.reclassifyParentId = parents[0].id;
+            this.onParentChange();
+        }
+    },
+
+    onParentChange() {
+        const subs = this.getSubcategories();
+        if (subs.length > 0) {
+            this.reclassifySubId = subs[0].id;
+        } else {
+            this.reclassifySubId = this.reclassifyParentId;
+        }
     },
     messageTab: 'requester_visible',
     messageBody: '',
@@ -1423,7 +1450,7 @@
                         <label :class="reclassifyType === 'incident' ? 'border-rose-500 bg-rose-50/50 ring-2 ring-rose-500/20' : 'border-slate-200 hover:border-slate-300 bg-white'"
                                class="flex items-center space-x-2.5 p-3 rounded-2xl border cursor-pointer transition">
                             <input type="radio" name="ticket_type" value="incident" x-model="reclassifyType"
-                                   @change="const f = getFilteredCategories(); if (!f.some(c => c.id == reclassifyCatId) && f.length) reclassifyCatId = f[0].id;"
+                                   @change="onTypeChange()"
                                    class="text-rose-600 focus:ring-rose-500">
                             <div>
                                 <div class="text-xs font-bold text-slate-900 flex items-center space-x-1">
@@ -1435,7 +1462,7 @@
                         <label :class="reclassifyType === 'service_request' ? 'border-indigo-500 bg-indigo-50/50 ring-2 ring-indigo-500/20' : 'border-slate-200 hover:border-slate-300 bg-white'"
                                class="flex items-center space-x-2.5 p-3 rounded-2xl border cursor-pointer transition">
                             <input type="radio" name="ticket_type" value="service_request" x-model="reclassifyType"
-                                   @change="const f = getFilteredCategories(); if (!f.some(c => c.id == reclassifyCatId) && f.length) reclassifyCatId = f[0].id;"
+                                   @change="onTypeChange()"
                                    class="text-indigo-600 focus:ring-indigo-500">
                             <div>
                                 <div class="text-xs font-bold text-slate-900 flex items-center space-x-1">
@@ -1464,14 +1491,32 @@
                     </div>
                 </div>
 
-                <!-- Category Selector -->
-                <div>
-                    <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Target Category</label>
-                    <select name="category_id" x-model="reclassifyCatId" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
-                        <template x-for="cat in getFilteredCategories()" :key="cat.id">
-                            <option :value="cat.id" x-text="cat.full_name" :selected="cat.id == reclassifyCatId"></option>
-                        </template>
-                    </select>
+                <!-- Main Category & Subcategory Selection (Individually, like TMA) -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <!-- 1. Main Category -->
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Main Category</label>
+                        <select x-model="reclassifyParentId"
+                                @change="onParentChange()"
+                                class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-slate-800 font-medium cursor-pointer">
+                            <template x-for="parent in getParentCategories()" :key="parent.id">
+                                <option :value="parent.id" x-text="parent.name" :selected="parent.id == reclassifyParentId"></option>
+                            </template>
+                        </select>
+                    </div>
+
+                    <!-- 2. Subcategory -->
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Subcategory</label>
+                        <select name="category_id"
+                                x-model="reclassifySubId"
+                                required
+                                class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-slate-800 font-medium cursor-pointer">
+                            <template x-for="sub in getSubcategories()" :key="sub.id">
+                                <option :value="sub.id" x-text="sub.name" :selected="sub.id == reclassifySubId"></option>
+                            </template>
+                        </select>
+                    </div>
                 </div>
 
                 <!-- Reason Field -->

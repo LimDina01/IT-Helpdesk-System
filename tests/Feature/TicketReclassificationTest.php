@@ -195,3 +195,4 @@ class TicketReclassificationTest extends TestCase
         $response->assertStatus(403);
     }
 }
+
