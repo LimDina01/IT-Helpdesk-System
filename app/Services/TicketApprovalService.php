@@ -146,11 +146,6 @@ class TicketApprovalService
 
         $ticket = $approval->ticket;
 
-        // Requester cannot approve their own ticket (strict separation of duties)
-        if ($ticket->requester_id === $user->id) {
-            return false;
-        }
-
         // Sequential check: Previous steps must all be approved first!
         $priorPending = $ticket->approvals()
             ->where('step_number', '<', $approval->step_number)
@@ -410,7 +405,6 @@ class TicketApprovalService
                     $q->whereDoesntHave('employee')
                       ->orWhereHas('employee.department', fn($d) => $d->where('code', 'IT')->orWhere('id', 2));
                 })
-                ->where('id', '!=', $ticket->requester_id)
                 ->whereNotNull('telegram_id')
                 ->get();
         }

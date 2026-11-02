@@ -736,11 +736,12 @@ class HodCockpitAndAdminTest extends TestCase
         $this->assertEquals('approved', $step1->status);
         $this->assertStringContainsString('IT Department requester', $step1->comments);
 
-        // Step 2 is pending for Central IT HOD
+        // Step 2 is pending for Central IT HOD / IT Department HOD
         $this->assertEquals('pending', $step2->status);
 
-        // Requester cannot self-approve their own ticket
-        $this->assertFalse($approvalService->canUserApprove($user, $step2));
+        // IT HOD requester CAN approve their own ticket (as authorized HOD)
+        $this->assertTrue($approvalService->canUserApprove($user, $step2));
+        $this->assertEquals(1, $approvalService->getPendingApprovalTicketsForUser($user)->count());
 
         // Create Mr. Rithy Seng (an IT HOD colleague with employee profile)
         $employeeRithy = \App\Models\Employee::create([
@@ -762,8 +763,8 @@ class HodCockpitAndAdminTest extends TestCase
         $this->assertTrue($approvalService->canUserApprove($rithyUser, $step2));
         $this->assertEquals(1, $approvalService->getPendingApprovalTicketsForUser($rithyUser)->count());
 
-        // Mr. Rithy Seng approves Step 2
-        $this->assertTrue($approvalService->approve($step2, $rithyUser, 'Approved by IT HOD'));
+        // IT HOD approves Step 2
+        $this->assertTrue($approvalService->approve($step2, $user, 'Approved by IT HOD'));
         $ticket->refresh();
         $this->assertEquals('submitted', $ticket->status);
     }
