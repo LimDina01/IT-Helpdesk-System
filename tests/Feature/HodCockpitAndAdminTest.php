@@ -692,9 +692,10 @@ class HodCockpitAndAdminTest extends TestCase
         $hodRole = \App\Models\Role::firstOrCreate(['name' => 'hod'], ['display_name' => 'Head of Department']);
         $user->roles()->sync([$requesterRole->id, $hodRole->id]);
 
-        // 2. Verify account is classified as TMA Requester, NOT IT Staff
+        // 2. Verify account is classified as TMA Requester, NOT IT Staff, but holds IT HOD authority
         $this->assertFalse($user->isItStaff());
-        $this->assertTrue($user->isBusinessHod());
+        $this->assertTrue($user->isItHod());
+        $this->assertFalse($user->isBusinessHod());
 
         // 3. Admin portal list: User MUST be in TMA Requesters tab (?filter=tma) and NOT in IT Staff tab (?filter=portal)
         $tmaListResponse = $this->get(route('portal.admin.users', ['filter' => 'tma']));
@@ -737,6 +738,34 @@ class HodCockpitAndAdminTest extends TestCase
 
         // Step 2 is pending for Central IT HOD
         $this->assertEquals('pending', $step2->status);
+
+        // Requester cannot self-approve their own ticket
+        $this->assertFalse($approvalService->canUserApprove($user, $step2));
+
+        // Create Mr. Rithy Seng (an IT HOD colleague with employee profile)
+        $employeeRithy = \App\Models\Employee::create([
+            'employee_code' => '100399',
+            'full_name' => 'Mr. Rithy Seng',
+            'department_id' => $itDept->id,
+            'branch_id' => $hqBranch->id,
+        ]);
+        $rithyUser = \App\Models\User::create([
+            'name' => 'Mr. Rithy Seng',
+            'email' => 'rithyseng.cbvh@gmail.com',
+            'password' => bcrypt('Password123!'),
+            'employee_id' => $employeeRithy->id,
+            'is_active' => true,
+        ]);
+        $rithyUser->roles()->sync([$requesterRole->id, $hodRole->id]);
+
+        $this->assertTrue($rithyUser->isItHod());
+        $this->assertTrue($approvalService->canUserApprove($rithyUser, $step2));
+        $this->assertEquals(1, $approvalService->getPendingApprovalTicketsForUser($rithyUser)->count());
+
+        // Mr. Rithy Seng approves Step 2
+        $this->assertTrue($approvalService->approve($step2, $rithyUser, 'Approved by IT HOD'));
+        $ticket->refresh();
+        $this->assertEquals('submitted', $ticket->status);
     }
 }
 

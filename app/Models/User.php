@@ -102,9 +102,30 @@ class User extends Authenticatable
         return false;
     }
 
+    public function isItHod(): bool
+    {
+        if ($this->email === 'admin@cbvh.com.kh' || $this->id === 1) {
+            return true;
+        }
+
+        if ($this->hasAnyRole(['hod', 'system_admin'])) {
+            if ($this->isItStaff()) {
+                return true;
+            }
+
+            $deptCode = $this->employee?->department?->code;
+            $deptId = $this->employee?->department_id;
+            if ($deptCode === 'IT' || $deptId == 2) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public function isBusinessHod(): bool
     {
-        return $this->hasRole('hod') && !$this->isItStaff();
+        return $this->hasRole('hod') && !$this->isItHod();
     }
 
     public function canAccessPortal(): bool
