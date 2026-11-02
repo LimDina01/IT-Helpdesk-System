@@ -77,73 +77,230 @@
                         <span class="text-[10px] font-mono text-slate-400" x-text="selectedTicket?.created_at || selectedTicket?.full_created_timestamp"></span>
                     </div>
 
-                    <!-- Service Request Stepper -->
+                    <!-- Service Request Stepper (Extensible Dynamic Vertical Timeline) -->
                     <template x-if="selectedTicket?.ticket_type === 'service_request'">
-                        <div class="space-y-3">
-                            <div class="grid grid-cols-5 gap-1 text-center">
-                                <div class="flex flex-col items-center">
-                                    <div class="w-7 h-7 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs font-bold">✔</div>
-                                    <span class="text-[9px] font-bold text-emerald-700 mt-1" x-text="locale === 'km' ? 'បានដាក់ស្នើ' : 'Submitted'">Submitted</span>
+                        <div class="relative pl-7 space-y-4 pt-1">
+                            <!-- Vertical Connecting Track Line -->
+                            <div class="absolute left-3.5 top-3.5 bottom-3.5 w-0.5 bg-slate-200"></div>
+
+                            <!-- Step 1: Request Submitted -->
+                            <div class="relative flex items-start space-x-3">
+                                <div class="relative z-10 w-7 h-7 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs font-bold ring-4 ring-white shadow-xs shrink-0">
+                                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg>
                                 </div>
-                                <div class="flex flex-col items-center">
-                                    <div :class="getServiceStepClass(selectedTicket, 1)" class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold">
-                                        <span x-text="getServiceStepIcon(selectedTicket, 1)"></span>
+                                <div class="flex-1 min-w-0 pt-0.5">
+                                    <div class="flex items-center justify-between gap-1">
+                                        <h4 class="text-xs font-bold text-slate-800" x-text="locale === 'km' ? 'បានដាក់ស្នើសុំ' : 'Request Submitted'">Request Submitted</h4>
+                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200" x-text="locale === 'km' ? 'រួចរាល់' : 'Submitted'">Submitted</span>
                                     </div>
-                                    <span class="text-[9px] font-medium text-slate-600 mt-1" x-text="locale === 'km' ? 'ប្រធានផ្នែក' : 'Dept HOD'">Dept HOD</span>
+                                    <p class="text-[11px] text-slate-500 mt-0.5">
+                                        <span x-text="selectedTicket?.requester_name || (locale === 'km' ? 'អ្នកស្នើ' : 'Requester')"></span>
+                                        <span class="text-slate-300 mx-1">•</span>
+                                        <span class="font-mono text-[10px]" x-text="selectedTicket?.created_at || selectedTicket?.full_created_timestamp"></span>
+                                    </p>
                                 </div>
-                                <div class="flex flex-col items-center">
-                                    <div :class="getServiceStepClass(selectedTicket, 2)" class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold">
-                                        <span x-text="getServiceStepIcon(selectedTicket, 2)"></span>
+                            </div>
+
+                            <!-- Dynamic Approvals (Slot 1, Slot 2, Slot 3, etc.) -->
+                            <template x-for="(approval, aIdx) in (selectedTicket?.approvals || [])" :key="approval.id || aIdx">
+                                <div class="relative flex items-start space-x-3">
+                                    <!-- Step Circle -->
+                                    <div class="relative z-10 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ring-4 ring-white shadow-xs shrink-0"
+                                         :class="getTimelineApprovalCircleClass(approval, selectedTicket)">
+                                        <template x-if="approval.status === 'approved'">
+                                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg>
+                                        </template>
+                                        <template x-if="approval.status === 'rejected'">
+                                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                                        </template>
+                                        <template x-if="approval.status === 'pending'">
+                                            <span x-text="isCurrentApprovalStep(approval, selectedTicket) ? '⏳' : (approval.step_number || (aIdx + 2))"></span>
+                                        </template>
                                     </div>
-                                    <span class="text-[9px] font-medium text-slate-600 mt-1" x-text="locale === 'km' ? 'ប្រធាន IT' : 'IT Manager'">IT Manager</span>
+
+                                    <!-- Step Content -->
+                                    <div class="flex-1 min-w-0 pt-0.5">
+                                        <div class="flex items-center justify-between gap-1">
+                                            <h4 class="text-xs font-bold text-slate-800 truncate" x-text="formatApprovalStepTitle(approval)"></h4>
+                                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold shrink-0"
+                                                  :class="getTimelineApprovalBadgeClass(approval, selectedTicket)"
+                                                  x-text="getTimelineApprovalBadgeText(approval, selectedTicket)"></span>
+                                        </div>
+
+                                        <!-- Approver details / Actioned at -->
+                                        <p class="text-[11px] text-slate-500 mt-0.5" x-text="getTimelineApprovalDetailText(approval, selectedTicket)"></p>
+
+                                        <!-- Optional Approver Comments/Reason -->
+                                        <template x-if="approval.comments">
+                                            <div class="mt-1 text-[11px] rounded-lg px-2.5 py-1.5 border leading-relaxed"
+                                                 :class="approval.status === 'rejected' ? 'bg-rose-50/80 border-rose-200 text-rose-800' : 'bg-slate-50 border-slate-200/80 text-slate-600'">
+                                                <span class="font-medium text-slate-400 select-none">“</span><span x-text="approval.comments"></span><span class="font-medium text-slate-400 select-none">”</span>
+                                            </div>
+                                        </template>
+                                    </div>
                                 </div>
-                                <div class="flex flex-col items-center">
-                                    <div :class="getFulfillmentStepClass(selectedTicket)" class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold">
-                                        <span x-text="getFulfillmentStepIcon(selectedTicket)"></span>
-                                    </div>
-                                    <span class="text-[9px] font-medium text-slate-600 mt-1" x-text="locale === 'km' ? 'ចាត់តាំងដោះស្រាយ' : 'Fulfillment'">Fulfillment</span>
+                            </template>
+
+                            <!-- Fulfillment Step -->
+                            <div class="relative flex items-start space-x-3">
+                                <div class="relative z-10 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ring-4 ring-white shadow-xs shrink-0"
+                                     :class="getTimelineFulfillmentCircleClass(selectedTicket)">
+                                    <template x-if="['pending_confirmation', 'resolved_confirmed', 'resolved_auto_closed'].includes(selectedTicket?.status)">
+                                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg>
+                                    </template>
+                                    <template x-if="['rejected', 'cancelled'].includes(selectedTicket?.status)">
+                                        <span>—</span>
+                                    </template>
+                                    <template x-if="!['pending_confirmation', 'resolved_confirmed', 'resolved_auto_closed', 'rejected', 'cancelled'].includes(selectedTicket?.status)">
+                                        <span>🛠</span>
+                                    </template>
                                 </div>
-                                <div class="flex flex-col items-center">
-                                    <div :class="selectedTicket?.is_closed ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-400'" class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold">
-                                        <span x-text="selectedTicket?.is_closed ? '✔' : '5'"></span>
+                                <div class="flex-1 min-w-0 pt-0.5">
+                                    <div class="flex items-center justify-between gap-1">
+                                        <h4 class="text-xs font-bold text-slate-800" x-text="locale === 'km' ? 'ការចាត់តាំង & ដោះស្រាយ' : 'IT Fulfillment'">IT Fulfillment</h4>
+                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold shrink-0"
+                                              :class="getTimelineFulfillmentBadgeClass(selectedTicket)"
+                                              x-text="getTimelineFulfillmentBadgeText(selectedTicket)"></span>
                                     </div>
-                                    <span class="text-[9px] font-medium text-slate-600 mt-1" x-text="locale === 'km' ? 'រួចរាល់' : 'Done'">Done</span>
+                                    <p class="text-[11px] text-slate-500 mt-0.5" x-text="getTimelineFulfillmentDetailText(selectedTicket)"></p>
+                                </div>
+                            </div>
+
+                            <!-- Resolution & Closure Step -->
+                            <div class="relative flex items-start space-x-3">
+                                <div class="relative z-10 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ring-4 ring-white shadow-xs shrink-0"
+                                     :class="getTimelineResolutionCircleClass(selectedTicket)">
+                                    <template x-if="selectedTicket?.is_closed">
+                                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg>
+                                    </template>
+                                    <template x-if="selectedTicket?.status === 'pending_confirmation'">
+                                        <span>✨</span>
+                                    </template>
+                                    <template x-if="['rejected', 'cancelled'].includes(selectedTicket?.status)">
+                                        <span>✕</span>
+                                    </template>
+                                    <template x-if="!selectedTicket?.is_closed && selectedTicket?.status !== 'pending_confirmation' && !['rejected', 'cancelled'].includes(selectedTicket?.status)">
+                                        <span>✔</span>
+                                    </template>
+                                </div>
+                                <div class="flex-1 min-w-0 pt-0.5">
+                                    <div class="flex items-center justify-between gap-1">
+                                        <h4 class="text-xs font-bold text-slate-800" x-text="locale === 'km' ? 'ការដោះស្រាយ & បិទបញ្ចប់' : 'Resolution & Signoff'">Resolution & Signoff</h4>
+                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold shrink-0"
+                                              :class="getTimelineResolutionBadgeClass(selectedTicket)"
+                                              x-text="getTimelineResolutionBadgeText(selectedTicket)"></span>
+                                    </div>
+                                    <p class="text-[11px] text-slate-500 mt-0.5" x-text="getTimelineResolutionDetailText(selectedTicket)"></p>
                                 </div>
                             </div>
                         </div>
                     </template>
 
-                    <!-- Incident Stepper -->
+                    <!-- Incident Stepper (Extensible Dynamic Vertical Timeline) -->
                     <template x-if="selectedTicket?.ticket_type !== 'service_request'">
-                        <div class="space-y-3">
-                            <div class="grid grid-cols-5 gap-1 text-center">
-                                <div class="flex flex-col items-center">
-                                    <div class="w-7 h-7 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs font-bold">✔</div>
-                                    <span class="text-[9px] font-bold text-emerald-700 mt-1" x-text="locale === 'km' ? 'បានរាយការណ៍' : 'Reported'">Reported</span>
+                        <div class="relative pl-7 space-y-4 pt-1">
+                            <!-- Vertical Connecting Track Line -->
+                            <div class="absolute left-3.5 top-3.5 bottom-3.5 w-0.5 bg-slate-200"></div>
+
+                            <!-- Step 1: Incident Reported -->
+                            <div class="relative flex items-start space-x-3">
+                                <div class="relative z-10 w-7 h-7 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs font-bold ring-4 ring-white shadow-xs shrink-0">
+                                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg>
                                 </div>
-                                <div class="flex flex-col items-center">
-                                    <div :class="selectedTicket?.status !== 'submitted' ? 'bg-emerald-500 text-white' : 'bg-blue-600 text-white ring-2 ring-blue-300'" class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold">
-                                        <span x-text="selectedTicket?.status !== 'submitted' ? '✔' : '2'"></span>
+                                <div class="flex-1 min-w-0 pt-0.5">
+                                    <div class="flex items-center justify-between gap-1">
+                                        <h4 class="text-xs font-bold text-slate-800" x-text="locale === 'km' ? 'បានរាយការណ៍បញ្ហា' : 'Incident Reported'">Incident Reported</h4>
+                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200" x-text="locale === 'km' ? 'បានទទួល' : 'Reported'">Reported</span>
                                     </div>
-                                    <span class="text-[9px] font-medium text-slate-600 mt-1" x-text="locale === 'km' ? 'ពិនិត្យបឋម' : 'Triage'">Triage</span>
+                                    <p class="text-[11px] text-slate-500 mt-0.5">
+                                        <span x-text="selectedTicket?.requester_name || (locale === 'km' ? 'អ្នកស្នើ' : 'Requester')"></span>
+                                        <span class="text-slate-300 mx-1">•</span>
+                                        <span class="font-mono text-[10px]" x-text="selectedTicket?.created_at || selectedTicket?.full_created_timestamp"></span>
+                                    </p>
                                 </div>
-                                <div class="flex flex-col items-center">
-                                    <div :class="['in_progress', 'blocked', 'pending_confirmation', 'resolved_confirmed', 'resolved_auto_closed'].includes(selectedTicket?.status) ? 'bg-emerald-500 text-white' : (selectedTicket?.status === 'assigned' ? 'bg-blue-600 text-white ring-2 ring-blue-300' : 'bg-slate-200 text-slate-400')" class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold">
-                                        <span x-text="['in_progress', 'blocked', 'pending_confirmation', 'resolved_confirmed', 'resolved_auto_closed'].includes(selectedTicket?.status) ? '✔' : '3'"></span>
-                                    </div>
-                                    <span class="text-[9px] font-medium text-slate-600 mt-1" x-text="locale === 'km' ? 'កំពុងដោះស្រាយ' : 'Working'">Working</span>
+                            </div>
+
+                            <!-- Step 2: Help Desk Triage & Assignment -->
+                            <div class="relative flex items-start space-x-3">
+                                <div class="relative z-10 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ring-4 ring-white shadow-xs shrink-0"
+                                     :class="getIncidentTriageCircleClass(selectedTicket)">
+                                    <template x-if="selectedTicket?.status !== 'submitted' && !['rejected', 'cancelled'].includes(selectedTicket?.status)">
+                                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg>
+                                    </template>
+                                    <template x-if="selectedTicket?.status === 'submitted'">
+                                        <span>📥</span>
+                                    </template>
+                                    <template x-if="['rejected', 'cancelled'].includes(selectedTicket?.status)">
+                                        <span>—</span>
+                                    </template>
                                 </div>
-                                <div class="flex flex-col items-center">
-                                    <div :class="['resolved_confirmed', 'resolved_auto_closed'].includes(selectedTicket?.status) ? 'bg-emerald-500 text-white' : (selectedTicket?.status === 'pending_confirmation' ? 'bg-emerald-600 text-white ring-2 ring-emerald-300 animate-pulse' : 'bg-slate-200 text-slate-400')" class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold">
-                                        <span x-text="['resolved_confirmed', 'resolved_auto_closed'].includes(selectedTicket?.status) ? '✔' : '4'"></span>
+                                <div class="flex-1 min-w-0 pt-0.5">
+                                    <div class="flex items-center justify-between gap-1">
+                                        <h4 class="text-xs font-bold text-slate-800" x-text="locale === 'km' ? 'ការពិនិត្យបឋម & ចាត់តាំង' : 'Triage & Assignment'">Triage & Assignment</h4>
+                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold shrink-0"
+                                              :class="getIncidentTriageBadgeClass(selectedTicket)"
+                                              x-text="getIncidentTriageBadgeText(selectedTicket)"></span>
                                     </div>
-                                    <span class="text-[9px] font-medium text-slate-600 mt-1" x-text="locale === 'km' ? 'បានដោះស្រាយ' : 'Resolved'">Resolved</span>
+                                    <p class="text-[11px] text-slate-500 mt-0.5" x-text="getIncidentTriageDetailText(selectedTicket)"></p>
                                 </div>
-                                <div class="flex flex-col items-center">
-                                    <div :class="selectedTicket?.is_closed ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-400'" class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold">
-                                        <span x-text="selectedTicket?.is_closed ? '✔' : '5'"></span>
+                            </div>
+
+                            <!-- Step 3: Technical Troubleshooting -->
+                            <div class="relative flex items-start space-x-3">
+                                <div class="relative z-10 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ring-4 ring-white shadow-xs shrink-0"
+                                     :class="getIncidentTroubleshootingCircleClass(selectedTicket)">
+                                    <template x-if="['pending_confirmation', 'resolved_confirmed', 'resolved_auto_closed'].includes(selectedTicket?.status)">
+                                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg>
+                                    </template>
+                                    <template x-if="['in_progress', 'assigned'].includes(selectedTicket?.status)">
+                                        <span>🛠</span>
+                                    </template>
+                                    <template x-if="selectedTicket?.status === 'blocked'">
+                                        <span>🛑</span>
+                                    </template>
+                                    <template x-if="selectedTicket?.status === 'clarifying'">
+                                        <span>💬</span>
+                                    </template>
+                                    <template x-if="selectedTicket?.status === 'submitted' || ['rejected', 'cancelled'].includes(selectedTicket?.status)">
+                                        <span>🛠</span>
+                                    </template>
+                                </div>
+                                <div class="flex-1 min-w-0 pt-0.5">
+                                    <div class="flex items-center justify-between gap-1">
+                                        <h4 class="text-xs font-bold text-slate-800" x-text="locale === 'km' ? 'ការចុះដោះស្រាយបច្ចេកទេស' : 'Technical Troubleshooting'">Technical Troubleshooting</h4>
+                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold shrink-0"
+                                              :class="getIncidentTroubleshootingBadgeClass(selectedTicket)"
+                                              x-text="getIncidentTroubleshootingBadgeText(selectedTicket)"></span>
                                     </div>
-                                    <span class="text-[9px] font-medium text-slate-600 mt-1" x-text="locale === 'km' ? 'បានបិទ' : 'Closed'">Closed</span>
+                                    <p class="text-[11px] text-slate-500 mt-0.5" x-text="getIncidentTroubleshootingDetailText(selectedTicket)"></p>
+                                </div>
+                            </div>
+
+                            <!-- Step 4: Resolution & Confirmation -->
+                            <div class="relative flex items-start space-x-3">
+                                <div class="relative z-10 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ring-4 ring-white shadow-xs shrink-0"
+                                     :class="getTimelineResolutionCircleClass(selectedTicket)">
+                                    <template x-if="selectedTicket?.is_closed">
+                                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg>
+                                    </template>
+                                    <template x-if="selectedTicket?.status === 'pending_confirmation'">
+                                        <span>✨</span>
+                                    </template>
+                                    <template x-if="['rejected', 'cancelled'].includes(selectedTicket?.status)">
+                                        <span>✕</span>
+                                    </template>
+                                    <template x-if="!selectedTicket?.is_closed && selectedTicket?.status !== 'pending_confirmation' && !['rejected', 'cancelled'].includes(selectedTicket?.status)">
+                                        <span>✔</span>
+                                    </template>
+                                </div>
+                                <div class="flex-1 min-w-0 pt-0.5">
+                                    <div class="flex items-center justify-between gap-1">
+                                        <h4 class="text-xs font-bold text-slate-800" x-text="locale === 'km' ? 'ការដោះស្រាយចប់សព្វគ្រប់' : 'Resolved & Closed'">Resolved & Closed</h4>
+                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold shrink-0"
+                                              :class="getTimelineResolutionBadgeClass(selectedTicket)"
+                                              x-text="getTimelineResolutionBadgeText(selectedTicket)"></span>
+                                    </div>
+                                    <p class="text-[11px] text-slate-500 mt-0.5" x-text="getTimelineResolutionDetailText(selectedTicket)"></p>
                                 </div>
                             </div>
                         </div>

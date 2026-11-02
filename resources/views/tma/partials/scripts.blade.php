@@ -1433,6 +1433,241 @@ function tmaApp() {
             return '4';
         },
 
+        isCurrentApprovalStep(approval, t) {
+            if (!t || t.status !== 'pending_approval' || !approval) return false;
+            if (t.current_approval_step?.id && approval.id) {
+                return t.current_approval_step.id === approval.id;
+            }
+            return t.current_approval_step?.step_number === approval.step_number;
+        },
+
+        formatApprovalStepTitle(approval) {
+            if (!approval) return '';
+            if (this.locale === 'km') {
+                if (approval.role_name === 'department_hod' || approval.step_number === 1) return 'ការអនុម័តពីប្រធានផ្នែក (Dept HOD)';
+                if (approval.role_name === 'branch_manager') return 'ការអនុម័តពីប្រធានសាខា (Branch Manager)';
+                if (approval.role_name === 'it_manager' || approval.step_number === 2) return 'ការអនុម័តពីប្រធាន IT (IT Manager)';
+            }
+            return approval.step_name || 'Approval Step';
+        },
+
+        getTimelineApprovalCircleClass(approval, t) {
+            if (!approval) return 'bg-slate-100 text-slate-400 border border-slate-200';
+            if (approval.status === 'approved') return 'bg-emerald-500 text-white';
+            if (approval.status === 'rejected') return 'bg-rose-500 text-white';
+            if (this.isCurrentApprovalStep(approval, t)) return 'bg-blue-600 text-white ring-4 ring-blue-100 animate-pulse';
+            return 'bg-slate-100 text-slate-400 border border-slate-200';
+        },
+
+        getTimelineApprovalBadgeClass(approval, t) {
+            if (!approval) return 'bg-slate-100 text-slate-500 border border-slate-200';
+            if (approval.status === 'approved') return 'bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold';
+            if (approval.status === 'rejected') return 'bg-rose-50 text-rose-700 border border-rose-200 font-semibold';
+            if (this.isCurrentApprovalStep(approval, t)) return 'bg-amber-50 text-amber-700 border border-amber-200 font-semibold';
+            return 'bg-slate-100 text-slate-500 border border-slate-200';
+        },
+
+        getTimelineApprovalBadgeText(approval, t) {
+            if (!approval) return '';
+            if (approval.status === 'approved') return this.locale === 'km' ? 'បានអនុម័ត' : 'Approved';
+            if (approval.status === 'rejected') return this.locale === 'km' ? 'បានបដិសេធ' : 'Declined';
+            if (this.isCurrentApprovalStep(approval, t)) return this.locale === 'km' ? 'រង់ចាំពិនិត្យ' : 'Pending Review';
+            if (['rejected', 'cancelled'].includes(t?.status)) return this.locale === 'km' ? 'បានរំលង' : 'Skipped';
+            return this.locale === 'km' ? 'ជំហានបន្ទាប់' : 'Queued';
+        },
+
+        getTimelineApprovalDetailText(approval, t) {
+            if (!approval) return '';
+            if (approval.status === 'approved') {
+                const who = approval.approver_name || (this.locale === 'km' ? 'ប្រធានផ្នែក' : 'Approver');
+                const when = approval.actioned_at_human || approval.actioned_at;
+                return (this.locale === 'km' ? `បានអនុម័តដោយ ${who}` : `Approved by ${who}`) + (when ? ` • ${when}` : '');
+            }
+            if (approval.status === 'rejected') {
+                const who = approval.approver_name || (this.locale === 'km' ? 'ប្រធានផ្នែក' : 'Approver');
+                const when = approval.actioned_at_human || approval.actioned_at;
+                return (this.locale === 'km' ? `បានបដិសេធដោយ ${who}` : `Declined by ${who}`) + (when ? ` • ${when}` : '');
+            }
+            if (this.isCurrentApprovalStep(approval, t)) {
+                if (approval.department_name) {
+                    return this.locale === 'km' ? `កំពុងរង់ចាំការពិនិត្យពី ${approval.department_name}` : `Awaiting review & signoff from ${approval.department_name}`;
+                }
+                return this.locale === 'km' ? 'កំពុងរង់ចាំការពិនិត្យនិងចុះហត្ថលេខា' : 'Awaiting managerial review & signoff';
+            }
+            if (['rejected', 'cancelled'].includes(t?.status)) {
+                return this.locale === 'km' ? 'មិនតម្រូវការបន្ទាប់ពីបដិសេធ' : 'Step cancelled due to request rejection';
+            }
+            return this.locale === 'km' ? 'រង់ចាំបន្ទាប់ពីជំហានមុនបានអនុម័ត' : 'Queued after prior approval';
+        },
+
+        getTimelineFulfillmentCircleClass(t) {
+            if (!t) return 'bg-slate-100 text-slate-400 border border-slate-200';
+            if (['pending_confirmation', 'resolved_confirmed', 'resolved_auto_closed'].includes(t.status)) return 'bg-emerald-500 text-white';
+            if (['submitted', 'assigned', 'in_progress', 'blocked', 'clarifying'].includes(t.status)) return 'bg-blue-600 text-white ring-4 ring-blue-100 animate-pulse';
+            return 'bg-slate-100 text-slate-400 border border-slate-200';
+        },
+
+        getTimelineFulfillmentBadgeClass(t) {
+            if (!t) return 'bg-slate-100 text-slate-500 border border-slate-200';
+            if (['pending_confirmation', 'resolved_confirmed', 'resolved_auto_closed'].includes(t.status)) return 'bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold';
+            if (['submitted', 'assigned', 'in_progress', 'clarifying'].includes(t.status)) return 'bg-blue-50 text-blue-700 border border-blue-200 font-semibold';
+            if (t.status === 'blocked') return 'bg-amber-50 text-amber-700 border border-amber-200 font-semibold';
+            return 'bg-slate-100 text-slate-500 border border-slate-200';
+        },
+
+        getTimelineFulfillmentBadgeText(t) {
+            if (!t) return '';
+            if (['pending_confirmation', 'resolved_confirmed', 'resolved_auto_closed'].includes(t.status)) return this.locale === 'km' ? 'រៀបចំរួច' : 'Fulfilled';
+            if (t.status === 'submitted') return this.locale === 'km' ? 'រង់ចាំចាត់តាំង' : 'In Triage';
+            if (t.status === 'assigned') return this.locale === 'km' ? 'ចាត់តាំងរួច' : 'Assigned';
+            if (t.status === 'in_progress') return this.locale === 'km' ? 'កំពុងរៀបចំ' : 'In Progress';
+            if (t.status === 'blocked') return this.locale === 'km' ? 'ផ្អាកជាបណ្តោះអាសន្ន' : 'On Hold';
+            if (t.status === 'clarifying') return this.locale === 'km' ? 'ត្រូវការព័ត៌មាន' : 'Clarifying';
+            if (['rejected', 'cancelled'].includes(t.status)) return this.locale === 'km' ? 'បានបិទ' : 'Closed';
+            return this.locale === 'km' ? 'រង់ចាំការអនុម័ត' : 'Awaiting Approval';
+        },
+
+        getTimelineFulfillmentDetailText(t) {
+            if (!t) return '';
+            if (['pending_confirmation', 'resolved_confirmed', 'resolved_auto_closed'].includes(t.status)) {
+                return t.technician_name ? (this.locale === 'km' ? `រៀបចំរួចរាល់ដោយ ${t.technician_name}` : `Setup fulfilled by ${t.technician_name}`) : (this.locale === 'km' ? 'រៀបចំរួចរាល់' : 'Setup completed by IT team');
+            }
+            if (t.status === 'submitted') {
+                return this.locale === 'km' ? 'អនុម័តរួចរាល់! ក្រុមការងារ IT កំពុងចាត់តាំងអ្នកបច្ចេកទេស' : 'Approved! IT Help Desk is dispatching a technician';
+            }
+            if (t.status === 'assigned') {
+                return this.locale === 'km' ? `បានចាត់តាំងជូន ${t.technician_name} (រង់ចាំទទួលការងារ)` : `Assigned to ${t.technician_name} (awaiting acceptance)`;
+            }
+            if (t.status === 'in_progress') {
+                return this.locale === 'km' ? `${t.technician_name} កំពុងដំណើរការដំឡើង/រៀបចំជូន` : `${t.technician_name} is actively configuring your request`;
+            }
+            if (t.status === 'blocked') {
+                return t.blocked_reason ? (this.locale === 'km' ? `មូលហេតុផ្អាក៖ ${t.blocked_reason}` : `Hold: ${t.blocked_reason}`) : (this.locale === 'km' ? 'កំពុងរង់ចាំសម្ភារៈ/ឧបករណ៍' : 'Waiting for hardware parts or vendor');
+            }
+            if (['rejected', 'cancelled'].includes(t.status)) {
+                return this.locale === 'km' ? 'មិនដំណើរការដោះស្រាយដោយសារសំណើសុំត្រូវបានបដិសេធ' : 'Workflow terminated due to cancellation or rejection';
+            }
+            return this.locale === 'km' ? 'នឹងចាប់ផ្តើមភ្លាមៗបន្ទាប់ពីការអនុម័តទាំងស្រុង' : 'IT team will begin setup once all approvals are granted';
+        },
+
+        getTimelineResolutionCircleClass(t) {
+            if (!t) return 'bg-slate-100 text-slate-400 border border-slate-200';
+            if (t.is_closed) return 'bg-emerald-500 text-white';
+            if (t.status === 'pending_confirmation') return 'bg-emerald-600 text-white ring-4 ring-emerald-100 animate-pulse';
+            if (['rejected', 'cancelled'].includes(t.status)) return 'bg-slate-200 text-slate-500';
+            return 'bg-slate-100 text-slate-400 border border-slate-200';
+        },
+
+        getTimelineResolutionBadgeClass(t) {
+            if (!t) return 'bg-slate-100 text-slate-500 border border-slate-200';
+            if (t.is_closed) return 'bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold';
+            if (t.status === 'pending_confirmation') return 'bg-emerald-50 text-emerald-800 border border-emerald-300 font-bold';
+            if (['rejected', 'cancelled'].includes(t.status)) return 'bg-slate-100 text-slate-600 border border-slate-200';
+            return 'bg-slate-100 text-slate-500 border border-slate-200';
+        },
+
+        getTimelineResolutionBadgeText(t) {
+            if (!t) return '';
+            if (t.is_closed) return this.locale === 'km' ? 'បិទបញ្ចប់' : 'Closed';
+            if (t.status === 'pending_confirmation') return this.locale === 'km' ? 'រង់ចាំលោកអ្នកបញ្ជាក់' : 'Action Needed';
+            if (['rejected', 'cancelled'].includes(t.status)) return this.locale === 'km' ? 'បានបិទ' : 'Closed';
+            return this.locale === 'km' ? 'ជំហានចុងក្រោយ' : 'Final Step';
+        },
+
+        getTimelineResolutionDetailText(t) {
+            if (!t) return '';
+            if (t.is_closed) {
+                return t.resolved_at ? (this.locale === 'km' ? `បានបិទបញ្ចប់នៅ ${t.resolved_at}` : `Completed & confirmed on ${t.resolved_at}`) : (this.locale === 'km' ? 'បានបញ្ជាក់ការដោះស្រាយជោគជ័យ' : 'Resolution verified & ticket closed');
+            }
+            if (t.status === 'pending_confirmation') {
+                return this.locale === 'km' ? 'ការងារបានរួចរាល់ហើយ សូមពិនិត្យផ្ទៀងផ្ទាត់និងចុចបញ្ជាក់ខាងលើ' : 'Service completed. Please inspect and confirm resolution above.';
+            }
+            if (['rejected', 'cancelled'].includes(t.status)) {
+                return t.cancellation_reason || (this.locale === 'km' ? 'សំណើសុំត្រូវបានបិទបញ្ចប់' : 'Request was closed or rejected');
+            }
+            return this.locale === 'km' ? 'ការបញ្ជាក់ផ្ទៀងផ្ទាត់ពីអ្នកស្នើសុំបន្ទាប់ពីរៀបចំរួចរាល់' : 'Requester verification after service completion';
+        },
+
+        getIncidentTriageCircleClass(t) {
+            if (!t) return 'bg-slate-100 text-slate-400 border border-slate-200';
+            if (t.status === 'submitted') return 'bg-blue-600 text-white ring-4 ring-blue-100 animate-pulse';
+            if (['assigned', 'in_progress', 'blocked', 'clarifying', 'pending_confirmation', 'resolved_confirmed', 'resolved_auto_closed'].includes(t.status)) return 'bg-emerald-500 text-white';
+            return 'bg-slate-100 text-slate-400 border border-slate-200';
+        },
+
+        getIncidentTriageBadgeClass(t) {
+            if (!t) return 'bg-slate-100 text-slate-500 border border-slate-200';
+            if (t.status === 'submitted') return 'bg-blue-50 text-blue-700 border border-blue-200 font-semibold';
+            if (['assigned', 'in_progress', 'blocked', 'clarifying', 'pending_confirmation', 'resolved_confirmed', 'resolved_auto_closed'].includes(t.status)) return 'bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold';
+            return 'bg-slate-100 text-slate-500 border border-slate-200';
+        },
+
+        getIncidentTriageBadgeText(t) {
+            if (!t) return '';
+            if (t.status === 'submitted') return this.locale === 'km' ? 'កំពុងពិនិត្យ' : 'In Triage';
+            if (['assigned', 'in_progress', 'blocked', 'clarifying', 'pending_confirmation', 'resolved_confirmed', 'resolved_auto_closed'].includes(t.status)) return this.locale === 'km' ? 'ចាត់តាំងរួច' : 'Assigned';
+            if (['rejected', 'cancelled'].includes(t.status)) return this.locale === 'km' ? 'បានបោះបង់' : 'Cancelled';
+            return this.locale === 'km' ? 'ជំហានបន្ទាប់' : 'Queued';
+        },
+
+        getIncidentTriageDetailText(t) {
+            if (!t) return '';
+            if (t.status === 'submitted') {
+                return this.locale === 'km' ? 'ក្រុមការងារ IT Help Desk កំពុងពិនិត្យដើម្បីចាត់តាំងអ្នកបច្ចេកទេស' : 'IT Help Desk is reviewing ticket details and assigning a technician';
+            }
+            if (t.technician_name) {
+                return this.locale === 'km' ? `បានចាត់តាំងជូនលោក/អ្នក ${t.technician_name}` : `Assigned to ${t.technician_name}`;
+            }
+            return this.locale === 'km' ? 'បានចាត់តាំងជូនអ្នកបច្ចេកទេស' : 'Assigned to IT technician';
+        },
+
+        getIncidentTroubleshootingCircleClass(t) {
+            if (!t) return 'bg-slate-100 text-slate-400 border border-slate-200';
+            if (['pending_confirmation', 'resolved_confirmed', 'resolved_auto_closed'].includes(t.status)) return 'bg-emerald-500 text-white';
+            if (['assigned', 'in_progress'].includes(t.status)) return 'bg-blue-600 text-white ring-4 ring-blue-100 animate-pulse';
+            if (t.status === 'blocked' || t.status === 'clarifying') return 'bg-amber-500 text-white ring-4 ring-amber-100 animate-pulse';
+            return 'bg-slate-100 text-slate-400 border border-slate-200';
+        },
+
+        getIncidentTroubleshootingBadgeClass(t) {
+            if (!t) return 'bg-slate-100 text-slate-500 border border-slate-200';
+            if (['pending_confirmation', 'resolved_confirmed', 'resolved_auto_closed'].includes(t.status)) return 'bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold';
+            if (['assigned', 'in_progress'].includes(t.status)) return 'bg-blue-50 text-blue-700 border border-blue-200 font-semibold';
+            if (t.status === 'blocked' || t.status === 'clarifying') return 'bg-amber-50 text-amber-700 border border-amber-200 font-semibold';
+            return 'bg-slate-100 text-slate-500 border border-slate-200';
+        },
+
+        getIncidentTroubleshootingBadgeText(t) {
+            if (!t) return '';
+            if (['pending_confirmation', 'resolved_confirmed', 'resolved_auto_closed'].includes(t.status)) return this.locale === 'km' ? 'ដោះស្រាយរួច' : 'Fix Applied';
+            if (t.status === 'assigned') return this.locale === 'km' ? 'រង់ចាំទទួល' : 'Awaiting Tech';
+            if (t.status === 'in_progress') return this.locale === 'km' ? 'កំពុងដោះស្រាយ' : 'Troubleshooting';
+            if (t.status === 'blocked') return this.locale === 'km' ? 'ផ្អាកជាបណ្តោះអាសន្ន' : 'On Hold';
+            if (t.status === 'clarifying') return this.locale === 'km' ? 'ត្រូវការព័ត៌មាន' : 'Clarifying';
+            if (['rejected', 'cancelled'].includes(t.status)) return this.locale === 'km' ? 'បានបោះបង់' : 'Cancelled';
+            return this.locale === 'km' ? 'ជំហានបន្ទាប់' : 'Queued';
+        },
+
+        getIncidentTroubleshootingDetailText(t) {
+            if (!t) return '';
+            if (['pending_confirmation', 'resolved_confirmed', 'resolved_auto_closed'].includes(t.status)) {
+                return this.locale === 'km' ? 'អ្នកបច្ចេកទេសបានដោះស្រាយនិងធ្វើតេស្តរួចរាល់' : 'Technician completed and tested the fix successfully';
+            }
+            if (t.status === 'assigned') {
+                return t.technician_name ? (this.locale === 'km' ? `${t.technician_name} ទទួលការងារនិងត្រៀមចុះដោះស្រាយ` : `${t.technician_name} received ticket and will troubleshoot shortly`) : (this.locale === 'km' ? 'អ្នកបច្ចេកទេសត្រៀមចុះដោះស្រាយ' : 'Technician will begin troubleshooting shortly');
+            }
+            if (t.status === 'in_progress') {
+                return t.technician_name ? (this.locale === 'km' ? `${t.technician_name} កំពុងពិនិត្យនិងដោះស្រាយបញ្ហាផ្ទាល់` : `${t.technician_name} is actively troubleshooting the problem`) : (this.locale === 'km' ? 'កំពុងធ្វើការដោះស្រាយ' : 'Actively troubleshooting the problem');
+            }
+            if (t.status === 'blocked') {
+                return t.blocked_reason ? (this.locale === 'km' ? `មូលហេតុផ្អាក៖ ${t.blocked_reason}` : `Hold: ${t.blocked_reason}`) : (this.locale === 'km' ? 'កំពុងរង់ចាំគ្រឿងបន្លាស់ ឬអ្នកផ្គត់ផ្គង់ខាងក្រៅ' : 'Waiting for hardware parts or vendor assistance');
+            }
+            if (t.status === 'clarifying') {
+                return this.locale === 'km' ? 'IT ត្រូវការព័ត៌មានបន្ថែម សូមឆ្លើយតបសារក្នុងប្រអប់ជជែកខាងក្រោម' : 'IT Help Desk has sent questions. Please reply in the chat below.';
+            }
+            return this.locale === 'km' ? 'អ្នកបច្ចេកទេសនឹងចាប់ផ្តើមបន្ទាប់ពីការចាត់តាំង' : 'Technician will begin troubleshooting once assigned';
+        },
+
         getStatusBannerClass(status) {
             const map = {
                 'pending_approval': 'bg-amber-50 text-amber-900 border border-amber-200',

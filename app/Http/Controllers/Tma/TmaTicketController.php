@@ -65,7 +65,7 @@ class TmaTicketController extends Controller
         $activeTickets = $activeQuery
             ->whereIn('status', array_merge(['pending_approval', 'submitted', 'assigned', 'clarifying', 'reopened'], $inProgressStatuses))
             ->orderByDesc('created_at')
-            ->with(['branch', 'category.parent', 'technician', 'requester.employee.department', 'approvals', 'latestRequesterMessage.sender'])
+            ->with(['branch', 'category.parent', 'technician', 'requester.employee.department', 'approvals.approver', 'latestRequesterMessage.sender'])
             ->get()
             ->map(fn(Ticket $t) => $this->formatTicketSummary($t, $user));
 
@@ -86,7 +86,7 @@ class TmaTicketController extends Controller
         $historyTickets = $historyQuery
             ->whereIn('status', $resolvedStatuses)
             ->orderByRaw('COALESCE(closed_at, updated_at) DESC')
-            ->with(['branch', 'category.parent', 'technician', 'requester.employee.department', 'approvals', 'latestRequesterMessage.sender'])
+            ->with(['branch', 'category.parent', 'technician', 'requester.employee.department', 'approvals.approver', 'latestRequesterMessage.sender'])
             ->get()
             ->map(fn(Ticket $t) => $this->formatTicketSummary($t, $user));
 
@@ -172,10 +172,12 @@ class TmaTicketController extends Controller
                 'id' => $a->id,
                 'step_number' => $a->step_number,
                 'step_name' => $a->step_name,
+                'role_name' => $a->role_name,
                 'status' => $a->status,
                 'comments' => $a->comments,
                 'approver_name' => $a->approver?->name,
                 'actioned_at' => $a->actioned_at?->format('d-M-Y H:i'),
+                'actioned_at_human' => $a->actioned_at?->diffForHumans(),
             ])->values()->all(),
             'current_approval_step' => $currentApproval ? [
                 'id' => $currentApproval->id,

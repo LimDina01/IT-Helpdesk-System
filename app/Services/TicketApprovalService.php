@@ -170,7 +170,7 @@ class TicketApprovalService
         // Process 1: Department HOD Approval (Strictly Step 1)
         // Branch + Department specific
         // ========================================================
-        if ($approval->role_name === 'department_hod' || $approval->step_number === 1) {
+        if ($approval->role_name === 'department_hod' || ($approval->step_number === 1 && empty($approval->role_name))) {
             $targetDeptId = $approval->department_id ?? $ticket->requester->employee?->department_id;
             $targetDeptCode = $ticket->requester->employee?->department?->code;
 
@@ -193,11 +193,26 @@ class TicketApprovalService
         }
 
         // ========================================================
-        // Process 2: IT Department HOD Approval (Strictly Step 2)
+        // Process 2: Intermediate Approvers (Slot 2 - Pluggable)
+        // Branch Manager / Division Head / Operations Head
+        // ========================================================
+        if (in_array($approval->role_name, ['branch_manager', 'division_head', 'intermediate_approver'])) {
+            $targetBranchId = $approval->branch_id ?? $ticket->branch_id ?? $ticket->requester->employee?->branch_id;
+            if ($userBranchId && $targetBranchId && $userBranchId === $targetBranchId && $user->hasRole(['hod', 'system_admin'])) {
+                return true;
+            }
+            if ($user->hasRole('system_admin')) {
+                return true;
+            }
+            return false;
+        }
+
+        // ========================================================
+        // Process 3: IT Department HOD Approval (Final Slot / IT Manager)
         // Centralized at HQ for all bank branches
         // ========================================================
-        if ($approval->role_name === 'it_manager' || $approval->step_number === 2) {
-            // Only Central IT HOD or Bank IT Department HOD can approve Step 2
+        if ($approval->role_name === 'it_manager' || $approval->step_number === 2 || $approval->step_number === 3) {
+            // Only Central IT HOD or Bank IT Department HOD can approve IT Manager step
             return $isItHod;
         }
 
@@ -398,8 +413,14 @@ class TicketApprovalService
                 ->whereHas('employee', fn($q) => $q->where('department_id', $deptId)->where('branch_id', $branchId))
                 ->whereNotNull('telegram_id')
                 ->get();
+        } elseif (in_array($step->role_name, ['branch_manager', 'division_head', 'intermediate_approver'])) {
+            $branchId = $step->branch_id ?? $ticket->branch_id ?? $ticket->requester->employee?->branch_id;
+            $approvers = User::whereHas('roles', fn($q) => $q->whereIn('name', ['hod', 'system_admin']))
+                ->whereHas('employee', fn($q) => $q->where('branch_id', $branchId))
+                ->whereNotNull('telegram_id')
+                ->get();
         } else {
-            // Process 2: Central IT Department HOD (HQ) & IT HODs
+            // Process: Central IT Department HOD (HQ) & IT HODs
             $approvers = User::whereHas('roles', fn($q) => $q->whereIn('name', ['hod', 'system_admin']))
                 ->where(function ($q) {
                     $q->whereDoesntHave('employee')
