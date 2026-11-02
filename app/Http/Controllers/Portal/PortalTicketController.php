@@ -244,7 +244,7 @@ class PortalTicketController extends Controller
                     'ticket_id' => $ticket->id,
                     'sender_id' => Auth::id(),
                     'visibility' => 'system_event',
-                    'message_type' => 'priority_change',
+                    'message_type' => 'status_change',
                     'body' => "Priority changed from " . strtoupper($oldPriority) . " to " . strtoupper($newPriority) . ".",
                 ]);
             });
@@ -767,6 +767,7 @@ class PortalTicketController extends Controller
         $validated = $request->validate([
             'ticket_type' => 'required|in:incident,service_request',
             'category_id' => 'required|exists:ticket_categories,id',
+            'priority' => 'nullable|in:low,medium,high,critical',
             'reason' => 'nullable|string|max:500',
         ]);
 
@@ -777,18 +778,22 @@ class PortalTicketController extends Controller
         $newCategoryId = (int) $validated['category_id'];
         $newCategory = TicketCategory::with('parent')->findOrFail($newCategoryId);
         $oldCategoryName = $ticket->category?->name ?? 'None';
+        $oldPriority = $ticket->priority;
+        $newPriority = $validated['priority'] ?? $oldPriority;
         $reason = trim($validated['reason'] ?? '');
 
         $typeChanged = ($oldType !== $newType);
         $categoryChanged = ($oldCategoryId !== $newCategoryId);
+        $priorityChanged = ($oldPriority !== $newPriority);
 
-        if (!$typeChanged && !$categoryChanged) {
-            return back()->with('info', 'No changes made to ticket type or category.');
+        if (!$typeChanged && !$categoryChanged && !$priorityChanged) {
+            return back()->with('info', 'No changes made to ticket type, category, or priority.');
         }
 
-        DB::transaction(function () use ($ticket, $user, $oldType, $newType, $oldCategoryId, $newCategoryId, $newCategory, $oldCategoryName, $typeChanged, $categoryChanged, $reason, $approvalService) {
+        DB::transaction(function () use ($ticket, $user, $oldType, $newType, $oldCategoryId, $newCategoryId, $newCategory, $oldCategoryName, $oldPriority, $newPriority, $typeChanged, $categoryChanged, $priorityChanged, $reason, $approvalService) {
             $ticket->ticket_type = $newType;
             $ticket->category_id = $newCategoryId;
+            $ticket->priority = $newPriority;
 
             if ($typeChanged && $newType === 'service_request') {
                 // Switching Incident -> Service Request
@@ -811,7 +816,7 @@ class PortalTicketController extends Controller
                 }
                 $ticket->save();
             } else {
-                // Same type, but category updated
+                // Same type, but category or priority updated
                 if ($newType === 'service_request' && $newCategory->requires_approval && $ticket->approvals()->where('status', 'pending')->doesntExist() && !in_array($ticket->status, ['resolved_confirmed', 'resolved_auto_closed', 'cancelled'])) {
                     $ticket->status = 'pending_approval';
                     $ticket->save();
@@ -827,13 +832,15 @@ class PortalTicketController extends Controller
                 'ticket_id' => $ticket->id,
                 'actor_id' => $user->id,
                 'action' => 'TICKET_RECLASSIFIED',
-                'old_value' => "Type: {$oldType}, Cat: {$oldCategoryName}",
-                'new_value' => "Type: {$newType}, Cat: {$newCategory->name}",
+                'old_value' => "Type: {$oldType}, Cat: {$oldCategoryName}, Pri: {$oldPriority}",
+                'new_value' => "Type: {$newType}, Cat: {$newCategory->name}, Pri: {$newPriority}",
                 'metadata' => [
                     'old_type' => $oldType,
                     'new_type' => $newType,
                     'old_category' => $oldCategoryName,
                     'new_category' => $newCategory->name,
+                    'old_priority' => $oldPriority,
+                    'new_priority' => $newPriority,
                     'reason' => $reason,
                 ],
             ]);
@@ -847,6 +854,9 @@ class PortalTicketController extends Controller
             }
             if ($categoryChanged) {
                 $systemMsg .= "• Category updated to **{$newCategory->name}**\n";
+            }
+            if ($priorityChanged) {
+                $systemMsg .= "• Priority updated from **" . strtoupper($oldPriority) . "** to **" . strtoupper($newPriority) . "**\n";
             }
             if (!empty($reason)) {
                 $systemMsg .= "• Reason: {$reason}\n";
@@ -866,9 +876,18 @@ class PortalTicketController extends Controller
             ]);
         });
 
-        $successMsg = $typeChanged
-            ? "Ticket successfully converted from " . ($oldType === 'incident' ? 'Incident' : 'Service Request') . " to " . ($newType === 'incident' ? 'Incident' : 'Service Request') . "!"
-            : "Ticket category updated to '{$newCategory->name}' successfully!";
+        $changes = [];
+        if ($typeChanged) {
+            $changes[] = "type converted to " . ($newType === 'incident' ? 'Incident' : 'Service Request');
+        }
+        if ($categoryChanged) {
+            $changes[] = "category set to '{$newCategory->name}'";
+        }
+        if ($priorityChanged) {
+            $changes[] = "priority set to " . strtoupper($newPriority);
+        }
+
+        $successMsg = "Ticket successfully updated (" . implode(', ', $changes) . ")!";
 
         return back()->with('status', $successMsg);
     }

@@ -194,5 +194,68 @@ class TicketReclassificationTest extends TestCase
 
         $response->assertStatus(403);
     }
+
+    public function test_staff_can_update_priority_via_quick_switcher(): void
+    {
+        $ticket = Ticket::create([
+            'ticket_code' => 'TICK-INC-005',
+            'ticket_type' => 'incident',
+            'requester_id' => $this->requesterUser->id,
+            'branch_id' => $this->branch->id,
+            'category_id' => $this->incidentCat->id,
+            'subject' => 'Priority quick switch test',
+            'description' => 'Test',
+            'status' => 'submitted',
+            'priority' => 'low',
+        ]);
+
+        $this->actingAs($this->helpdeskUser);
+
+        $response = $this->post(route('portal.tickets.priority', $ticket->id), [
+            'priority' => 'critical',
+        ]);
+
+        $response->assertRedirect();
+        $ticket->refresh();
+        $this->assertEquals('critical', $ticket->priority);
+
+        // Check system message was created without DB column truncation error
+        $this->assertDatabaseHas('ticket_messages', [
+            'ticket_id' => $ticket->id,
+            'message_type' => 'status_change',
+            'visibility' => 'system_event',
+        ]);
+    }
+
+    public function test_staff_can_reclassify_and_change_priority(): void
+    {
+        $ticket = Ticket::create([
+            'ticket_code' => 'TICK-INC-006',
+            'ticket_type' => 'incident',
+            'requester_id' => $this->requesterUser->id,
+            'branch_id' => $this->branch->id,
+            'category_id' => $this->incidentCat->id,
+            'subject' => 'Reclassify with priority',
+            'description' => 'Test',
+            'status' => 'submitted',
+            'priority' => 'low',
+        ]);
+
+        $this->actingAs($this->helpdeskUser);
+
+        $response = $this->post(route('portal.tickets.reclassify', $ticket->id), [
+            'ticket_type' => 'service_request',
+            'category_id' => $this->serviceCat->id,
+            'priority' => 'high',
+            'reason' => 'Need higher priority signoff',
+        ]);
+
+        $response->assertRedirect();
+        $ticket->refresh();
+        $this->assertEquals('service_request', $ticket->ticket_type);
+        $this->assertEquals($this->serviceCat->id, $ticket->category_id);
+        $this->assertEquals('high', $ticket->priority);
+        $this->assertEquals('pending_approval', $ticket->status);
+    }
 }
 

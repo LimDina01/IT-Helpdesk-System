@@ -10,6 +10,7 @@
     reassignDrawer: false,
     reclassifyModal: false,
     reclassifyType: '{{ $ticket->ticket_type }}',
+    reclassifyPriority: '{{ $ticket->priority }}',
     reclassifyParentId: {{ $ticket->category->parent_id ?? $ticket->category_id }},
     reclassifySubId: {{ $ticket->category_id }},
     categoryHierarchy: {{ Js::from($categoriesHierarchy) }},
@@ -1516,6 +1517,37 @@
                                 <option :value="sub.id" x-text="sub.name" :selected="sub.id == reclassifySubId"></option>
                             </template>
                         </select>
+                    </div>
+                </div>
+
+                <!-- Priority Selector -->
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1.5">Ticket Priority</label>
+                    <div class="grid grid-cols-4 gap-2">
+                        <label :class="reclassifyPriority === 'low' ? 'border-slate-500 bg-slate-50 ring-2 ring-slate-500/20 shadow-xs' : 'border-slate-200 hover:border-slate-300 bg-white'"
+                               class="flex flex-col items-center justify-center p-2 rounded-xl border cursor-pointer transition text-center">
+                            <input type="radio" name="priority" value="low" x-model="reclassifyPriority" class="sr-only">
+                            <span class="text-xs">⚪</span>
+                            <span class="text-[11px] font-bold text-slate-700 mt-0.5">Low</span>
+                        </label>
+                        <label :class="reclassifyPriority === 'medium' ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-500/20 shadow-xs' : 'border-slate-200 hover:border-slate-300 bg-white'"
+                               class="flex flex-col items-center justify-center p-2 rounded-xl border cursor-pointer transition text-center">
+                            <input type="radio" name="priority" value="medium" x-model="reclassifyPriority" class="sr-only">
+                            <span class="text-xs">🔵</span>
+                            <span class="text-[11px] font-bold text-blue-700 mt-0.5">Medium</span>
+                        </label>
+                        <label :class="reclassifyPriority === 'high' ? 'border-amber-500 bg-amber-50 ring-2 ring-amber-500/20 shadow-xs' : 'border-slate-200 hover:border-slate-300 bg-white'"
+                               class="flex flex-col items-center justify-center p-2 rounded-xl border cursor-pointer transition text-center">
+                            <input type="radio" name="priority" value="high" x-model="reclassifyPriority" class="sr-only">
+                            <span class="text-xs">🟠</span>
+                            <span class="text-[11px] font-bold text-amber-700 mt-0.5">High</span>
+                        </label>
+                        <label :class="reclassifyPriority === 'critical' ? 'border-rose-500 bg-rose-50 ring-2 ring-rose-500/20 shadow-xs' : 'border-slate-200 hover:border-slate-300 bg-white'"
+                               class="flex flex-col items-center justify-center p-2 rounded-xl border cursor-pointer transition text-center">
+                            <input type="radio" name="priority" value="critical" x-model="reclassifyPriority" class="sr-only">
+                            <span class="text-xs">🔴</span>
+                            <span class="text-[11px] font-bold text-rose-700 mt-0.5">Critical</span>
+                        </label>
                     </div>
                 </div>
 
