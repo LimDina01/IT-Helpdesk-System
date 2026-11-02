@@ -528,6 +528,30 @@ class TmaRequesterPortalTest extends TestCase
         $formDataResponse->assertOk()
             ->assertJsonPath('user.branch_code', 'HQ-PP');
     }
+
+    public function test_logged_in_web_portal_admin_does_not_leak_into_tma_requester_form_data_or_tickets(): void
+    {
+        $admin = User::where('email', 'admin@cbvh.com.kh')->firstOrFail();
+        $requester = User::where('email', 'sokha.chan@cbvh.com.kh')->firstOrFail();
+
+        // Simulate simultaneous sessions in the same browser:
+        // 'web' guard has Portal Admin
+        // 'tma' guard has Requester (Sokha Chan)
+        $this->actingAs($admin, 'web');
+        $this->actingAs($requester, 'tma');
+
+        // Form-data must strictly reflect TMA requester, NEVER the Web Portal Admin
+        $formDataResponse = $this->getJson(route('tma.form-data'));
+        $formDataResponse->assertOk();
+        $this->assertEquals($requester->name, $formDataResponse->json('user.name'));
+        $this->assertFalse((bool) $formDataResponse->json('user.is_hod'));
+        $this->assertEquals(0, $formDataResponse->json('user.pending_approvals_count'));
+
+        // Tickets list must strictly reflect TMA requester
+        $ticketsResponse = $this->getJson(route('tma.tickets.index'));
+        $ticketsResponse->assertOk();
+        $this->assertEquals(0, $ticketsResponse->json('pending_approvals_count'));
+    }
 }
 
 

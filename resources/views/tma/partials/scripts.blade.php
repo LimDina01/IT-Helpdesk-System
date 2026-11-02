@@ -101,11 +101,13 @@ function tmaApp() {
         },
 
         get isHod() {
-            return !!(
-                this.currentUser?.is_hod ||
-                this.formData?.user?.is_hod ||
-                (Array.isArray(this.currentUser?.roles) && this.currentUser.roles.some(r => ['hod', 'system_admin'].includes(r)))
-            );
+            if (this.currentUser && this.currentUser.id) {
+                return !!(
+                    this.currentUser.is_hod ||
+                    (Array.isArray(this.currentUser.roles) && this.currentUser.roles.some(r => ['hod', 'system_admin'].includes(r)))
+                );
+            }
+            return false;
         },
 
         get greetingName() {
@@ -737,6 +739,7 @@ function tmaApp() {
                     localStorage.removeItem('cbvh_tma_active_tickets');
                     localStorage.removeItem('cbvh_tma_history_tickets');
                     localStorage.removeItem('cbvh_tma_counts');
+                    localStorage.removeItem('cbvh_tma_form_data');
                 } catch (e) {}
             });
         },

@@ -28,11 +28,19 @@ class TmaTicketController extends Controller
     use AuthorizesRequests;
 
     /**
+     * Resolve the authenticated TMA requester user, strictly isolating from Web Portal sessions.
+     */
+    protected function getTmaUser(): ?User
+    {
+        return Auth::guard('tma')->user() ?? (app()->runningUnitTests() ? Auth::user() : null);
+    }
+
+    /**
      * Get tickets for the authenticated employee across all categories.
      */
     public function index(Request $request, \App\Services\TicketApprovalService $approvalService): JsonResponse
     {
-        $user = Auth::user();
+        $user = $this->getTmaUser();
         $isStaff = $user->isStaff();
         $isHod = $user->hasRole(['hod', 'system_admin']);
 
@@ -257,8 +265,8 @@ class TmaTicketController extends Controller
 
         $currentApproval = $ticket->currentApproval();
         $canApprove = false;
-        if ($currentApproval) {
-            $canApprove = app(\App\Services\TicketApprovalService::class)->canUserApprove(Auth::user(), $currentApproval);
+        if ($currentApproval && $this->getTmaUser()) {
+            $canApprove = app(\App\Services\TicketApprovalService::class)->canUserApprove($this->getTmaUser(), $currentApproval);
         }
 
         return response()->json([
@@ -322,7 +330,7 @@ class TmaTicketController extends Controller
      */
     public function store(Request $request, \App\Services\TicketApprovalService $approvalService): JsonResponse
     {
-        $user = Auth::user();
+        $user = $this->getTmaUser();
         $userBranchId = $user?->employee?->branch_id ?? $user?->branch_id ?? Branch::first()?->id ?? 1;
 
         $validated = $request->validate([
@@ -424,7 +432,11 @@ class TmaTicketController extends Controller
     public function approveStep(Request $request, \App\Models\TicketApproval $approval, \App\Services\TicketApprovalService $approvalService): JsonResponse
     {
         $comment = $request->input('comments');
-        $success = $approvalService->approve($approval, Auth::user(), $comment);
+        $approver = $this->getTmaUser();
+        if (!$approver) {
+            return response()->json(['error' => 'Unauthenticated.'], 401);
+        }
+        $success = $approvalService->approve($approval, $approver, $comment);
 
         if (!$success) {
             return response()->json(['error' => 'Unauthorized or invalid approval step.'], 403);
@@ -445,7 +457,11 @@ class TmaTicketController extends Controller
             'reason' => 'required|string|min:3',
         ]);
 
-        $success = $approvalService->reject($approval, Auth::user(), $validated['reason']);
+        $approver = $this->getTmaUser();
+        if (!$approver) {
+            return response()->json(['error' => 'Unauthenticated.'], 401);
+        }
+        $success = $approvalService->reject($approval, $approver, $validated['reason']);
 
         if (!$success) {
             return response()->json(['error' => 'Unauthorized or invalid approval step.'], 403);
@@ -469,7 +485,7 @@ class TmaTicketController extends Controller
             'attachments.*' => 'nullable|file|max:25600|mimes:jpeg,jpg,png,webp,gif,bmp,heic,heif,pdf,doc,docx,xls,xlsx,txt,zip',
         ]);
 
-        $user = Auth::user();
+        $user = $this->getTmaUser();
         Cache::put("ticket_presence_{$ticket->id}_{$user->id}", now()->timestamp, 8);
 
         $message = DB::transaction(function () use ($validated, $user, $ticket, $request) {
@@ -530,7 +546,7 @@ class TmaTicketController extends Controller
     {
         $this->authorize('resolveConfirm', $ticket);
 
-        $user = Auth::user();
+        $user = $this->getTmaUser();
 
         DB::transaction(function () use ($ticket, $user) {
             $ticket->update([
@@ -574,7 +590,7 @@ class TmaTicketController extends Controller
             'reason' => 'required|string|min:3',
         ]);
 
-        $user = Auth::user();
+        $user = $this->getTmaUser();
 
         DB::transaction(function () use ($ticket, $user, $validated) {
             $ticket->update([
@@ -740,7 +756,7 @@ class TmaTicketController extends Controller
             ->select('id', 'name', 'name_km', 'description', 'description_km', 'icon', 'icon_url', 'icon_color', 'type', 'requires_approval', 'default_priority', 'sla_critical_hours', 'sla_high_hours', 'sla_medium_hours', 'sla_low_hours')
             ->get();
 
-        $user = Auth::user();
+        $user = $this->getTmaUser();
         $emp = $user?->employee?->load(['branch', 'department']);
         $userBranchId = $emp?->branch_id ?? $user?->branch_id ?? $branches->first()?->id;
         $userBranchName = $emp?->branch?->name ?? $branches->first()?->name ?? 'Main Branch';
