@@ -48,6 +48,8 @@ class PortalAdminController extends Controller
 
         $validated = $request->validate([
             'parent_id' => 'nullable|exists:ticket_categories,id',
+            'code' => 'nullable|string|max:20',
+            'it_division' => 'nullable|in:opr,prd',
             'name' => 'required|string|max:100',
             'name_km' => 'nullable|string|max:150',
             'description' => 'nullable|string|max:255',
@@ -110,6 +112,8 @@ class PortalAdminController extends Controller
 
         $validated = $request->validate([
             'parent_id' => 'nullable|exists:ticket_categories,id|not_in:' . $category->id,
+            'code' => 'nullable|string|max:20',
+            'it_division' => 'nullable|in:opr,prd',
             'name' => 'required|string|max:100',
             'name_km' => 'nullable|string|max:150',
             'description' => 'nullable|string|max:255',

@@ -282,6 +282,17 @@
                     @endif
                 @endif
 
+                <!-- IT Division Pill (IT-OPR vs IT-PRD) -->
+                @if(($ticket->it_division ?? '') === 'prd')
+                    <span class="bg-purple-100 text-purple-800 border border-purple-200 font-extrabold text-[10px] uppercase px-2.5 py-1 rounded-lg tracking-wider flex items-center space-x-1 shadow-2xs">
+                        <span>💻</span> <span>IT-PRD</span>
+                    </span>
+                @else
+                    <span class="bg-blue-100 text-blue-800 border border-blue-200 font-extrabold text-[10px] uppercase px-2.5 py-1 rounded-lg tracking-wider flex items-center space-x-1 shadow-2xs">
+                        <span>🛠️</span> <span>IT-OPR</span>
+                    </span>
+                @endif
+
                 <!-- Inline Priority Switcher (Helpdesk / HOD / Admin) or Static Badge (Technician) -->
                 @if(Auth::user()->hasAnyRole(['helpdesk', 'system_admin', 'hod']))
                     <form method="POST" action="{{ route('portal.tickets.priority', $ticket->id) }}" class="inline-flex items-center">
@@ -1518,7 +1529,7 @@
                                 required
                                 class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-slate-800 font-medium cursor-pointer">
                             <template x-for="sub in getSubcategories()" :key="sub.id">
-                                <option :value="sub.id" x-text="sub.name" :selected="sub.id == reclassifySubId"></option>
+                                <option :value="sub.id" x-text="(sub.it_division === 'prd' ? '[IT-PRD] ' : '[IT-OPR] ') + sub.name" :selected="sub.id == reclassifySubId"></option>
                             </template>
                         </select>
                     </div>

@@ -254,7 +254,13 @@
                         <option value="low" {{ $priorityFilter == 'low' ? 'selected' : '' }}>Low</option>
                     </select>
 
-                    @if($branchFilter || $priorityFilter || $searchQuery)
+                    <select name="division" onchange="this.form.submit()" class="text-xs px-3 py-2 rounded-xl border border-slate-200 bg-slate-50/70 font-semibold focus:bg-white focus:ring-2 focus:ring-blue-500 shadow-2xs">
+                        <option value="">All IT Units (OPR & PRD)</option>
+                        <option value="opr" {{ ($divisionFilter ?? '') === 'opr' ? 'selected' : '' }}>🛠️ IT-OPR (Operations)</option>
+                        <option value="prd" {{ ($divisionFilter ?? '') === 'prd' ? 'selected' : '' }}>💻 IT-PRD (Production)</option>
+                    </select>
+
+                    @if($branchFilter || $priorityFilter || ($divisionFilter ?? null) || $searchQuery)
                         <a href="{{ route('portal.dashboard', ['view' => $viewTab]) }}" class="text-xs text-rose-600 hover:underline px-1.5 font-semibold">Clear</a>
                     @endif
                 </form>
@@ -352,6 +358,11 @@
                                         <span class="text-[9px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-1 py-0.2 rounded leading-tight">🔴 Incident</span>
                                     @else
                                         <span class="text-[9px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-1 py-0.2 rounded leading-tight">🔵 Service Request</span>
+                                    @endif
+                                    @if(($t->it_division ?? '') === 'prd')
+                                        <span class="text-[9px] font-bold text-purple-700 bg-purple-50 border border-purple-200 px-1 py-0.2 rounded leading-tight">IT-PRD</span>
+                                    @else
+                                        <span class="text-[9px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-1 py-0.2 rounded leading-tight">IT-OPR</span>
                                     @endif
                                 </div>
                                 <a href="{{ route('portal.tickets.show', $t->id) }}" class="font-bold text-slate-800 hover:text-blue-600 line-clamp-1 text-xs">

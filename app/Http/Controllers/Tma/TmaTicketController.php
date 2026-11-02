@@ -358,6 +358,7 @@ class TmaTicketController extends Controller
                 'requester_id' => $user->id,
                 'branch_id' => $effectiveBranchId,
                 'category_id' => $validated['category_id'],
+                'it_division' => $category?->it_division ?? 'opr',
                 'status' => 'submitted',
                 'priority' => $validated['priority'],
                 'subject' => $validated['subject'],

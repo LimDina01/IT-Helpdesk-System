@@ -76,11 +76,13 @@ class PortalTicketController extends Controller
                     'id' => $parent->id,
                     'name' => $parent->name,
                     'type' => $parent->type === 'service_request' ? 'service_request' : 'incident',
-                    'children' => $parent->children->map(function ($c) {
+                    'it_division' => $parent->it_division ?? 'opr',
+                    'children' => $parent->children->map(function ($c) use ($parent) {
                         return [
                             'id' => $c->id,
                             'name' => $c->name,
                             'type' => $c->type === 'service_request' ? 'service_request' : 'incident',
+                            'it_division' => $c->it_division ?? $parent->it_division ?? 'opr',
                             'requires_approval' => (bool) $c->requires_approval,
                         ];
                     })->values()->all(),
@@ -797,6 +799,7 @@ class PortalTicketController extends Controller
         DB::transaction(function () use ($ticket, $user, $oldType, $newType, $oldCategoryId, $newCategoryId, $newCategory, $oldCategoryName, $oldPriority, $newPriority, $typeChanged, $categoryChanged, $priorityChanged, $reason, $approvalService) {
             $ticket->ticket_type = $newType;
             $ticket->category_id = $newCategoryId;
+            $ticket->it_division = $newCategory->it_division ?? 'opr';
             $ticket->priority = $newPriority;
 
             if ($typeChanged && $newType === 'service_request') {

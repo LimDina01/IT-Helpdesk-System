@@ -18,6 +18,7 @@ class Ticket extends Model
         'requester_id',
         'branch_id',
         'category_id',
+        'it_division',
         'current_helpdesk_id',
         'current_technician_id',
         'status',

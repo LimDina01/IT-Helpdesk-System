@@ -22,6 +22,7 @@ class PortalDashboardController extends Controller
     {
         $user = Auth::user();
         $viewTab = $request->input('view', 'triage'); // 'triage', 'my_tasks', 'all_active', 'blocked'
+        $divisionFilter = $request->input('division'); // 'opr' or 'prd'
         $branchFilter = $request->input('branch_id');
         $priorityFilter = $request->input('priority');
         $statusFilter = $request->input('status');
@@ -48,10 +49,20 @@ class PortalDashboardController extends Controller
         $allActiveCount = Ticket::whereIn('status', [
             'pending_approval', 'submitted', 'clarifying', 'assigned', 'in_progress', 'blocked', 'pending_confirmation', 'reopened'
         ])->count();
+        $oprCount = Ticket::whereIn('status', [
+            'pending_approval', 'submitted', 'clarifying', 'assigned', 'in_progress', 'blocked', 'pending_confirmation', 'reopened'
+        ])->where('it_division', 'opr')->count();
+        $prdCount = Ticket::whereIn('status', [
+            'pending_approval', 'submitted', 'clarifying', 'assigned', 'in_progress', 'blocked', 'pending_confirmation', 'reopened'
+        ])->where('it_division', 'prd')->count();
         $solvedCount = Ticket::whereIn('status', ['resolved_confirmed', 'resolved_auto_closed', 'closed'])->count();
 
         // 2. Queue Query
         $query = Ticket::with(['requester', 'branch', 'category.parent', 'technician', 'helpdesk', 'approvals']);
+
+        if ($divisionFilter && in_array($divisionFilter, ['opr', 'prd'], true)) {
+            $query->where('it_division', $divisionFilter);
+        }
 
         if ($branchFilter) {
             $query->where('branch_id', $branchFilter);
@@ -167,6 +178,8 @@ class PortalDashboardController extends Controller
             'reopenedCount',
             'myTasksCount',
             'allActiveCount',
+            'oprCount',
+            'prdCount',
             'solvedCount',
             'slaBreachCount',
             'blockedCount',
@@ -179,6 +192,7 @@ class PortalDashboardController extends Controller
             'categories',
             'branchFilter',
             'priorityFilter',
+            'divisionFilter',
             'searchQuery'
         ));
     }

@@ -34,7 +34,7 @@ class TicketApprovalService
         $deptId = $ticket->requester->employee?->department_id;
         $branchId = $ticket->branch_id ?? $ticket->requester->employee?->branch_id;
         $deptCode = $ticket->requester->employee?->department?->code;
-        $isItDept = ($deptCode === 'IT' || $deptId == 2);
+        $isItDept = ($deptCode === 'IT' || $deptCode === 'IT-OPR' || $deptCode === 'IT-PRD' || $deptId == 2 || ($deptCode && str_starts_with($deptCode, 'IT')));
 
         // Check if requester's branch & department has a designated HOD (excluding IT Department / IT HOD)
         $hasDeptHod = !$isItDept && $deptId && $branchId && User::whereHas('roles', fn($q) => $q->where('name', 'hod'))
@@ -42,6 +42,9 @@ class TicketApprovalService
             ->where('email', '!=', 'admin@cbvh.com.kh')
             ->whereHas('employee', fn($q) => $q->where('department_id', $deptId)->where('branch_id', $branchId))
             ->exists();
+
+        $itDivision = $ticket->it_division ?? $ticket->category?->it_division ?? 'opr';
+        $itStepName = $itDivision === 'prd' ? 'IT Production Manager Approval' : 'IT Operations Manager Approval';
 
         if ($hasDeptHod) {
             // Normal 2-Stage Approval: Step 1 is Branch Department HOD
@@ -209,11 +212,36 @@ class TicketApprovalService
 
         // ========================================================
         // Process 3: IT Department HOD Approval (Final Slot / IT Manager)
-        // Centralized at HQ for all bank branches
+        // Centralized at HQ for all bank branches, split by IT Division (OPR vs PRD)
         // ========================================================
         if ($approval->role_name === 'it_manager' || $approval->step_number === 2 || $approval->step_number === 3) {
-            // Only Central IT HOD or Bank IT Department HOD can approve IT Manager step
-            return $isItHod;
+            if ($user->hasRole('system_admin')) {
+                return true;
+            }
+
+            if (!$isItHod) {
+                return false;
+            }
+
+            $itDivision = $ticket->it_division ?? $ticket->category?->it_division ?? 'opr';
+            $userDeptCode = $user->employee?->department?->code;
+
+            // If user belongs specifically to IT-PRD, they approve PRD tickets
+            if ($itDivision === 'prd' && $userDeptCode === 'IT-PRD') {
+                return true;
+            }
+
+            // If user belongs specifically to IT-OPR, they approve OPR tickets
+            if ($itDivision === 'opr' && $userDeptCode === 'IT-OPR') {
+                return true;
+            }
+
+            // Central IT HOD / System Admin / or general IT without sub-division
+            if (empty($userDeptCode) || in_array($userDeptCode, ['IT', 'IT-OPR', 'IT-PRD']) || $userDeptId == 2) {
+                return true;
+            }
+
+            return false;
         }
 
         return false;
@@ -420,11 +448,14 @@ class TicketApprovalService
                 ->whereNotNull('telegram_id')
                 ->get();
         } else {
-            // Process: Central IT Department HOD (HQ) & IT HODs
+            // Process: Central IT Department HOD (HQ) & IT HODs (filtered by OPR / PRD)
+            $itDivision = $ticket->it_division ?? $ticket->category?->it_division ?? 'opr';
+            $targetDeptCode = $itDivision === 'prd' ? 'IT-PRD' : 'IT-OPR';
+
             $approvers = User::whereHas('roles', fn($q) => $q->whereIn('name', ['hod', 'system_admin']))
-                ->where(function ($q) {
+                ->where(function ($q) use ($targetDeptCode) {
                     $q->whereDoesntHave('employee')
-                      ->orWhereHas('employee.department', fn($d) => $d->where('code', 'IT')->orWhere('id', 2));
+                      ->orWhereHas('employee.department', fn($d) => $d->whereIn('code', [$targetDeptCode, 'IT', 'IT-OPR', 'IT-PRD'])->orWhere('id', 2));
                 })
                 ->whereNotNull('telegram_id')
                 ->get();

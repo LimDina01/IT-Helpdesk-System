@@ -146,6 +146,7 @@
         this.editCat.iconPreview = this.editCat.icon_url || null;
         this.editCat.remove_icon_file = 0;
         this.editCat.previewLang = 'en';
+        this.editCat.it_division = this.editCat.it_division || 'opr';
         this.editCat.default_priority = this.editCat.default_priority || 'medium';
         this.editCat.sla_critical_hours = this.editCat.sla_critical_hours || 4;
         this.editCat.sla_high_hours = this.editCat.sla_high_hours || 8;
@@ -392,6 +393,12 @@
                                 </div>
                             @endif
                             <div class="text-[11px] text-slate-400 mt-0.5 flex items-center space-x-1.5">
+                                @if($parent->it_division === 'prd')
+                                    <span class="bg-purple-100 text-purple-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-purple-200">💻 IT-PRD</span>
+                                @else
+                                    <span class="bg-blue-100 text-blue-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-blue-200">🛠️ IT-OPR</span>
+                                @endif
+                                <span>&bull;</span>
                                 @if($parent->type === 'service_request')
                                     <span class="text-indigo-600 font-semibold">🔵 Service Request Group</span>
                                 @else
@@ -449,6 +456,7 @@
                         <thead class="bg-slate-50/40 text-slate-400 font-bold uppercase tracking-wider text-[10px] border-b border-slate-100">
                             <tr>
                                 <th class="py-2.5 px-6">Subcategory Name</th>
+                                <th class="py-2.5 px-4">IT Unit</th>
                                 <th class="py-2.5 px-4">Workflow Type</th>
                                 <th class="py-2.5 px-4">Approval Required</th>
                                 <th class="py-2.5 px-4">Default Priority</th>
@@ -472,6 +480,18 @@
                                                 <span class="text-[9px] font-bold uppercase px-1.5 py-0.2 rounded bg-slate-200 text-slate-600">Disabled</span>
                                             @endif
                                         </div>
+                                    </td>
+
+                                    <td class="py-3 px-4 whitespace-nowrap">
+                                        @if($child->it_division === 'prd')
+                                            <span class="bg-purple-50 text-purple-700 border border-purple-200 font-bold text-[9px] uppercase px-2 py-0.5 rounded">
+                                                IT-PRD
+                                            </span>
+                                        @else
+                                            <span class="bg-blue-50 text-blue-700 border border-blue-200 font-bold text-[9px] uppercase px-2 py-0.5 rounded">
+                                                IT-OPR
+                                            </span>
+                                        @endif
                                     </td>
 
                                     <td class="py-3 px-4 whitespace-nowrap">
@@ -802,12 +822,20 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
                         <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Workflow Type</label>
                         <select name="type" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white">
                             <option value="incident_issue">Incident / Fault (Broken)</option>
                             <option value="service_request">Service Request (Request)</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Responsible IT Unit</label>
+                        <select name="it_division" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white font-semibold">
+                            <option value="opr">🛠️ IT-OPR (Operations)</option>
+                            <option value="prd">💻 IT-PRD (Production)</option>
                         </select>
                     </div>
 
@@ -1002,12 +1030,20 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
                         <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Workflow Type</label>
                         <select name="type" x-model="editCat.type" required class="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 bg-white">
                             <option value="incident_issue">Incident / Fault</option>
                             <option value="service_request">Service Request</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Responsible IT Unit</label>
+                        <select name="it_division" x-model="editCat.it_division" required class="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 bg-white font-semibold">
+                            <option value="opr">🛠️ IT-OPR (Operations)</option>
+                            <option value="prd">💻 IT-PRD (Production)</option>
                         </select>
                     </div>
 

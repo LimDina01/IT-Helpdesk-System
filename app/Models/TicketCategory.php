@@ -13,6 +13,7 @@ class TicketCategory extends Model
 
     protected $fillable = [
         'parent_id',
+        'code',
         'name',
         'name_km',
         'description',
@@ -21,6 +22,7 @@ class TicketCategory extends Model
         'icon_url',
         'icon_color',
         'type',
+        'it_division',
         'requires_approval',
         'default_priority',
         'sla_critical_hours',
