@@ -362,8 +362,8 @@
                             <span>Assign to Me</span>
                         </button>
                     </form>
-                    <button type="button" @click="reassignDrawer = !reassignDrawer" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 transition">
-                        Assign Technician...
+                    <button type="button" @click="reassignDrawer = true" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 transition cursor-pointer flex items-center space-x-1.5">
+                        <span>Assign Technician...</span>
                     </button>
                 @endif
 
@@ -379,8 +379,8 @@
                 @endif
 
                 @if($ticket->status === 'reopened')
-                    <button type="button" @click="reassignDrawer = !reassignDrawer" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 transition">
-                        Reassign Technician...
+                    <button type="button" @click="reassignDrawer = true" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 transition cursor-pointer flex items-center space-x-1.5">
+                        <span>Reassign Technician...</span>
                     </button>
                 @endif
 
@@ -767,33 +767,6 @@
                                 </button>
                             </form>
                         </div>
-                    </div>
-                @endif
-
-                <!-- Reassign Drawer (For already assigned tickets) -->
-                @if($ticket->technician)
-                    <div x-show="reassignDrawer" class="pt-3 border-t border-slate-100 space-y-3" x-cloak>
-                        <form method="POST" action="{{ route('portal.tickets.assign', $ticket->id) }}" class="space-y-3">
-                            @csrf
-                            <div>
-                                <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">New Technician</label>
-                                <select name="technician_id" required class="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white">
-                                    @foreach($technicians as $tech)
-                                        <option value="{{ $tech->id }}" {{ $ticket->current_technician_id == $tech->id ? 'selected' : '' }}>
-                                            {{ $tech->name }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Transfer Reason</label>
-                                <input type="text" name="assignment_note" placeholder="e.g. Workload rebalancing" class="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-300">
-                            </div>
-                            <div class="flex justify-end space-x-2">
-                                <button type="button" @click="reassignDrawer = false" class="text-xs text-slate-500 px-2 py-1">Cancel</button>
-                                <button type="submit" class="text-xs bg-blue-600 text-white font-bold px-3 py-1.5 rounded-lg">Update</button>
-                            </div>
-                        </form>
                     </div>
                 @endif
             </div>
@@ -1561,6 +1534,66 @@
                     <button type="button" @click="reclassifyModal = false" class="px-3.5 py-2 text-xs text-slate-600 font-semibold hover:bg-slate-100 rounded-xl transition">Cancel</button>
                     <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center space-x-1.5">
                         <span>Save & Apply</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ASSIGN / REASSIGN TECHNICIAN MODAL -->
+    <div x-show="reassignDrawer" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4" x-cloak>
+        <div @click.away="reassignDrawer = false" class="bg-white rounded-3xl max-w-md w-full shadow-2xl p-6 space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div class="flex items-center space-x-2.5">
+                    <div class="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-sm font-bold">
+                        👤
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-900">
+                            {{ $ticket->technician ? 'Reassign Ticket' : 'Assign Technician' }}
+                        </h3>
+                        <p class="text-[11px] text-slate-500">
+                            {{ $ticket->technician ? 'Transfer ticket responsibility to another technician' : 'Assign an available technician to triage and resolve this ticket' }}
+                        </p>
+                    </div>
+                </div>
+                <button type="button" @click="reassignDrawer = false" class="text-slate-400 hover:text-slate-600 text-lg font-bold">
+                    &times;
+                </button>
+            </div>
+
+            @if($ticket->technician)
+                <div class="p-3 bg-slate-50 rounded-2xl border border-slate-200/80 flex items-center justify-between text-xs">
+                    <span class="text-slate-500 font-medium">Currently Assigned To:</span>
+                    <span class="font-bold text-slate-800">{{ $ticket->technician->name }}</span>
+                </div>
+            @endif
+
+            <form method="POST" action="{{ route('portal.tickets.assign', $ticket->id) }}" class="space-y-4">
+                @csrf
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Select Technician <span class="text-rose-500">*</span></label>
+                    <select name="technician_id" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-medium">
+                        <option value="">-- Choose a technician --</option>
+                        @foreach($technicians as $tech)
+                            <option value="{{ $tech->id }}" {{ $ticket->current_technician_id == $tech->id ? 'selected' : '' }}>
+                                {{ $tech->name }} ({{ $tech->email }})
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                        {{ $ticket->technician ? 'Transfer Reason / Note' : 'Assignment Note (Optional)' }}
+                    </label>
+                    <input type="text" name="assignment_note" placeholder="{{ $ticket->technician ? 'e.g. Workload rebalancing, specialist needed' : 'e.g. Assigned for hardware triage' }}" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+
+                <div class="flex items-center justify-end space-x-2 pt-2 border-t border-slate-100">
+                    <button type="button" @click="reassignDrawer = false" class="px-3.5 py-2 text-xs text-slate-600 font-semibold hover:bg-slate-100 rounded-xl transition">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center space-x-1.5">
+                        <span>{{ $ticket->technician ? 'Transfer Ticket' : 'Assign Ticket' }}</span>
                     </button>
                 </div>
             </form>
