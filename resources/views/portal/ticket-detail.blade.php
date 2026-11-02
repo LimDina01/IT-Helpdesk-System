@@ -8,6 +8,14 @@
     blockModal: false,
     rejectHoldModal: false,
     reassignDrawer: false,
+    reclassifyModal: false,
+    reclassifyType: '{{ $ticket->ticket_type }}',
+    reclassifyCatId: {{ $ticket->category_id }},
+    allCategories: {{ Js::from($categoriesJson) }},
+    getFilteredCategories() {
+        const targetType = this.reclassifyType === 'incident' ? 'incident' : 'service_request';
+        return this.allCategories.filter(c => c.type === targetType);
+    },
     messageTab: 'requester_visible',
     messageBody: '',
     messageFiles: [],
@@ -221,15 +229,17 @@
                     <span x-show="copiedTicket" x-cloak class="text-[10px] text-emerald-600 font-bold ml-0.5">Copied!</span>
                 </button>
 
-                <!-- Ticket Type Pill -->
+                <!-- Ticket Type Pill (Clickable to Reclassify) -->
                 @if($ticket->isIncident())
-                    <span class="bg-rose-100 text-rose-700 border border-rose-200 font-extrabold text-[10px] uppercase px-2.5 py-1 rounded-lg tracking-wider flex items-center space-x-1">
+                    <button type="button" @click="reclassifyModal = true" title="Click to change ticket type / category" class="bg-rose-100 hover:bg-rose-200 text-rose-700 border border-rose-200 font-extrabold text-[10px] uppercase px-2.5 py-1 rounded-lg tracking-wider flex items-center space-x-1 cursor-pointer transition shadow-2xs">
                         <span>🔴</span> <span>Incident</span>
-                    </span>
+                        <svg class="w-2.5 h-2.5 text-rose-500 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                    </button>
                 @else
-                    <span class="bg-indigo-100 text-indigo-700 border border-indigo-200 font-extrabold text-[10px] uppercase px-2.5 py-1 rounded-lg tracking-wider flex items-center space-x-1">
+                    <button type="button" @click="reclassifyModal = true" title="Click to change ticket type / category" class="bg-indigo-100 hover:bg-indigo-200 text-indigo-700 border border-indigo-200 font-extrabold text-[10px] uppercase px-2.5 py-1 rounded-lg tracking-wider flex items-center space-x-1 cursor-pointer transition shadow-2xs">
                         <span>🔵</span> <span>Service Request</span>
-                    </span>
+                        <svg class="w-2.5 h-2.5 text-indigo-500 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                    </button>
                 @endif
 
                 <!-- Inline Priority Quick Switcher -->
@@ -305,7 +315,9 @@
                 <div class="text-xs text-slate-500 flex flex-wrap items-center gap-2.5">
                     <span>Created: <strong>{{ $ticket->created_at->format('M d, Y H:i') }}</strong> ({{ $ticket->created_at->diffForHumans() }})</span>
                     <span>•</span>
-                    <span>Category: <strong class="text-slate-700">{{ $ticket->category->name }}</strong></span>
+                    <span>Category: <strong class="text-slate-700">{{ $ticket->category->name }}</strong>
+                        <button type="button" @click="reclassifyModal = true" class="text-blue-600 hover:text-blue-800 text-[11px] underline ml-1 font-semibold cursor-pointer">(Change)</button>
+                    </span>
                     <span>•</span>
                     <span>Branch: <strong class="text-slate-700">{{ $ticket->branch->name }} ({{ $ticket->branch->code }})</strong></span>
                 </div>
@@ -393,6 +405,12 @@
                         </button>
                     </form>
                 @endif
+
+                {{-- Fast Reclassify Type & Category button (Helpdesk / Tech) --}}
+                <button type="button" @click="reclassifyModal = true" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs px-3.5 py-2.5 rounded-xl border border-indigo-200 transition flex items-center space-x-1.5 shadow-2xs" title="Switch Ticket Type or Change Category">
+                    <span>🔄</span>
+                    <span>Reclassify</span>
+                </button>
             </div>
         </div>
 
@@ -1375,6 +1393,100 @@
                     </div>
                 </form>
             @endif
+        </div>
+    </div>
+
+    <!-- RECLASSIFY / CHANGE TICKET TYPE & CATEGORY MODAL -->
+    <div x-show="reclassifyModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4" x-cloak>
+        <div @click.away="reclassifyModal = false" class="bg-white rounded-3xl max-w-lg w-full shadow-2xl p-6 space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div class="flex items-center space-x-2.5">
+                    <div class="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-sm font-bold">
+                        🔄
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-900">Reclassify Ticket</h3>
+                        <p class="text-[11px] text-slate-500">Switch ticket type between Incident & Service Request, or change Category</p>
+                    </div>
+                </div>
+                <button type="button" @click="reclassifyModal = false" class="text-slate-400 hover:text-slate-600 text-lg font-bold">
+                    &times;
+                </button>
+            </div>
+
+            <form method="POST" action="{{ route('portal.tickets.reclassify', $ticket->id) }}" class="space-y-4">
+                @csrf
+                <!-- Ticket Type Selector -->
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1.5">Ticket Classification Type</label>
+                    <div class="grid grid-cols-2 gap-2.5">
+                        <label :class="reclassifyType === 'incident' ? 'border-rose-500 bg-rose-50/50 ring-2 ring-rose-500/20' : 'border-slate-200 hover:border-slate-300 bg-white'"
+                               class="flex items-center space-x-2.5 p-3 rounded-2xl border cursor-pointer transition">
+                            <input type="radio" name="ticket_type" value="incident" x-model="reclassifyType"
+                                   @change="const f = getFilteredCategories(); if (!f.some(c => c.id == reclassifyCatId) && f.length) reclassifyCatId = f[0].id;"
+                                   class="text-rose-600 focus:ring-rose-500">
+                            <div>
+                                <div class="text-xs font-bold text-slate-900 flex items-center space-x-1">
+                                    <span>🔴</span> <span>Incident</span>
+                                </div>
+                                <div class="text-[10px] text-slate-500 mt-0.5">Broken or malfunctioning</div>
+                            </div>
+                        </label>
+                        <label :class="reclassifyType === 'service_request' ? 'border-indigo-500 bg-indigo-50/50 ring-2 ring-indigo-500/20' : 'border-slate-200 hover:border-slate-300 bg-white'"
+                               class="flex items-center space-x-2.5 p-3 rounded-2xl border cursor-pointer transition">
+                            <input type="radio" name="ticket_type" value="service_request" x-model="reclassifyType"
+                                   @change="const f = getFilteredCategories(); if (!f.some(c => c.id == reclassifyCatId) && f.length) reclassifyCatId = f[0].id;"
+                                   class="text-indigo-600 focus:ring-indigo-500">
+                            <div>
+                                <div class="text-xs font-bold text-slate-900 flex items-center space-x-1">
+                                    <span>🔵</span> <span>Service Request</span>
+                                </div>
+                                <div class="text-[10px] text-slate-500 mt-0.5">Hardware / access (Needs Approval)</div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Dynamic Notice Banner when Type Changes -->
+                <div x-show="reclassifyType === 'service_request' && '{{ $ticket->ticket_type }}' === 'incident'" class="p-3 bg-amber-50 border border-amber-200 rounded-2xl text-[11px] text-amber-900 flex items-start space-x-2">
+                    <span class="text-base leading-none">⏳</span>
+                    <div>
+                        <strong>Converting to Service Request:</strong>
+                        <p class="mt-0.5 text-amber-800">This will initiate the Department HOD & IT Manager approval workflow. Ticket status will transition to <em>Pending Approval</em> until authorized.</p>
+                    </div>
+                </div>
+
+                <div x-show="reclassifyType === 'incident' && '{{ $ticket->ticket_type }}' === 'service_request'" class="p-3 bg-blue-50 border border-blue-200 rounded-2xl text-[11px] text-blue-900 flex items-start space-x-2">
+                    <span class="text-base leading-none">⚡</span>
+                    <div>
+                        <strong>Converting to Incident:</strong>
+                        <p class="mt-0.5 text-blue-800">Pending approval steps will be cancelled. The ticket will immediately become ready for technical assignment & triage.</p>
+                    </div>
+                </div>
+
+                <!-- Category Selector -->
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Target Category</label>
+                    <select name="category_id" x-model="reclassifyCatId" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+                        <template x-for="cat in getFilteredCategories()" :key="cat.id">
+                            <option :value="cat.id" x-text="cat.full_name" :selected="cat.id == reclassifyCatId"></option>
+                        </template>
+                    </select>
+                </div>
+
+                <!-- Reason Field -->
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Reason for Reclassification <span class="text-slate-400 font-normal">(Optional note for audit)</span></label>
+                    <textarea name="reason" rows="2" placeholder="e.g. Requester submitted request as incident; converting to service request for HOD signoff..." class="w-full text-xs px-3.5 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+                </div>
+
+                <div class="flex items-center justify-end space-x-2 pt-2 border-t border-slate-100">
+                    <button type="button" @click="reclassifyModal = false" class="px-3.5 py-2 text-xs text-slate-600 font-semibold hover:bg-slate-100 rounded-xl transition">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center space-x-1.5">
+                        <span>Save & Apply</span>
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 

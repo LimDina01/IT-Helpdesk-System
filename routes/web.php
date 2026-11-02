@@ -89,6 +89,7 @@ Route::prefix('portal')->group(function () {
         Route::get('/tickets/{ticket}/attachments/{attachment}/download', [PortalTicketController::class, 'downloadAttachment'])->name('portal.attachments.download');
         Route::post('/tickets/{ticket}/approvals/{approval}/approve', [PortalTicketController::class, 'approveStep'])->name('portal.tickets.approvals.approve');
         Route::post('/tickets/{ticket}/approvals/{approval}/reject', [PortalTicketController::class, 'rejectStep'])->name('portal.tickets.approvals.reject');
+        Route::post('/tickets/{ticket}/reclassify', [PortalTicketController::class, 'reclassify'])->name('portal.tickets.reclassify');
 
         // Option B: Telegram Account Link Requests
         Route::get('/link-requests', [PortalLinkRequestController::class, 'index'])->name('portal.link-requests.index');

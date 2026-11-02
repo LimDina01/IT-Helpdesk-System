@@ -7,6 +7,7 @@ use App\Models\Ticket;
 use App\Models\TicketAssignment;
 use App\Models\TicketAttachment;
 use App\Models\TicketAuditLog;
+use App\Models\TicketCategory;
 use App\Models\TicketMessage;
 use App\Models\User;
 use App\Services\BusinessHoursService;
@@ -63,13 +64,29 @@ class PortalTicketController extends Controller
         $currentApproval = $ticket->currentApproval();
         $canApproveCurrent = $currentApproval ? $approvalService->canUserApprove(Auth::user(), $currentApproval) : false;
 
+        $categoriesJson = TicketCategory::where('is_active', true)
+            ->with('parent')
+            ->orderBy('name')
+            ->get()
+            ->map(function ($cat) {
+                $prefix = $cat->parent ? ($cat->parent->name . ' → ') : '';
+                return [
+                    'id' => $cat->id,
+                    'name' => $cat->name,
+                    'full_name' => $prefix . $cat->name,
+                    'type' => $cat->type === 'service_request' ? 'service_request' : 'incident',
+                    'requires_approval' => (bool) $cat->requires_approval,
+                ];
+            });
+
         return view('portal.ticket-detail', compact(
             'ticket',
             'messages',
             'technicians',
             'isOverdueAcknowledgement',
             'currentApproval',
-            'canApproveCurrent'
+            'canApproveCurrent',
+            'categoriesJson'
         ));
     }
 
@@ -730,6 +747,122 @@ class PortalTicketController extends Controller
         }
 
         return back()->with('status', "{$approval->step_name} rejected.");
+    }
+
+    /**
+     * Reclassify ticket type (Incident <-> Service Request) and/or category.
+     */
+    public function reclassify(Request $request, Ticket $ticket, \App\Services\TicketApprovalService $approvalService): RedirectResponse
+    {
+        abort_unless(Auth::user()->isStaff(), 403);
+
+        $validated = $request->validate([
+            'ticket_type' => 'required|in:incident,service_request',
+            'category_id' => 'required|exists:ticket_categories,id',
+            'reason' => 'nullable|string|max:500',
+        ]);
+
+        $user = Auth::user();
+        $oldType = $ticket->ticket_type;
+        $newType = $validated['ticket_type'];
+        $oldCategoryId = (int) $ticket->category_id;
+        $newCategoryId = (int) $validated['category_id'];
+        $newCategory = TicketCategory::with('parent')->findOrFail($newCategoryId);
+        $oldCategoryName = $ticket->category?->name ?? 'None';
+        $reason = trim($validated['reason'] ?? '');
+
+        $typeChanged = ($oldType !== $newType);
+        $categoryChanged = ($oldCategoryId !== $newCategoryId);
+
+        if (!$typeChanged && !$categoryChanged) {
+            return back()->with('info', 'No changes made to ticket type or category.');
+        }
+
+        DB::transaction(function () use ($ticket, $user, $oldType, $newType, $oldCategoryId, $newCategoryId, $newCategory, $oldCategoryName, $typeChanged, $categoryChanged, $reason, $approvalService) {
+            $ticket->ticket_type = $newType;
+            $ticket->category_id = $newCategoryId;
+
+            if ($typeChanged && $newType === 'service_request') {
+                // Switching Incident -> Service Request
+                // 1. Clear any old/dormant approvals
+                $ticket->approvals()->delete();
+
+                // 2. Set status to pending_approval and initiate approval chain
+                $ticket->status = 'pending_approval';
+                $ticket->save();
+
+                $approvalService->createApprovalChain($ticket);
+            } elseif ($typeChanged && $newType === 'incident') {
+                // Switching Service Request -> Incident
+                // 1. Cancel pending approvals
+                $ticket->approvals()->where('status', 'pending')->update(['status' => 'cancelled']);
+
+                // 2. Return to submitted (ready for assignment) or assigned if already has technician
+                if ($ticket->status === 'pending_approval') {
+                    $ticket->status = $ticket->current_technician_id ? 'assigned' : 'submitted';
+                }
+                $ticket->save();
+            } else {
+                // Same type, but category updated
+                if ($newType === 'service_request' && $newCategory->requires_approval && $ticket->approvals()->where('status', 'pending')->doesntExist() && !in_array($ticket->status, ['resolved_confirmed', 'resolved_auto_closed', 'cancelled'])) {
+                    $ticket->status = 'pending_approval';
+                    $ticket->save();
+                    $ticket->approvals()->delete();
+                    $approvalService->createApprovalChain($ticket);
+                } else {
+                    $ticket->save();
+                }
+            }
+
+            // Audit log
+            TicketAuditLog::create([
+                'ticket_id' => $ticket->id,
+                'actor_id' => $user->id,
+                'action' => 'TICKET_RECLASSIFIED',
+                'old_value' => "Type: {$oldType}, Cat: {$oldCategoryName}",
+                'new_value' => "Type: {$newType}, Cat: {$newCategory->name}",
+                'metadata' => [
+                    'old_type' => $oldType,
+                    'new_type' => $newType,
+                    'old_category' => $oldCategoryName,
+                    'new_category' => $newCategory->name,
+                    'reason' => $reason,
+                ],
+            ]);
+
+            // System message on ticket conversation
+            $systemMsg = "🔄 **Ticket Classification Updated by {$user->name}**\n";
+            if ($typeChanged) {
+                $fromLabel = $oldType === 'incident' ? 'Incident' : 'Service Request';
+                $toLabel = $newType === 'incident' ? 'Incident' : 'Service Request';
+                $systemMsg .= "• Type changed from **{$fromLabel}** to **{$toLabel}**\n";
+            }
+            if ($categoryChanged) {
+                $systemMsg .= "• Category updated to **{$newCategory->name}**\n";
+            }
+            if (!empty($reason)) {
+                $systemMsg .= "• Reason: {$reason}\n";
+            }
+            if ($typeChanged && $newType === 'service_request') {
+                $systemMsg .= "⏳ Request now routed to Department HOD / IT Manager for sign-off before fulfillment.";
+            } elseif ($typeChanged && $newType === 'incident') {
+                $systemMsg .= "✅ Approvals bypassed. Ticket ready for technical triage and assignment.";
+            }
+
+            TicketMessage::create([
+                'ticket_id' => $ticket->id,
+                'sender_id' => $user->id,
+                'visibility' => 'requester_visible',
+                'message_type' => 'status_change',
+                'body' => $systemMsg,
+            ]);
+        });
+
+        $successMsg = $typeChanged
+            ? "Ticket successfully converted from " . ($oldType === 'incident' ? 'Incident' : 'Service Request') . " to " . ($newType === 'incident' ? 'Incident' : 'Service Request') . "!"
+            : "Ticket category updated to '{$newCategory->name}' successfully!";
+
+        return back()->with('status', $successMsg);
     }
 
     /**
