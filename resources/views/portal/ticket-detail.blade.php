@@ -257,31 +257,53 @@
                     <span x-show="copiedTicket" x-cloak class="text-[10px] text-emerald-600 font-bold ml-0.5">Copied!</span>
                 </button>
 
-                <!-- Ticket Type Pill (Clickable to Reclassify) -->
-                @if($ticket->isIncident())
-                    <button type="button" @click="reclassifyModal = true" title="Click to change ticket type / category" class="bg-rose-100 hover:bg-rose-200 text-rose-700 border border-rose-200 font-extrabold text-[10px] uppercase px-2.5 py-1 rounded-lg tracking-wider flex items-center space-x-1 cursor-pointer transition shadow-2xs">
-                        <span>🔴</span> <span>Incident</span>
-                        <svg class="w-2.5 h-2.5 text-rose-500 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-                    </button>
+                <!-- Ticket Type Pill -->
+                @if(Auth::user()->hasAnyRole(['helpdesk', 'system_admin', 'hod']))
+                    @if($ticket->isIncident())
+                        <button type="button" @click="reclassifyModal = true" title="Click to change ticket type / category" class="bg-rose-100 hover:bg-rose-200 text-rose-700 border border-rose-200 font-extrabold text-[10px] uppercase px-2.5 py-1 rounded-lg tracking-wider flex items-center space-x-1 cursor-pointer transition shadow-2xs">
+                            <span>🔴</span> <span>Incident</span>
+                            <svg class="w-2.5 h-2.5 text-rose-500 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                        </button>
+                    @else
+                        <button type="button" @click="reclassifyModal = true" title="Click to change ticket type / category" class="bg-indigo-100 hover:bg-indigo-200 text-indigo-700 border border-indigo-200 font-extrabold text-[10px] uppercase px-2.5 py-1 rounded-lg tracking-wider flex items-center space-x-1 cursor-pointer transition shadow-2xs">
+                            <span>🔵</span> <span>Service Request</span>
+                            <svg class="w-2.5 h-2.5 text-indigo-500 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                        </button>
+                    @endif
                 @else
-                    <button type="button" @click="reclassifyModal = true" title="Click to change ticket type / category" class="bg-indigo-100 hover:bg-indigo-200 text-indigo-700 border border-indigo-200 font-extrabold text-[10px] uppercase px-2.5 py-1 rounded-lg tracking-wider flex items-center space-x-1 cursor-pointer transition shadow-2xs">
-                        <span>🔵</span> <span>Service Request</span>
-                        <svg class="w-2.5 h-2.5 text-indigo-500 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-                    </button>
+                    @if($ticket->isIncident())
+                        <span class="bg-rose-100 text-rose-700 border border-rose-200 font-extrabold text-[10px] uppercase px-2.5 py-1 rounded-lg tracking-wider flex items-center space-x-1 shadow-2xs">
+                            <span>🔴</span> <span>Incident</span>
+                        </span>
+                    @else
+                        <span class="bg-indigo-100 text-indigo-700 border border-indigo-200 font-extrabold text-[10px] uppercase px-2.5 py-1 rounded-lg tracking-wider flex items-center space-x-1 shadow-2xs">
+                            <span>🔵</span> <span>Service Request</span>
+                        </span>
+                    @endif
                 @endif
 
-                <!-- Inline Priority Quick Switcher -->
-                <form method="POST" action="{{ route('portal.tickets.priority', $ticket->id) }}" class="inline-flex items-center">
-                    @csrf
-                    <select name="priority" onchange="this.form.submit()"
-                            title="Change Priority"
-                            class="text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-lg border cursor-pointer transition shadow-2xs {{ $ticket->priority === 'critical' ? 'bg-rose-600 text-white border-rose-700' : ($ticket->priority === 'high' ? 'bg-amber-500 text-white border-amber-600' : ($ticket->priority === 'medium' ? 'bg-blue-100 text-blue-800 border-blue-200' : 'bg-slate-100 text-slate-700 border-slate-200')) }}">
-                        <option value="critical" {{ $ticket->priority === 'critical' ? 'selected' : '' }}>🔴 Critical Priority</option>
-                        <option value="high" {{ $ticket->priority === 'high' ? 'selected' : '' }}>🟠 High Priority</option>
-                        <option value="medium" {{ $ticket->priority === 'medium' ? 'selected' : '' }}>🔵 Medium Priority</option>
-                        <option value="low" {{ $ticket->priority === 'low' ? 'selected' : '' }}>⚪ Low Priority</option>
-                    </select>
-                </form>
+                <!-- Inline Priority Switcher (Helpdesk / HOD / Admin) or Static Badge (Technician) -->
+                @if(Auth::user()->hasAnyRole(['helpdesk', 'system_admin', 'hod']))
+                    <form method="POST" action="{{ route('portal.tickets.priority', $ticket->id) }}" class="inline-flex items-center">
+                        @csrf
+                        <select name="priority" onchange="this.form.submit()"
+                                title="Change Priority"
+                                class="text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-lg border cursor-pointer transition shadow-2xs {{ $ticket->priority === 'critical' ? 'bg-rose-600 text-white border-rose-700' : ($ticket->priority === 'high' ? 'bg-amber-500 text-white border-amber-600' : ($ticket->priority === 'medium' ? 'bg-blue-100 text-blue-800 border-blue-200' : 'bg-slate-100 text-slate-700 border-slate-200')) }}">
+                            <option value="critical" {{ $ticket->priority === 'critical' ? 'selected' : '' }}>🔴 Critical Priority</option>
+                            <option value="high" {{ $ticket->priority === 'high' ? 'selected' : '' }}>🟠 High Priority</option>
+                            <option value="medium" {{ $ticket->priority === 'medium' ? 'selected' : '' }}>🔵 Medium Priority</option>
+                            <option value="low" {{ $ticket->priority === 'low' ? 'selected' : '' }}>⚪ Low Priority</option>
+                        </select>
+                    </form>
+                @else
+                    <span class="text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-lg border shadow-2xs {{ $ticket->priority === 'critical' ? 'bg-rose-600 text-white border-rose-700' : ($ticket->priority === 'high' ? 'bg-amber-500 text-white border-amber-600' : ($ticket->priority === 'medium' ? 'bg-blue-100 text-blue-800 border-blue-200' : 'bg-slate-100 text-slate-700 border-slate-200')) }}">
+                        @if($ticket->priority === 'critical') 🔴 Critical Priority
+                        @elseif($ticket->priority === 'high') 🟠 High Priority
+                        @elseif($ticket->priority === 'medium') 🔵 Medium Priority
+                        @else ⚪ Low Priority
+                        @endif
+                    </span>
+                @endif
 
                 <!-- Status Badge -->
                 @if($ticket->status === 'pending_approval')
@@ -344,7 +366,9 @@
                     <span>Created: <strong>{{ $ticket->created_at->format('M d, Y H:i') }}</strong> ({{ $ticket->created_at->diffForHumans() }})</span>
                     <span>•</span>
                     <span>Category: <strong class="text-slate-700">{{ $ticket->category->name }}</strong>
-                        <button type="button" @click="reclassifyModal = true" class="text-blue-600 hover:text-blue-800 text-[11px] underline ml-1 font-semibold cursor-pointer">(Change)</button>
+                        @if(Auth::user()->hasAnyRole(['helpdesk', 'system_admin', 'hod']))
+                            <button type="button" @click="reclassifyModal = true" class="text-blue-600 hover:text-blue-800 text-[11px] underline ml-1 font-semibold cursor-pointer">(Change)</button>
+                        @endif
                     </span>
                     <span>•</span>
                     <span>Branch: <strong class="text-slate-700">{{ $ticket->branch->name }} ({{ $ticket->branch->code }})</strong></span>
@@ -357,28 +381,30 @@
                 @if(!$ticket->technician)
                     <form method="POST" action="{{ route('portal.tickets.assign-me', $ticket->id) }}">
                         @csrf
-                        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-xs transition flex items-center space-x-1.5">
+                        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-xs transition flex items-center space-x-1.5 cursor-pointer">
                             <span>⚡</span>
                             <span>Assign to Me</span>
                         </button>
                     </form>
-                    <button type="button" @click="reassignDrawer = true" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 transition cursor-pointer flex items-center space-x-1.5">
-                        <span>Assign Technician...</span>
-                    </button>
+                    @if(Auth::user()->hasAnyRole(['helpdesk', 'system_admin', 'hod']))
+                        <button type="button" @click="reassignDrawer = true" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 transition cursor-pointer flex items-center space-x-1.5">
+                            <span>Assign Technician...</span>
+                        </button>
+                    @endif
                 @endif
 
                 {{-- If Assigned or Reopened: Accept & Start Work / Resume Work --}}
                 @if(in_array($ticket->status, ['assigned', 'reopened']) && ($ticket->current_technician_id === Auth::id() || Auth::user()->hasRole(['system_admin', 'hod'])))
                     <form method="POST" action="{{ route('portal.tickets.accept', $ticket->id) }}">
                         @csrf
-                        <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-xs transition flex items-center space-x-1.5">
+                        <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-xs transition flex items-center space-x-1.5 cursor-pointer">
                             <span>⚡</span>
                             <span>{{ $ticket->status === 'reopened' ? 'Resume Work' : 'Accept & Start Work' }}</span>
                         </button>
                     </form>
                 @endif
 
-                @if($ticket->status === 'reopened')
+                @if($ticket->status === 'reopened' && Auth::user()->hasAnyRole(['helpdesk', 'system_admin', 'hod']))
                     <button type="button" @click="reassignDrawer = true" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 transition cursor-pointer flex items-center space-x-1.5">
                         <span>Reassign Technician...</span>
                     </button>
@@ -434,11 +460,13 @@
                     </form>
                 @endif
 
-                {{-- Fast Reclassify Type & Category button (Helpdesk / Tech) --}}
-                <button type="button" @click="reclassifyModal = true" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs px-3.5 py-2.5 rounded-xl border border-indigo-200 transition flex items-center space-x-1.5 shadow-2xs" title="Switch Ticket Type or Change Category">
-                    <span>🔄</span>
-                    <span>Reclassify</span>
-                </button>
+                {{-- Fast Reclassify Type & Category button (Helpdesk / HOD / Admin) --}}
+                @if(Auth::user()->hasAnyRole(['helpdesk', 'system_admin', 'hod']))
+                    <button type="button" @click="reclassifyModal = true" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs px-3.5 py-2.5 rounded-xl border border-indigo-200 transition flex items-center space-x-1.5 shadow-2xs cursor-pointer" title="Switch Ticket Type or Change Category">
+                        <span>🔄</span>
+                        <span>Reclassify</span>
+                    </button>
+                @endif
             </div>
         </div>
 
@@ -701,8 +729,8 @@
             <div class="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs space-y-4">
                 <div class="flex items-center justify-between border-b border-slate-100 pb-3">
                     <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Current Assignee</span>
-                    @if($ticket->technician)
-                        <button type="button" @click="reassignDrawer = !reassignDrawer" class="text-xs text-blue-600 hover:underline font-semibold">
+                    @if($ticket->technician && Auth::user()->hasAnyRole(['helpdesk', 'system_admin', 'hod']))
+                        <button type="button" @click="reassignDrawer = true" class="text-xs text-blue-600 hover:underline font-semibold cursor-pointer">
                             Reassign
                         </button>
                     @endif
@@ -752,6 +780,7 @@
                             </button>
                         </form>
 
+                        @if(Auth::user()->hasAnyRole(['helpdesk', 'system_admin', 'hod']))
                         <div class="pt-2 border-t border-amber-200/60">
                             <div class="text-[11px] font-bold text-slate-600 mb-1.5">Or assign to a teammate:</div>
                             <form method="POST" action="{{ route('portal.tickets.assign', $ticket->id) }}" class="space-y-2">
@@ -762,11 +791,12 @@
                                         <option value="{{ $tech->id }}">{{ $tech->name }}</option>
                                     @endforeach
                                 </select>
-                                <button type="submit" class="w-full py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-xl transition">
+                                <button type="submit" class="w-full py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-xl transition cursor-pointer">
                                     Assign Technician
                                 </button>
                             </form>
                         </div>
+                        @endif
                     </div>
                 @endif
             </div>
@@ -1397,6 +1427,7 @@
         </div>
     </div>
 
+    @if(Auth::user()->hasAnyRole(['helpdesk', 'system_admin', 'hod']))
     <!-- RECLASSIFY / CHANGE TICKET TYPE & CATEGORY MODAL -->
     <div x-show="reclassifyModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4" x-cloak>
         <div @click.away="reclassifyModal = false" class="bg-white rounded-3xl max-w-lg w-full shadow-2xl p-6 space-y-4">
@@ -1599,6 +1630,7 @@
             </form>
         </div>
     </div>
+    @endif
 
     <!-- FULL-SCREEN IMAGE LIGHTBOX MODAL -->
     <div x-show="lightbox"

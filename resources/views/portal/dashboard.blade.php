@@ -516,18 +516,9 @@
                                         </form>
                                     @endif
 
-                                    <!-- Assign / Reassign Modal Button -->
-                                    @if(Auth::user()->hasAnyRole(['helpdesk', 'system_admin', 'hod']))
-                                        <button type="button"
-                                                @click="selectedTicket = { id: {{ $t->id }}, code: '{{ $t->ticket_code }}', priority: '{{ $t->priority }}' }; targetPriority = '{{ $t->priority }}'; assignModal = true"
-                                                class="bg-slate-100 hover:bg-blue-50 hover:text-blue-600 text-slate-700 font-semibold text-[11px] px-2 py-1 rounded-lg border border-slate-200 transition">
-                                            {{ $t->current_technician_id ? 'Reassign' : 'Assign' }}
-                                        </button>
-                                    @endif
-
                                     <!-- Open Workspace -->
                                     <a href="{{ route('portal.tickets.show', $t->id) }}"
-                                       class="bg-blue-600 hover:bg-blue-700 text-white font-semibold text-[11px] px-2.5 py-1 rounded-lg shadow-2xs transition">
+                                       class="bg-blue-600 hover:bg-blue-700 text-white font-semibold text-[11px] px-3 py-1 rounded-lg shadow-2xs transition">
                                         View
                                     </a>
                                 </div>
@@ -558,62 +549,6 @@
                 {{ $tickets->links() }}
             </div>
         @endif
-    </div>
-
-    <!-- QUICK ASSIGNMENT MODAL -->
-    <div x-show="assignModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4" x-cloak>
-        <div @click.away="assignModal = false" class="bg-white rounded-3xl max-w-md w-full shadow-2xl border border-slate-100 p-6 space-y-5">
-            
-            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-                <div>
-                    <h3 class="text-sm font-bold text-slate-800">Assign Ticket</h3>
-                    <div class="text-xs font-mono font-bold text-blue-600" x-text="selectedTicket?.code"></div>
-                </div>
-                <button @click="assignModal = false" class="text-slate-400 hover:text-slate-700 font-bold text-xl">&times;</button>
-            </div>
-
-            <form :action="'/portal/tickets/' + selectedTicket?.id + '/assign'" method="POST" class="space-y-4">
-                @csrf
-
-                <!-- Technician Picker -->
-                <div>
-                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Select Technician</label>
-                    <select name="technician_id" required class="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-600">
-                        <option value="">-- Choose Technical Specialist --</option>
-                        @foreach($technicians as $tech)
-                            <option value="{{ $tech->id }}">
-                                {{ $tech->name }} ({{ $tech->active_tasks_count }} active tasks)
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-
-                <!-- Priority Override -->
-                <div>
-                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Priority Level</label>
-                    <select name="priority" x-model="targetPriority" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-600">
-                        <option value="low">Low</option>
-                        <option value="medium">Medium</option>
-                        <option value="high">High</option>
-                        <option value="critical">Critical</option>
-                    </select>
-                </div>
-
-                <!-- Assignment Note -->
-                <div>
-                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Assignment Note (Optional)</label>
-                    <textarea name="assignment_note" rows="2" placeholder="e.g. Please bring a spare thermal paper roll and test cable..."
-                              class="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-600"></textarea>
-                </div>
-
-                <div class="flex items-center justify-end space-x-2 pt-2">
-                    <button type="button" @click="assignModal = false" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800">Cancel</button>
-                    <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition">
-                        Confirm Assignment
-                    </button>
-                </div>
-            </form>
-        </div>
     </div>
 
     <!-- FLOATING TOAST NOTIFICATION -->

@@ -110,6 +110,8 @@ class PortalTicketController extends Controller
         ]);
 
         $user = Auth::user();
+        abort_if(!$user->hasAnyRole(['helpdesk', 'system_admin', 'hod']) && (int) $validated['technician_id'] !== (int) $user->id, 403, 'Technicians can only assign tickets to themselves.');
+
         $tech = User::findOrFail($validated['technician_id']);
 
         DB::transaction(function () use ($ticket, $user, $tech, $validated) {
@@ -219,6 +221,8 @@ class PortalTicketController extends Controller
      */
     public function updatePriority(Request $request, Ticket $ticket): RedirectResponse
     {
+        abort_unless(Auth::user()->hasAnyRole(['helpdesk', 'system_admin', 'hod']), 403, 'Only Helpdesk, HOD, and Administrators can change ticket priority.');
+
         $validated = $request->validate([
             'priority' => 'required|in:low,medium,high,critical',
         ]);
@@ -762,7 +766,7 @@ class PortalTicketController extends Controller
      */
     public function reclassify(Request $request, Ticket $ticket, \App\Services\TicketApprovalService $approvalService): RedirectResponse
     {
-        abort_unless(Auth::user()->isStaff(), 403);
+        abort_unless(Auth::user()->hasAnyRole(['helpdesk', 'system_admin', 'hod']), 403, 'Only Helpdesk, HOD, and Administrators can reclassify tickets.');
 
         $validated = $request->validate([
             'ticket_type' => 'required|in:incident,service_request',

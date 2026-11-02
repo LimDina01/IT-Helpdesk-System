@@ -115,7 +115,7 @@ class TicketReclassificationTest extends TestCase
         $this->assertGreaterThan(0, $ticket->approvals()->where('status', 'pending')->count());
 
         // 2. Helpdesk converts Service Request back to Incident
-        $this->actingAs($this->techUser);
+        $this->actingAs($this->helpdeskUser);
 
         $response = $this->post(route('portal.tickets.reclassify', $ticket->id), [
             'ticket_type' => 'incident',
@@ -256,6 +256,104 @@ class TicketReclassificationTest extends TestCase
         $this->assertEquals($this->serviceCat->id, $ticket->category_id);
         $this->assertEquals('high', $ticket->priority);
         $this->assertEquals('pending_approval', $ticket->status);
+    }
+
+    public function test_technician_cannot_reclassify_ticket(): void
+    {
+        $ticket = Ticket::create([
+            'ticket_code' => 'TICK-INC-007',
+            'ticket_type' => 'incident',
+            'requester_id' => $this->requesterUser->id,
+            'branch_id' => $this->branch->id,
+            'category_id' => $this->incidentCat->id,
+            'subject' => 'Technician reclassify forbidden',
+            'description' => 'Test',
+            'status' => 'submitted',
+            'priority' => 'low',
+        ]);
+
+        $this->actingAs($this->techUser);
+
+        $response = $this->post(route('portal.tickets.reclassify', $ticket->id), [
+            'ticket_type' => 'service_request',
+            'category_id' => $this->serviceCat->id,
+        ]);
+
+        $response->assertStatus(403);
+    }
+
+    public function test_technician_cannot_change_priority(): void
+    {
+        $ticket = Ticket::create([
+            'ticket_code' => 'TICK-INC-008',
+            'ticket_type' => 'incident',
+            'requester_id' => $this->requesterUser->id,
+            'branch_id' => $this->branch->id,
+            'category_id' => $this->incidentCat->id,
+            'subject' => 'Technician priority forbidden',
+            'description' => 'Test',
+            'status' => 'submitted',
+            'priority' => 'low',
+        ]);
+
+        $this->actingAs($this->techUser);
+
+        $response = $this->post(route('portal.tickets.priority', $ticket->id), [
+            'priority' => 'critical',
+        ]);
+
+        $response->assertStatus(403);
+    }
+
+    public function test_technician_cannot_assign_to_another_technician(): void
+    {
+        $ticket = Ticket::create([
+            'ticket_code' => 'TICK-INC-009',
+            'ticket_type' => 'incident',
+            'requester_id' => $this->requesterUser->id,
+            'branch_id' => $this->branch->id,
+            'category_id' => $this->incidentCat->id,
+            'subject' => 'Technician assign other forbidden',
+            'description' => 'Test',
+            'status' => 'submitted',
+            'priority' => 'low',
+        ]);
+
+        $otherTech = User::where('email', 'tech2@cbvh.com.kh')->firstOrFail();
+
+        $this->actingAs($this->techUser);
+
+        $response = $this->post(route('portal.tickets.assign', $ticket->id), [
+            'technician_id' => $otherTech->id,
+        ]);
+
+        $response->assertStatus(403);
+    }
+
+    public function test_technician_can_assign_to_themselves(): void
+    {
+        $ticket = Ticket::create([
+            'ticket_code' => 'TICK-INC-010',
+            'ticket_type' => 'incident',
+            'requester_id' => $this->requesterUser->id,
+            'branch_id' => $this->branch->id,
+            'category_id' => $this->incidentCat->id,
+            'subject' => 'Technician self assign allowed',
+            'description' => 'Test',
+            'status' => 'submitted',
+            'priority' => 'low',
+        ]);
+
+        $this->actingAs($this->techUser);
+
+        $response = $this->post(route('portal.tickets.assign', $ticket->id), [
+            'technician_id' => $this->techUser->id,
+        ]);
+
+        $response->assertRedirect();
+        $ticket->refresh();
+        $this->assertEquals($this->techUser->id, $ticket->current_technician_id);
+        $this->assertEquals('assigned', $ticket->status);
     }
 }
 
