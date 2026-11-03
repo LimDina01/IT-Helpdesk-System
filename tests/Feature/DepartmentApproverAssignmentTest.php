@@ -43,7 +43,7 @@ class DepartmentApproverAssignmentTest extends TestCase
         $response->assertSee('IT Production');
         $response->assertSee('IT-OPR');
         $response->assertSee('IT-PRD');
-        $response->assertSee('Designated HOD / Approver');
+        $response->assertSee('Company Departments');
         $response->assertSee('Branch Manager');
     }
 

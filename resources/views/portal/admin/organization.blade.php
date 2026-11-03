@@ -248,12 +248,12 @@
                     <div>
                         <div class="flex items-center space-x-2">
                             <span class="text-lg">🏛️</span>
-                            <h2 class="text-sm font-bold text-slate-900">Company Departments & Designated Approvers</h2>
-                            <span class="text-[10px] font-extrabold bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full border border-indigo-200/60">{{ $departments->count() }}</span>
+                            <h2 class="text-sm font-bold text-slate-900">Company Departments</h2>
+                            <span class="text-[10px] font-extrabold bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full border border-indigo-200/60">{{ $departments->total() }}</span>
                         </div>
-                        <p class="text-[11px] text-slate-400 mt-0.5">Top-level departments and specialized sub-offices with their assigned HODs.</p>
+                        <p class="text-[11px] text-slate-400 mt-0.5">Top-level departments and specialized sub-offices.</p>
                     </div>
-                    <button type="button" @click="targetParentId = ''; createDeptModal = true" class="text-xs text-indigo-600 hover:text-indigo-800 font-bold flex items-center space-x-1">
+                    <button type="button" @click="targetParentId = ''; createDeptModal = true" class="text-xs text-indigo-600 hover:text-indigo-800 font-bold flex items-center space-x-1 cursor-pointer">
                         <span>➕ Add</span>
                     </button>
                 </div>
@@ -263,8 +263,7 @@
                         <thead class="bg-slate-50 text-slate-500 font-bold uppercase tracking-wider text-[10px] border-b border-slate-200">
                             <tr>
                                 <th class="py-3 px-4">Department & Code</th>
-                                <th class="py-3 px-3">Designated HOD / Approver</th>
-                                <th class="py-3 px-3 text-center">Staff</th>
+                                <th class="py-3 px-3 text-center">Staff Count</th>
                                 <th class="py-3 px-3">Status</th>
                                 <th class="py-3 px-4 text-right">Actions</th>
                             </tr>
@@ -272,7 +271,7 @@
                         <tbody class="divide-y divide-slate-100">
                             @forelse($departments as $dept)
                                 <tr class="hover:bg-slate-50/70 transition {{ $dept->parent_id ? 'bg-slate-50/40' : '' }}">
-                                    <td class="py-3 px-4 whitespace-nowrap">
+                                    <td class="py-3.5 px-4 whitespace-nowrap">
                                         <div class="flex items-center space-x-1.5">
                                             @if($dept->parent_id)
                                                 <span class="text-slate-400 font-bold ml-2">↳</span>
@@ -293,74 +292,27 @@
                                         </div>
                                     </td>
 
-                                    <td class="py-3 px-3">
-                                        <div class="space-y-1.5">
-                                            @if($dept->approvers && $dept->approvers->count() > 0)
-                                                <div class="flex flex-wrap gap-1 max-w-xs">
-                                                    @foreach($dept->approvers as $appr)
-                                                        <div class="inline-flex items-center space-x-1 text-[10px] font-semibold {{ $appr->level == 1 ? 'bg-blue-50 text-blue-700 border-blue-200' : ($appr->level == 2 ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200') }} border px-2 py-0.5 rounded-lg shadow-2xs">
-                                                            <span class="font-extrabold uppercase">L{{ $appr->level }}:</span>
-                                                            <span class="truncate max-w-[90px]">{{ $appr->user ? $appr->user->name : 'Unknown' }}</span>
-                                                            <span class="text-slate-400 font-normal">({{ $appr->title }})</span>
-                                                            <span class="text-[9px] font-bold px-1 rounded {{ $appr->branch ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-500' }}">
-                                                                {{ $appr->branch ? $appr->branch->code : 'HQ' }}
-                                                            </span>
-                                                        </div>
-                                                    @endforeach
-                                                </div>
-                                            @elseif($dept->head)
-                                                <div class="flex items-center space-x-2">
-                                                    <div class="w-7 h-7 rounded-full bg-slate-800 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
-                                                        {{ strtoupper(substr($dept->head->name, 0, 2)) }}
-                                                    </div>
-                                                    <div>
-                                                        <div class="font-bold text-slate-800 text-xs">{{ $dept->head->name }}</div>
-                                                        <div class="text-[10px] text-slate-400">{{ $dept->head->email }}</div>
-                                                    </div>
-                                                </div>
-                                            @else
-                                                <button type="button" 
-                                                        @click="targetDept = {{ json_encode($dept) }}; assignDeptApproverModal = true"
-                                                        class="inline-flex items-center space-x-1 text-[11px] font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-2 py-0.5 rounded-full transition">
-                                                    <span>⚡ Auto (Role Fallback)</span>
-                                                </button>
-                                            @endif
-                                        </div>
-                                    </td>
-
-                                    <td class="py-3 px-3 text-center whitespace-nowrap">
-                                        <span class="text-slate-600 font-semibold bg-slate-100 px-2 py-0.5 rounded-full text-[11px]">
-                                            {{ $dept->employees_count }}
+                                    <td class="py-3.5 px-3 text-center whitespace-nowrap">
+                                        <span class="text-slate-600 font-semibold bg-slate-100 px-2.5 py-1 rounded-full text-[11px]">
+                                            {{ $dept->employees_count }} staff
                                         </span>
                                     </td>
 
-                                    <td class="py-3 px-3 whitespace-nowrap">
+                                    <td class="py-3.5 px-3 whitespace-nowrap">
                                         <span class="text-[10px] font-bold px-2 py-0.5 rounded-full border {{ $dept->is_active ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200' }}">
                                             {{ $dept->is_active ? 'Active' : 'Suspended' }}
                                         </span>
                                     </td>
 
-                                    <td class="py-3 px-4 text-right whitespace-nowrap space-x-1.5">
-                                        <button type="button" 
-                                                @click="openManageApprovers({{ json_encode($dept) }})"
-                                                class="text-[11px] text-indigo-700 hover:text-indigo-900 font-bold bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-2.5 py-1 rounded-lg transition"
-                                                title="Manage Multi-Level Approver Cards">
-                                            🗂️ Cards ({{ $dept->approvers->count() }})
-                                        </button>
-                                        <button type="button" 
-                                                @click="targetDept = {{ json_encode($dept) }}; assignDeptApproverModal = true"
-                                                class="text-[11px] text-slate-600 hover:text-slate-800 font-bold bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded-lg transition"
-                                                title="Designate Department Head">
-                                            👤 Head
-                                        </button>
+                                    <td class="py-3.5 px-4 text-right whitespace-nowrap space-x-1.5">
                                         <button type="button" 
                                                 @click="targetDept = {{ json_encode($dept) }}; editDeptModal = true"
-                                                class="text-[11px] text-slate-600 hover:text-slate-900 font-semibold">
+                                                class="text-xs text-indigo-600 hover:text-indigo-800 font-semibold bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-lg transition cursor-pointer">
                                             Edit
                                         </button>
                                         <form method="POST" action="{{ route('portal.admin.departments.toggle', $dept->id) }}" class="inline-block">
                                             @csrf
-                                            <button type="submit" class="text-[11px] {{ $dept->is_active ? 'text-amber-600 hover:underline' : 'text-emerald-600 hover:underline' }} font-semibold">
+                                            <button type="submit" class="text-xs {{ $dept->is_active ? 'text-amber-600 hover:text-amber-800' : 'text-emerald-600 hover:text-emerald-800' }} font-semibold px-2 py-1 transition cursor-pointer">
                                                 {{ $dept->is_active ? 'Suspend' : 'Activate' }}
                                             </button>
                                         </form>
@@ -368,7 +320,7 @@
                                             <form method="POST" action="{{ route('portal.admin.departments.destroy', $dept->id) }}" class="inline-block" onsubmit="return confirm('Delete department {{ $dept->name }}?')">
                                                 @csrf
                                                 @method('DELETE')
-                                                <button type="submit" class="text-[11px] text-rose-600 hover:underline font-semibold">
+                                                <button type="submit" class="text-xs text-rose-600 hover:text-rose-800 font-semibold px-2 py-1 transition cursor-pointer">
                                                     Delete
                                                 </button>
                                             </form>
@@ -377,12 +329,18 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="5" class="py-6 text-center text-slate-400 text-xs">No departments found.</td>
+                                    <td colspan="4" class="py-6 text-center text-slate-400 text-xs">No departments found.</td>
                                 </tr>
                             @endforelse
                         </tbody>
                     </table>
                 </div>
+
+                @if($departments->hasPages())
+                    <div class="px-4 py-3 border-t border-slate-100 bg-slate-50/50">
+                        {{ $departments->links() }}
+                    </div>
+                @endif
             </div>
         </div>
 
@@ -396,11 +354,11 @@
                         <div class="flex items-center space-x-2">
                             <span class="text-lg">📍</span>
                             <h2 class="text-sm font-bold text-slate-900">Branches & Offices</h2>
-                            <span class="text-[10px] font-extrabold bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full border border-emerald-200/60">{{ $branches->count() }}</span>
+                            <span class="text-[10px] font-extrabold bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full border border-emerald-200/60">{{ $branches->total() }}</span>
                         </div>
-                        <p class="text-[11px] text-slate-400 mt-0.5">Physical branches for hardware routing & optional Slot 2 endorsement.</p>
+                        <p class="text-[11px] text-slate-400 mt-0.5">Physical retail stores and workshop locations.</p>
                     </div>
-                    <button type="button" @click="createBranchModal = true" class="text-xs text-emerald-600 hover:text-emerald-800 font-bold flex items-center space-x-1">
+                    <button type="button" @click="createBranchModal = true" class="text-xs text-emerald-600 hover:text-emerald-800 font-bold flex items-center space-x-1 cursor-pointer">
                         <span>➕ Add</span>
                     </button>
                 </div>
@@ -419,14 +377,14 @@
                         <tbody class="divide-y divide-slate-100">
                             @forelse($branches as $branch)
                                 <tr class="hover:bg-slate-50/70 transition">
-                                    <td class="py-3 px-4 whitespace-nowrap">
+                                    <td class="py-3.5 px-4 whitespace-nowrap">
                                         <div class="font-bold text-slate-900">{{ $branch->name }}</div>
                                         <span class="inline-block mt-0.5 font-mono text-emerald-700 font-bold text-[10px] bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded">
                                             {{ $branch->code }}
                                         </span>
                                     </td>
 
-                                    <td class="py-3 px-3 whitespace-nowrap">
+                                    <td class="py-3.5 px-3 whitespace-nowrap">
                                         @if($branch->manager)
                                             <div class="flex items-center space-x-2">
                                                 <div class="w-7 h-7 rounded-full bg-emerald-800 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
@@ -440,45 +398,38 @@
                                         @else
                                             <button type="button" 
                                                     @click="targetBranch = {{ json_encode($branch) }}; assignBranchManagerModal = true"
-                                                    class="inline-flex items-center space-x-1 text-[11px] font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 border border-slate-200 px-2 py-0.5 rounded-full transition">
+                                                    class="inline-flex items-center space-x-1 text-[11px] font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 border border-slate-200 px-2 py-0.5 rounded-full transition cursor-pointer">
                                                 <span>➕ Assign Manager</span>
                                             </button>
                                         @endif
                                     </td>
 
-                                    <td class="py-3 px-3 text-center whitespace-nowrap">
+                                    <td class="py-3.5 px-3 text-center whitespace-nowrap">
                                         <span class="text-slate-600 font-semibold bg-slate-100 px-2 py-0.5 rounded-full text-[11px]">
                                             {{ $branch->employees_count }} staff &bull; {{ $branch->tickets_count }} tickets
                                         </span>
                                     </td>
 
-                                    <td class="py-3 px-3 whitespace-nowrap">
+                                    <td class="py-3.5 px-3 whitespace-nowrap">
                                         <span class="text-[10px] font-bold px-2 py-0.5 rounded-full border {{ $branch->is_active ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200' }}">
                                             {{ $branch->is_active ? 'Active' : 'Suspended' }}
                                         </span>
                                     </td>
 
-                                    <td class="py-3 px-4 text-right whitespace-nowrap space-x-1.5">
-                                        <button type="button" 
-                                                @click="openBranchMatrix({{ json_encode($branch) }})"
-                                                class="text-[11px] text-emerald-700 hover:text-emerald-900 font-bold bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2.5 py-1 rounded-lg transition"
-                                                title="Manage Department Approvers for this Branch">
-                                            🗂️ Cards ({{ $branch->approvers->count() }})
-                                        </button>
+                                    <td class="py-3.5 px-4 text-right whitespace-nowrap space-x-1.5">
                                         <button type="button" 
                                                 @click="targetBranch = {{ json_encode($branch) }}; assignBranchManagerModal = true"
-                                                class="text-[11px] text-emerald-600 hover:text-emerald-800 font-bold bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-lg transition"
-                                                title="Assign or Change Manager">
-                                            👤 Manager
+                                                class="text-xs text-emerald-600 hover:text-emerald-800 font-semibold bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-lg transition cursor-pointer">
+                                            Manager
                                         </button>
                                         <button type="button" 
                                                 @click="targetBranch = {{ json_encode($branch) }}; editBranchModal = true"
-                                                class="text-[11px] text-slate-600 hover:text-slate-900 font-semibold">
+                                                class="text-xs text-slate-600 hover:text-slate-900 font-semibold bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded-lg transition cursor-pointer">
                                             Edit
                                         </button>
                                         <form method="POST" action="{{ route('portal.admin.branches.toggle', $branch->id) }}" class="inline-block">
                                             @csrf
-                                            <button type="submit" class="text-[11px] {{ $branch->is_active ? 'text-amber-600 hover:underline' : 'text-emerald-600 hover:underline' }} font-semibold">
+                                            <button type="submit" class="text-xs {{ $branch->is_active ? 'text-amber-600 hover:text-amber-800' : 'text-emerald-600 hover:text-emerald-800' }} font-semibold px-2 py-1 transition cursor-pointer">
                                                 {{ $branch->is_active ? 'Suspend' : 'Activate' }}
                                             </button>
                                         </form>
@@ -486,7 +437,7 @@
                                             <form method="POST" action="{{ route('portal.admin.branches.destroy', $branch->id) }}" class="inline-block" onsubmit="return confirm('Delete branch {{ $branch->name }}?')">
                                                 @csrf
                                                 @method('DELETE')
-                                                <button type="submit" class="text-[11px] text-rose-600 hover:underline font-semibold">
+                                                <button type="submit" class="text-xs text-rose-600 hover:text-rose-800 font-semibold px-2 py-1 transition cursor-pointer">
                                                     Delete
                                                 </button>
                                             </form>
@@ -501,6 +452,12 @@
                         </tbody>
                     </table>
                 </div>
+
+                @if($branches->hasPages())
+                    <div class="px-4 py-3 border-t border-slate-100 bg-slate-50/50">
+                        {{ $branches->links() }}
+                    </div>
+                @endif
             </div>
         </div>
 
