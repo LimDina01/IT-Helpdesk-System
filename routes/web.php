@@ -139,6 +139,7 @@ Route::prefix('portal')->group(function () {
             Route::post('/branches', [PortalAdminController::class, 'storeBranch'])->name('portal.admin.branches.store');
             Route::put('/branches/{branch}', [PortalAdminController::class, 'updateBranch'])->name('portal.admin.branches.update');
             Route::post('/branches/{branch}/manager', [PortalAdminController::class, 'updateBranchManager'])->name('portal.admin.branches.manager');
+            Route::post('/branches/{branch}/approvers', [PortalAdminController::class, 'storeBranchDepartmentApprover'])->name('portal.admin.branches.approvers.store');
             Route::post('/branches/{branch}/toggle', [PortalAdminController::class, 'toggleBranch'])->name('portal.admin.branches.toggle');
             Route::delete('/branches/{branch}', [PortalAdminController::class, 'destroyBranch'])->name('portal.admin.branches.destroy');
         });

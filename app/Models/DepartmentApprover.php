@@ -13,6 +13,7 @@ class DepartmentApprover extends Model
 
     protected $fillable = [
         'department_id',
+        'branch_id',
         'user_id',
         'level',
         'title',
@@ -27,6 +28,11 @@ class DepartmentApprover extends Model
     public function department(): BelongsTo
     {
         return $this->belongsTo(Department::class);
+    }
+
+    public function branch(): BelongsTo
+    {
+        return $this->belongsTo(Branch::class);
     }
 
     public function user(): BelongsTo

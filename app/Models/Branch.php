@@ -41,4 +41,9 @@ class Branch extends Model
     {
         return $this->hasMany(Ticket::class);
     }
+
+    public function approvers(): HasMany
+    {
+        return $this->hasMany(DepartmentApprover::class)->orderBy('level')->orderBy('id');
+    }
 }

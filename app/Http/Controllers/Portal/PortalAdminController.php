@@ -743,12 +743,12 @@ class PortalAdminController extends Controller
     {
         abort_unless(Auth::user()->hasRole(['system_admin', 'hod']), 403);
 
-        $departments = Department::with(['head', 'employees', 'parent', 'children.head', 'approvers.user'])
+        $departments = Department::with(['head', 'employees', 'parent', 'children.head', 'approvers.user', 'approvers.branch'])
             ->withCount('employees')
             ->orderByRaw("CASE WHEN parent_id IS NULL THEN 0 ELSE 1 END, name ASC")
             ->get();
 
-        $branches = Branch::with(['manager', 'employees'])
+        $branches = Branch::with(['manager', 'employees', 'approvers.user', 'approvers.department'])
             ->withCount(['employees', 'tickets'])
             ->orderBy('name')
             ->get();
@@ -768,7 +768,31 @@ class PortalAdminController extends Controller
             ->orderBy('name')
             ->get();
 
-        return view('portal.admin.organization', compact('departments', 'branches', 'parentDepartments', 'itParent', 'itUnits', 'approverCandidates'));
+        $candidatesJson = $approverCandidates->map(function ($u) {
+            return [
+                'id' => $u->id,
+                'name' => $u->name,
+                'email' => $u->email,
+                'initials' => strtoupper(substr($u->name, 0, 2)),
+                'dept_id' => $u->employee?->department_id,
+                'dept_name' => $u->employee?->department?->name,
+                'dept_code' => $u->employee?->department?->code,
+                'branch_id' => $u->employee?->branch_id,
+                'branch_name' => $u->employee?->branch?->name,
+                'branch_code' => $u->employee?->branch?->code,
+                'roles' => $u->roles->pluck('name')->join(', '),
+            ];
+        })->values();
+
+        return view('portal.admin.organization', compact(
+            'departments', 
+            'branches', 
+            'parentDepartments', 
+            'itParent', 
+            'itUnits', 
+            'approverCandidates',
+            'candidatesJson'
+        ));
     }
 
     /**
@@ -840,7 +864,7 @@ class PortalAdminController extends Controller
     }
 
     /**
-     * Add a Department Approver Card (Level 1, Level 2, etc.)
+     * Add a Department Approver Card (Level 1, Level 2, etc.) optionally scoped to a Branch.
      */
     public function storeDepartmentApprover(Request $request, Department $department): RedirectResponse
     {
@@ -848,6 +872,7 @@ class PortalAdminController extends Controller
 
         $validated = $request->validate([
             'user_id' => 'required|exists:users,id',
+            'branch_id' => 'nullable|exists:branches,id',
             'level' => 'required|integer|min:1|max:20',
             'title' => 'nullable|string|max:100',
         ]);
@@ -863,17 +888,56 @@ class PortalAdminController extends Controller
 
         DepartmentApprover::create([
             'department_id' => $department->id,
+            'branch_id' => !empty($validated['branch_id']) ? $validated['branch_id'] : null,
             'user_id' => $validated['user_id'],
             'level' => $validated['level'],
             'title' => !empty($validated['title']) ? $validated['title'] : $defaultTitle,
             'is_active' => true,
         ]);
 
-        return back()->with('status', "Approver card added successfully to '{$department->name}'.");
+        $scopeDesc = !empty($validated['branch_id']) ? ' (Branch scoped)' : ' (Company-wide / HQ)';
+        return back()->with('status', "Approver card added successfully to '{$department->name}'{$scopeDesc}.");
     }
 
     /**
-     * Edit / Update an existing Department Approver Card (Level, Title, Assigned User).
+     * Add an Approver Card from Branch scope for a Department.
+     */
+    public function storeBranchDepartmentApprover(Request $request, Branch $branch): RedirectResponse
+    {
+        abort_unless(Auth::user()->hasRole(['system_admin', 'hod']), 403);
+
+        $validated = $request->validate([
+            'department_id' => 'required|exists:departments,id',
+            'user_id' => 'required|exists:users,id',
+            'level' => 'required|integer|min:1|max:20',
+            'title' => 'nullable|string|max:100',
+        ]);
+
+        $dept = Department::findOrFail($validated['department_id']);
+
+        $defaultTitle = match ((int) $validated['level']) {
+            1 => 'Team Leader',
+            2 => 'Supervisor',
+            3 => 'Department Manager',
+            4 => 'General Manager',
+            5 => 'Director / Executive',
+            default => "Level {$validated['level']} Approver",
+        };
+
+        DepartmentApprover::create([
+            'department_id' => $dept->id,
+            'branch_id' => $branch->id,
+            'user_id' => $validated['user_id'],
+            'level' => $validated['level'],
+            'title' => !empty($validated['title']) ? $validated['title'] : $defaultTitle,
+            'is_active' => true,
+        ]);
+
+        return back()->with('status', "Approver card added successfully to '{$branch->name}' for {$dept->name}.");
+    }
+
+    /**
+     * Edit / Update an existing Department Approver Card (Level, Title, Assigned User, Branch Scope).
      */
     public function updateDepartmentApproverCard(Request $request, Department $department, DepartmentApprover $approver): RedirectResponse
     {
@@ -881,6 +945,7 @@ class PortalAdminController extends Controller
 
         $validated = $request->validate([
             'user_id' => 'required|exists:users,id',
+            'branch_id' => 'nullable|exists:branches,id',
             'level' => 'required|integer|min:1|max:20',
             'title' => 'nullable|string|max:100',
         ]);
@@ -897,6 +962,7 @@ class PortalAdminController extends Controller
 
             $approver->update([
                 'user_id' => $validated['user_id'],
+                'branch_id' => array_key_exists('branch_id', $validated) ? ($validated['branch_id'] ?: null) : $approver->branch_id,
                 'level' => $validated['level'],
                 'title' => !empty($validated['title']) ? $validated['title'] : $defaultTitle,
             ]);

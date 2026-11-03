@@ -359,5 +359,111 @@ class MultiLevelDepartmentApprovalTest extends TestCase
         $this->assertEquals($tl2->id, $step1->approver_id);
         $this->assertTrue($this->approvalService->canUserApprove($tl2, $step1));
     }
+
+    public function test_branch_department_approval_matrix_routes_requests_to_specific_branch_leader(): void
+    {
+        $this->actingAs($this->adminUser);
+
+        $salesDept = Department::where('code', 'SALES')->firstOrFail();
+        $aeonBranch = Branch::firstOrCreate(
+            ['code' => 'AEON-MALL'],
+            ['name' => 'Aeon Mall Store', 'is_active' => true]
+        );
+        $centralBranch = Branch::firstOrCreate(
+            ['code' => 'CENTRAL-MKT'],
+            ['name' => 'Central Market Store', 'is_active' => true]
+        );
+
+        // Aeon Mall Store Sales Team Leader
+        $aeonLeader = User::factory()->create([
+            'name' => 'Aeon Sales Lead Sokha',
+            'email' => 'sokha.aeon@cbvh.com.kh',
+            'is_active' => true,
+        ]);
+        $aeonLeader->roles()->attach(Role::where('name', 'hod')->firstOrFail());
+
+        // Central Market Store Sales Team Leader
+        $centralLeader = User::factory()->create([
+            'name' => 'Central Market Sales Lead Vicheka',
+            'email' => 'vicheka.central@cbvh.com.kh',
+            'is_active' => true,
+        ]);
+        $centralLeader->roles()->attach(Role::where('name', 'hod')->firstOrFail());
+
+        // 1. Admin configures Aeon Approver via department endpoint with branch_id
+        $resp1 = $this->post(route('portal.admin.departments.approvers.store', $salesDept->id), [
+            'branch_id' => $aeonBranch->id,
+            'user_id' => $aeonLeader->id,
+            'level' => 1,
+            'title' => 'Aeon Store Sales Lead',
+        ]);
+        $resp1->assertRedirect();
+
+        // 2. Admin configures Central Market Approver via branch matrix endpoint
+        $resp2 = $this->post(route('portal.admin.branches.approvers.store', $centralBranch->id), [
+            'department_id' => $salesDept->id,
+            'user_id' => $centralLeader->id,
+            'level' => 1,
+            'title' => 'Central Store Sales Lead',
+        ]);
+        $resp2->assertRedirect();
+
+        $this->assertDatabaseHas('department_approvers', [
+            'department_id' => $salesDept->id,
+            'branch_id' => $aeonBranch->id,
+            'user_id' => $aeonLeader->id,
+            'level' => 1,
+        ]);
+
+        $this->assertDatabaseHas('department_approvers', [
+            'department_id' => $salesDept->id,
+            'branch_id' => $centralBranch->id,
+            'user_id' => $centralLeader->id,
+            'level' => 1,
+        ]);
+
+        // 3. Aeon Mall Sales Requester submits request
+        $aeonStaff = Employee::create([
+            'employee_code' => 'AEON-SLS-01',
+            'full_name' => 'Aeon Jewelry Sales Rep Bunna',
+            'email' => 'bunna.aeon@cbvh.com.kh',
+            'department_id' => $salesDept->id,
+            'branch_id' => $aeonBranch->id,
+            'is_active' => true,
+        ]);
+
+        $aeonRequester = User::factory()->create([
+            'employee_id' => $aeonStaff->id,
+            'name' => 'Aeon Jewelry Sales Rep Bunna',
+            'email' => 'bunna.aeon@cbvh.com.kh',
+            'is_active' => true,
+        ]);
+        $aeonRequester->roles()->attach(Role::where('name', 'requester')->firstOrFail());
+
+        $category = TicketCategory::where('requires_approval', true)->firstOrFail();
+        $ticket = Ticket::create([
+            'ticket_code' => 'SR-AEON-001',
+            'subject' => 'Need POS barcode scanner replacement for showcase #3',
+            'description' => 'Scanner laser failed during diamond ring sale',
+            'ticket_type' => 'service_request',
+            'category_id' => $category->id,
+            'requester_id' => $aeonRequester->id,
+            'branch_id' => $aeonBranch->id,
+            'priority' => 'high',
+            'status' => 'submitted',
+        ]);
+
+        $this->approvalService->createApprovalChain($ticket);
+        $step1 = $ticket->approvals()->where('step_number', 1)->firstOrFail();
+
+        // Must route to Aeon Leader
+        $this->assertEquals($aeonLeader->id, $step1->approver_id);
+
+        // Aeon Leader CAN approve
+        $this->assertTrue($this->approvalService->canUserApprove($aeonLeader, $step1));
+
+        // Central Market Leader CANNOT approve Aeon's ticket
+        $this->assertFalse($this->approvalService->canUserApprove($centralLeader, $step1));
+    }
 }
 

@@ -41,10 +41,39 @@ class TicketApprovalService
         $lineManagerId = $ticket->requester->employee?->line_manager_user_id;
         $hasLineManager = !empty($lineManagerId);
 
+        $hasBranchApprover = false;
+        $designatedL1ApproverId = null;
+
+        if (!$isItDept && $department) {
+            // Find Level 1 approver card for (branch_id + department_id), falling back to (null branch_id + department_id)
+            $branchL1Card = null;
+            if ($branchId) {
+                $branchL1Card = \App\Models\DepartmentApprover::where('department_id', $deptId)
+                    ->where('branch_id', $branchId)
+                    ->where('is_active', true)
+                    ->orderBy('level')
+                    ->first();
+            }
+
+            $globalL1Card = \App\Models\DepartmentApprover::where('department_id', $deptId)
+                ->whereNull('branch_id')
+                ->where('is_active', true)
+                ->orderBy('level')
+                ->first();
+
+            $matchedCard = $branchL1Card ?: $globalL1Card;
+            if ($matchedCard) {
+                $hasBranchApprover = true;
+                if ($matchedCard->level === 1) {
+                    $designatedL1ApproverId = $matchedCard->user_id;
+                }
+            }
+        }
+
         $hasDeptHod = false;
         if (!$isItDept && $department) {
             $hasDeptHod = $hasLineManager
-                || $department->activeApprovers()->exists()
+                || $hasBranchApprover
                 || !empty($department->head_user_id);
         }
 
@@ -61,7 +90,8 @@ class TicketApprovalService
 
         if ($hasDeptHod) {
             // Normal 2-Stage Approval: Step 1 is Branch Department Approver (Team Leader / Line Manager or HOD)
-            $step1Name = $hasLineManager ? 'Team Leader Approval' : 'Department HOD Approval';
+            $step1ApproverId = $lineManagerId ?: $designatedL1ApproverId;
+            $step1Name = ($hasLineManager || $hasBranchApprover) ? 'Team Leader Approval' : 'Department HOD Approval';
             $step1 = TicketApproval::create([
                 'ticket_id' => $ticket->id,
                 'step_number' => 1,
@@ -69,7 +99,7 @@ class TicketApprovalService
                 'role_name' => 'department_hod',
                 'department_id' => $deptId,
                 'branch_id' => $branchId,
-                'approver_id' => $lineManagerId,
+                'approver_id' => $step1ApproverId,
                 'status' => 'pending',
             ]);
 
@@ -213,11 +243,23 @@ class TicketApprovalService
                 return true;
             }
 
-            // 3. Department Approver card match (Level 1 / Level 2 in department_approvers)
+            // 3. Department Approver card match (Level 1 / Level 2 in department_approvers scoped to branch or HQ)
             if ($targetDeptId) {
+                $targetBranchId = $approval->branch_id ?? $ticket->branch_id ?? $ticket->requester->employee?->branch_id;
+
+                // Priority: match approver configured for THIS specific branch, fallback to global/HQ card (branch_id is null)
                 $deptApprover = \App\Models\DepartmentApprover::where('department_id', $targetDeptId)
                     ->where('user_id', $user->id)
                     ->where('is_active', true)
+                    ->when($targetBranchId, function ($q) use ($targetBranchId) {
+                        $q->where(function ($sub) use ($targetBranchId) {
+                            $sub->where('branch_id', $targetBranchId)
+                                ->orWhereNull('branch_id');
+                        });
+                    }, function ($q) {
+                        $q->whereNull('branch_id');
+                    })
+                    ->orderByRaw('CASE WHEN branch_id IS NOT NULL THEN 0 ELSE 1 END')
                     ->first();
 
                 if ($deptApprover) {
