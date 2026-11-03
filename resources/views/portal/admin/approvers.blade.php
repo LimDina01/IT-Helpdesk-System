@@ -366,6 +366,12 @@
                 </button>
             </div>
         @endforelse
+
+        @if($approverCards->hasPages())
+            <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-2xs">
+                {{ $approverCards->links() }}
+            </div>
+        @endif
     </div>
 
     <!-- ======================================================= -->
@@ -603,3 +609,4 @@
 
 </div>
 @endsection
+

@@ -108,6 +108,12 @@
                 </tbody>
             </table>
         </div>
+
+        @if($holidays->hasPages())
+            <div class="px-6 py-4 border-t border-slate-100 bg-slate-50/50">
+                {{ $holidays->links() }}
+            </div>
+        @endif
     </div>
 
     <!-- CREATE HOLIDAY MODAL -->

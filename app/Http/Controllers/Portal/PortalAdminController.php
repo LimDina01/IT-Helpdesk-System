@@ -251,7 +251,7 @@ class PortalAdminController extends Controller
     {
         abort_unless(Auth::user()->hasRole(['system_admin', 'hod']), 403);
 
-        $holidays = CompanyHoliday::orderBy('holiday_date')->get();
+        $holidays = CompanyHoliday::orderBy('holiday_date')->paginate(20)->withQueryString();
 
         return view('portal.admin.holidays', compact('holidays'));
     }
@@ -743,15 +743,17 @@ class PortalAdminController extends Controller
     {
         abort_unless(Auth::user()->hasRole(['system_admin', 'hod']), 403);
 
-        $departments = Department::with(['head', 'employees', 'parent', 'children.head', 'approvers.user', 'approvers.branch'])
+        $departments = Department::with(['head', 'employees', 'parent', 'children.head'])
             ->withCount('employees')
             ->orderByRaw("CASE WHEN parent_id IS NULL THEN 0 ELSE 1 END, name ASC")
-            ->get();
+            ->paginate(10, ['*'], 'depts_page')
+            ->withQueryString();
 
-        $branches = Branch::with(['manager', 'employees', 'approvers.user', 'approvers.department'])
+        $branches = Branch::with(['manager', 'employees'])
             ->withCount(['employees', 'tickets'])
             ->orderBy('name')
-            ->get();
+            ->paginate(10, ['*'], 'branches_page')
+            ->withQueryString();
 
         // Potential parent departments (top-level only)
         $parentDepartments = Department::whereNull('parent_id')->orderBy('name')->get();
@@ -1140,7 +1142,7 @@ class PortalAdminController extends Controller
             $approversQuery->where('level', (int) $selectedLevel);
         }
 
-        $approverCards = $approversQuery->get();
+        $approverCards = $approversQuery->paginate(15)->withQueryString();
 
         $departments = Department::where('is_active', true)
             ->where(function ($q) {
