@@ -142,6 +142,12 @@ Route::prefix('portal')->group(function () {
             Route::post('/branches/{branch}/approvers', [PortalAdminController::class, 'storeBranchDepartmentApprover'])->name('portal.admin.branches.approvers.store');
             Route::post('/branches/{branch}/toggle', [PortalAdminController::class, 'toggleBranch'])->name('portal.admin.branches.toggle');
             Route::delete('/branches/{branch}', [PortalAdminController::class, 'destroyBranch'])->name('portal.admin.branches.destroy');
+
+            // Dedicated Approvers & Levels Tab
+            Route::get('/approvers', [PortalAdminController::class, 'approvers'])->name('portal.admin.approvers');
+            Route::post('/approvers', [PortalAdminController::class, 'storeApprover'])->name('portal.admin.approvers.store');
+            Route::put('/approvers/{approver}', [PortalAdminController::class, 'updateApprover'])->name('portal.admin.approvers.update');
+            Route::delete('/approvers/{approver}', [PortalAdminController::class, 'destroyApprover'])->name('portal.admin.approvers.destroy');
         });
     });
 });

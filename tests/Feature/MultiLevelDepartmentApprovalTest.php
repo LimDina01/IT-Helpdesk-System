@@ -465,5 +465,77 @@ class MultiLevelDepartmentApprovalTest extends TestCase
         // Central Market Leader CANNOT approve Aeon's ticket
         $this->assertFalse($this->approvalService->canUserApprove($centralLeader, $step1));
     }
+
+    public function test_admin_can_manage_approvers_on_dedicated_approvers_tab(): void
+    {
+        $this->actingAs($this->adminUser);
+
+        $dept = Department::where('code', 'SALES')->firstOrFail();
+        $branch = Branch::where('code', 'HQ-PP')->firstOrFail();
+
+        $user = User::factory()->create([
+            'name' => 'Jewelry Floor Supervisor Sreypov',
+            'email' => 'sreypov@cbvh.com.kh',
+            'is_active' => true,
+        ]);
+        $user->roles()->attach(Role::where('name', 'hod')->firstOrFail());
+
+        // 1. Dedicated tab loads successfully
+        $response = $this->get(route('portal.admin.approvers'));
+        $response->assertOk();
+        $response->assertSee('Approval Hierarchy &amp; Levels', false);
+
+        // 2. Store via dedicated endpoint
+        $storeResp = $this->post(route('portal.admin.approvers.store'), [
+            'department_id' => $dept->id,
+            'branch_id' => $branch->id,
+            'user_id' => $user->id,
+            'level' => 2,
+            'title' => 'Jewelry Floor Supervisor',
+        ]);
+        $storeResp->assertRedirect();
+        $storeResp->assertSessionHas('status');
+
+        $card = DepartmentApprover::where('department_id', $dept->id)
+            ->where('branch_id', $branch->id)
+            ->where('user_id', $user->id)
+            ->firstOrFail();
+
+        $this->assertEquals(2, $card->level);
+        $this->assertEquals('Jewelry Floor Supervisor', $card->title);
+
+        // 3. Update via dedicated endpoint
+        $updateResp = $this->put(route('portal.admin.approvers.update', $card->id), [
+            'department_id' => $dept->id,
+            'branch_id' => $branch->id,
+            'user_id' => $user->id,
+            'level' => 3,
+            'title' => 'Jewelry Floor Operations Manager',
+        ]);
+        $updateResp->assertRedirect();
+        $updateResp->assertSessionHas('status');
+
+        $card->refresh();
+        $this->assertEquals(3, $card->level);
+        $this->assertEquals('Jewelry Floor Operations Manager', $card->title);
+
+        // 4. Delete via dedicated endpoint
+        $deleteResp = $this->delete(route('portal.admin.approvers.destroy', $card->id));
+        $deleteResp->assertRedirect();
+        $deleteResp->assertSessionHas('status');
+
+        $this->assertDatabaseMissing('department_approvers', ['id' => $card->id]);
+    }
+
+    public function test_non_admin_cannot_access_dedicated_approvers_tab(): void
+    {
+        $requester = User::factory()->create(['is_active' => true]);
+        $requester->roles()->attach(Role::where('name', 'requester')->firstOrFail());
+
+        $this->actingAs($requester);
+
+        $response = $this->get(route('portal.admin.approvers'));
+        $response->assertForbidden();
+    }
 }
 

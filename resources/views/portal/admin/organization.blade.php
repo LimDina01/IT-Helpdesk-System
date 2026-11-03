@@ -152,7 +152,11 @@
         </a>
         <a href="{{ route('portal.admin.organization') }}" class="bg-white text-indigo-600 shadow-xs px-4 py-2 rounded-xl transition flex items-center space-x-1.5">
             <span>🏢</span>
-            <span>Departments & Approvers</span>
+            <span>Departments & Branches</span>
+        </a>
+        <a href="{{ route('portal.admin.approvers') }}" class="text-slate-600 hover:text-slate-900 px-4 py-2 rounded-xl transition flex items-center space-x-1.5">
+            <span>🗂️</span>
+            <span>Approvers & Levels</span>
         </a>
     </div>
 
@@ -300,6 +304,23 @@
                 <div class="col-span-full py-4 text-center text-slate-400 text-xs">No IT divisions configured.</div>
             @endforelse
         </div>
+    </div>
+
+    <!-- Dedicated Approvers Tab Banner -->
+    <div class="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200/80 rounded-3xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xs">
+        <div class="flex items-center space-x-3.5">
+            <div class="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center text-xl shrink-0 shadow-xs">
+                🗂️
+            </div>
+            <div>
+                <h4 class="text-xs font-bold text-slate-900 uppercase tracking-wider">Multi-Level Approver Hierarchy & Levels (Dedicated Screen)</h4>
+                <p class="text-[11px] text-slate-500 mt-0.5">Manage Team Leaders (L1), Supervisors (L2), custom levels, and branch-specific approver matrices in the new dedicated tab.</p>
+            </div>
+        </div>
+        <a href="{{ route('portal.admin.approvers') }}" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center space-x-1.5 self-start sm:self-auto shrink-0">
+            <span>Open Approvers Tab</span>
+            <span>➔</span>
+        </a>
     </div>
 
     <!-- ========================================== -->

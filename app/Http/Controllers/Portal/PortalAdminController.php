@@ -1108,4 +1108,175 @@ class PortalAdminController extends Controller
 
         return back()->with('status', "Branch '{$name}' deleted successfully.");
     }
+
+    /**
+     * Approvers: Dedicated tab for Multi-Level Approval Hierarchy & Matrix.
+     */
+    public function approvers(Request $request): View
+    {
+        abort_unless(Auth::user()->hasRole(['system_admin', 'hod']), 403);
+
+        $selectedBranchId = $request->query('branch_id');
+        $selectedDeptId = $request->query('department_id');
+        $selectedLevel = $request->query('level');
+
+        $approversQuery = DepartmentApprover::with(['department', 'branch', 'user.roles', 'user.employee'])
+            ->orderByRaw('CASE WHEN branch_id IS NULL THEN 0 ELSE 1 END')
+            ->orderBy('department_id')
+            ->orderBy('level')
+            ->orderBy('id');
+
+        if ($selectedBranchId === 'hq') {
+            $approversQuery->whereNull('branch_id');
+        } elseif (!empty($selectedBranchId)) {
+            $approversQuery->where('branch_id', $selectedBranchId);
+        }
+
+        if (!empty($selectedDeptId)) {
+            $approversQuery->where('department_id', $selectedDeptId);
+        }
+
+        if (!empty($selectedLevel)) {
+            $approversQuery->where('level', (int) $selectedLevel);
+        }
+
+        $approverCards = $approversQuery->get();
+
+        $departments = Department::where('is_active', true)
+            ->where(function ($q) {
+                $itId = Department::where('code', 'IT')->value('id') ?? 0;
+                $q->whereNull('parent_id')->orWhere('parent_id', '!=', $itId);
+            })
+            ->orderBy('name')
+            ->get();
+
+        $branches = Branch::where('is_active', true)->orderBy('name')->get();
+
+        $itUnits = Department::itUnits()->with('head')->orderBy('name')->get();
+
+        $approverCandidates = User::where('is_active', true)
+            ->with(['roles', 'employee.department', 'employee.branch'])
+            ->orderBy('name')
+            ->get();
+
+        $candidatesJson = $approverCandidates->map(function ($u) {
+            return [
+                'id' => $u->id,
+                'name' => $u->name,
+                'email' => $u->email,
+                'initials' => strtoupper(substr($u->name, 0, 2)),
+                'dept_id' => $u->employee?->department_id,
+                'dept_name' => $u->employee?->department?->name,
+                'dept_code' => $u->employee?->department?->code,
+                'branch_id' => $u->employee?->branch_id,
+                'branch_name' => $u->employee?->branch?->name,
+                'branch_code' => $u->employee?->branch?->code,
+                'roles' => $u->roles->pluck('name')->join(', '),
+            ];
+        })->values();
+
+        $totalCardsCount = DepartmentApprover::count();
+        $hqCardsCount = DepartmentApprover::whereNull('branch_id')->count();
+        $branchCardsCount = DepartmentApprover::whereNotNull('branch_id')->count();
+
+        return view('portal.admin.approvers', compact(
+            'approverCards',
+            'departments',
+            'branches',
+            'itUnits',
+            'approverCandidates',
+            'candidatesJson',
+            'selectedBranchId',
+            'selectedDeptId',
+            'selectedLevel',
+            'totalCardsCount',
+            'hqCardsCount',
+            'branchCardsCount'
+        ));
+    }
+
+    /**
+     * Store new Approver Card from the Dedicated Approvers Tab.
+     */
+    public function storeApprover(Request $request): RedirectResponse
+    {
+        abort_unless(Auth::user()->hasRole(['system_admin', 'hod']), 403);
+
+        $validated = $request->validate([
+            'department_id' => 'required|exists:departments,id',
+            'branch_id' => 'nullable|exists:branches,id',
+            'user_id' => 'required|exists:users,id',
+            'level' => 'required|integer|min:1|max:20',
+            'title' => 'nullable|string|max:100',
+        ]);
+
+        $defaultTitle = match ((int) $validated['level']) {
+            1 => 'Team Leader',
+            2 => 'Supervisor',
+            3 => 'Department Manager',
+            4 => 'General Manager',
+            5 => 'Director / Executive',
+            default => "Level {$validated['level']} Approver",
+        };
+
+        $dept = Department::findOrFail($validated['department_id']);
+
+        DepartmentApprover::create([
+            'department_id' => $dept->id,
+            'branch_id' => !empty($validated['branch_id']) ? $validated['branch_id'] : null,
+            'user_id' => $validated['user_id'],
+            'level' => $validated['level'],
+            'title' => !empty($validated['title']) ? $validated['title'] : $defaultTitle,
+            'is_active' => true,
+        ]);
+
+        return back()->with('status', "Approver card added successfully.");
+    }
+
+    /**
+     * Update Approver Card from the Dedicated Approvers Tab.
+     */
+    public function updateApprover(Request $request, DepartmentApprover $approver): RedirectResponse
+    {
+        abort_unless(Auth::user()->hasRole(['system_admin', 'hod']), 403);
+
+        $validated = $request->validate([
+            'department_id' => 'required|exists:departments,id',
+            'branch_id' => 'nullable|exists:branches,id',
+            'user_id' => 'required|exists:users,id',
+            'level' => 'required|integer|min:1|max:20',
+            'title' => 'nullable|string|max:100',
+        ]);
+
+        $defaultTitle = match ((int) $validated['level']) {
+            1 => 'Team Leader',
+            2 => 'Supervisor',
+            3 => 'Department Manager',
+            4 => 'General Manager',
+            5 => 'Director / Executive',
+            default => "Level {$validated['level']} Approver",
+        };
+
+        $approver->update([
+            'department_id' => $validated['department_id'],
+            'branch_id' => !empty($validated['branch_id']) ? $validated['branch_id'] : null,
+            'user_id' => $validated['user_id'],
+            'level' => $validated['level'],
+            'title' => !empty($validated['title']) ? $validated['title'] : $defaultTitle,
+        ]);
+
+        return back()->with('status', "Approver card updated successfully.");
+    }
+
+    /**
+     * Delete Approver Card from the Dedicated Approvers Tab.
+     */
+    public function destroyApprover(DepartmentApprover $approver): RedirectResponse
+    {
+        abort_unless(Auth::user()->hasRole(['system_admin', 'hod']), 403);
+
+        $approver->delete();
+
+        return back()->with('status', "Approver card removed successfully.");
+    }
 }
