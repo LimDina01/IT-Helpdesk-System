@@ -764,6 +764,38 @@ class PortalTicketController extends Controller
     }
 
     /**
+     * Escalate a pending approval step via Web Portal.
+     */
+    public function escalateStep(Request $request, Ticket $ticket, \App\Models\TicketApproval $approval, \App\Services\TicketApprovalService $approvalService): RedirectResponse
+    {
+        $comment = $request->input('comments');
+        $targetUserId = $request->input('target_user_id') ? (int) $request->input('target_user_id') : null;
+        $success = $approvalService->escalate($approval, Auth::user(), $comment, $targetUserId);
+
+        if (!$success) {
+            return back()->withErrors(['error' => 'Unauthorized or invalid approval step for escalation.']);
+        }
+
+        return back()->with('status', "{$approval->step_name} escalated to supervisor successfully!");
+    }
+
+    /**
+     * Forward / Delegate a pending approval step via Web Portal.
+     */
+    public function forwardStep(Request $request, Ticket $ticket, \App\Models\TicketApproval $approval, \App\Services\TicketApprovalService $approvalService): RedirectResponse
+    {
+        $request->validate(['target_user_id' => 'required|exists:users,id']);
+        $targetUser = \App\Models\User::findOrFail($request->input('target_user_id'));
+        $success = $approvalService->forward($approval, Auth::user(), $targetUser, $request->input('comments'));
+
+        if (!$success) {
+            return back()->withErrors(['error' => 'Unauthorized or invalid approval step for forwarding.']);
+        }
+
+        return back()->with('status', "{$approval->step_name} forwarded to {$targetUser->name} successfully!");
+    }
+
+    /**
      * Reclassify ticket type (Incident <-> Service Request) and/or category.
      */
     public function reclassify(Request $request, Ticket $ticket, \App\Services\TicketApprovalService $approvalService): RedirectResponse

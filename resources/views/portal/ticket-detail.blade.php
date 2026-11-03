@@ -52,6 +52,8 @@
     chatToastTimer: null,
     approveModal: false,
     rejectModal: false,
+    escalateModal: false,
+    forwardModal: false,
     lightbox: false,
     lightboxUrl: '',
     lightboxName: '',
@@ -715,12 +717,20 @@
                         <p class="text-xs text-purple-100">You are authorized to review and decide on this service request step.</p>
                     </div>
 
-                    <div class="flex items-center space-x-2">
-                        <button type="button" @click="approveModal = true" class="bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold text-xs px-4 py-2 rounded-xl shadow-xs transition flex items-center space-x-1">
+                    <div class="flex items-center space-x-2 flex-wrap gap-y-1.5">
+                        <button type="button" @click="approveModal = true" class="bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold text-xs px-3.5 py-2 rounded-xl shadow-xs transition flex items-center space-x-1 cursor-pointer">
                             <span>✔</span>
                             <span>Approve Step</span>
                         </button>
-                        <button type="button" @click="rejectModal = true" class="bg-rose-500 hover:bg-rose-600 text-white font-extrabold text-xs px-4 py-2 rounded-xl shadow-xs transition flex items-center space-x-1">
+                        <button type="button" @click="escalateModal = true" class="bg-indigo-500 hover:bg-indigo-600 text-white font-extrabold text-xs px-3.5 py-2 rounded-xl shadow-xs transition flex items-center space-x-1 cursor-pointer" title="Escalate to Supervisor or Director">
+                            <span>⬆️</span>
+                            <span>Escalate</span>
+                        </button>
+                        <button type="button" @click="forwardModal = true" class="bg-sky-500 hover:bg-sky-600 text-white font-extrabold text-xs px-3 py-2 rounded-xl shadow-xs transition flex items-center space-x-1 cursor-pointer" title="Delegate to peer or colleague">
+                            <span>🔄</span>
+                            <span>Forward</span>
+                        </button>
+                        <button type="button" @click="rejectModal = true" class="bg-rose-500 hover:bg-rose-600 text-white font-extrabold text-xs px-3.5 py-2 rounded-xl shadow-xs transition flex items-center space-x-1 cursor-pointer">
                             <span>✖</span>
                             <span>Reject Step</span>
                         </button>
@@ -1409,6 +1419,83 @@
                     <div class="flex justify-end space-x-2">
                         <button type="button" @click="approveModal = false" class="px-3 py-1.5 text-xs text-slate-600">Cancel</button>
                         <button type="submit" class="px-4 py-2 bg-emerald-600 text-white font-bold text-xs rounded-xl hover:bg-emerald-700">Confirm Approval</button>
+                    </div>
+                </form>
+            @endif
+        </div>
+    </div>
+
+    <!-- ESCALATE STEP MODAL -->
+    <div x-show="escalateModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4" x-cloak>
+        <div @click.away="escalateModal = false" class="bg-white rounded-3xl max-w-md w-full shadow-2xl p-6 space-y-4">
+            <div class="flex items-center space-x-2.5">
+                <span class="text-xl">⬆️</span>
+                <div>
+                    <h3 class="text-sm font-bold text-slate-900">Escalate Service Request</h3>
+                    <p class="text-[11px] text-slate-500">Endorse this request and escalate to Level 2 (Supervisor / Director) for higher authority sign-off.</p>
+                </div>
+            </div>
+
+            @if($currentApproval)
+                <form method="POST" action="{{ route('portal.tickets.approvals.escalate', [$ticket->id, $currentApproval->id]) }}" class="space-y-4">
+                    @csrf
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Endorsement Note / Justification (Optional)</label>
+                        <textarea name="comments" rows="3" placeholder="e.g. Endorsed by Team Leader: Requires supervisor approval for special software license..." class="w-full text-xs p-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+                    </div>
+
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Designated Superior (Optional)</label>
+                        <select name="target_user_id" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+                            <option value="">-- Auto: Department Supervisor / Parent HOD --</option>
+                            @foreach(\App\Models\User::where('is_active', true)->whereHas('roles', fn($r) => $r->whereIn('name', ['hod', 'system_admin']))->orderBy('name')->get() as $sup)
+                                <option value="{{ $sup->id }}">{{ $sup->name }} ({{ $sup->email }})</option>
+                            @endforeach
+                        </select>
+                        <p class="text-[10px] text-slate-400 mt-1">If unselected, the system automatically routes to the department's Level 2 Supervisor or Parent Head.</p>
+                    </div>
+
+                    <div class="flex justify-end space-x-2 pt-2 border-t border-slate-100">
+                        <button type="button" @click="escalateModal = false" class="px-3.5 py-2 text-xs text-slate-600 font-semibold hover:bg-slate-100 rounded-xl transition">Cancel</button>
+                        <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-xs transition">Confirm & Escalate</button>
+                    </div>
+                </form>
+            @endif
+        </div>
+    </div>
+
+    <!-- FORWARD / DELEGATE STEP MODAL -->
+    <div x-show="forwardModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4" x-cloak>
+        <div @click.away="forwardModal = false" class="bg-white rounded-3xl max-w-md w-full shadow-2xl p-6 space-y-4">
+            <div class="flex items-center space-x-2.5">
+                <span class="text-xl">🔄</span>
+                <div>
+                    <h3 class="text-sm font-bold text-slate-900">Forward / Delegate Review</h3>
+                    <p class="text-[11px] text-slate-500">Hand over this approval step to a peer approver or colleague.</p>
+                </div>
+            </div>
+
+            @if($currentApproval)
+                <form method="POST" action="{{ route('portal.tickets.approvals.forward', [$ticket->id, $currentApproval->id]) }}" class="space-y-4">
+                    @csrf
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Delegate To</label>
+                        <select name="target_user_id" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white">
+                            <option value="">-- Select Colleague / Approver --</option>
+                            @foreach(\App\Models\User::where('is_active', true)->whereHas('roles', fn($r) => $r->whereIn('name', ['hod', 'requester', 'system_admin']))->where('id', '!=', Auth::id())->orderBy('name')->get() as $colleague)
+                                <option value="{{ $colleague->id }}">{{ $colleague->name }} ({{ $colleague->email }})</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Handover Note</label>
+                        <textarea name="comments" rows="2" placeholder="e.g. Delegating this review to colleague for second opinion or coverage..." class="w-full text-xs p-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500"></textarea>
+                    </div>
+
+                    <div class="flex justify-end space-x-2 pt-2 border-t border-slate-100">
+                        <button type="button" @click="forwardModal = false" class="px-3.5 py-2 text-xs text-slate-600 font-semibold hover:bg-slate-100 rounded-xl transition">Cancel</button>
+                        <button type="submit" class="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs rounded-xl shadow-xs transition">Confirm Delegation</button>
                     </div>
                 </form>
             @endif

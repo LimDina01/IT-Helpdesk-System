@@ -18,12 +18,18 @@ class Employee extends Model
         'phone',
         'branch_id',
         'department_id',
+        'line_manager_user_id',
         'is_active',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
     ];
+
+    public function lineManager(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'line_manager_user_id');
+    }
 
     public function branch(): BelongsTo
     {

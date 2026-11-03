@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Branch;
 use App\Models\CompanyHoliday;
 use App\Models\Department;
+use App\Models\DepartmentApprover;
 use App\Models\Employee;
 use App\Models\Role;
 use App\Models\TicketCategory;
@@ -298,7 +299,7 @@ class PortalAdminController extends Controller
 
         $filter = $request->input('filter', 'all');
 
-        $query = User::with(['roles', 'employee.department', 'employee.branch'])
+        $query = User::with(['roles', 'employee.department', 'employee.branch', 'employee.lineManager'])
             ->orderBy('name');
 
         $staffFilterClosure = function ($q) {
@@ -328,6 +329,10 @@ class PortalAdminController extends Controller
         $allRoles = Role::orderBy('id')->get();
         $departments = Department::where('is_active', true)->orderBy('name')->get();
         $branches = Branch::where('is_active', true)->orderBy('name')->get();
+        $lineManagerCandidates = User::where('is_active', true)
+            ->whereHas('roles', fn($r) => $r->whereIn('name', ['hod', 'requester', 'system_admin']))
+            ->orderBy('name')
+            ->get();
 
         return view('portal.admin.users', compact(
             'users',
@@ -335,6 +340,7 @@ class PortalAdminController extends Controller
             'allRoles',
             'departments',
             'branches',
+            'lineManagerCandidates',
             'totalCount',
             'staffCount',
             'tmaCount',
@@ -421,6 +427,7 @@ class PortalAdminController extends Controller
             'employee_code' => 'required|string|max:50',
             'department_id' => 'required|exists:departments,id',
             'branch_id' => 'required|exists:branches,id',
+            'line_manager_user_id' => 'nullable|exists:users,id',
             'phone' => 'nullable|string|max:50',
             'role' => 'nullable|in:requester,hod',
             'roles' => 'nullable|array',
@@ -438,6 +445,7 @@ class PortalAdminController extends Controller
         $employee->email = $email;
         $employee->department_id = $validated['department_id'];
         $employee->branch_id = $validated['branch_id'];
+        $employee->line_manager_user_id = !empty($validated['line_manager_user_id']) ? $validated['line_manager_user_id'] : null;
         if (!empty($validated['phone'])) {
             $employee->phone = $validated['phone'];
         }
@@ -507,6 +515,7 @@ class PortalAdminController extends Controller
             'employee_code' => 'nullable|string|max:50',
             'department_id' => 'nullable|exists:departments,id',
             'branch_id' => 'nullable|exists:branches,id',
+            'line_manager_user_id' => 'nullable|exists:users,id',
             'phone' => 'nullable|string|max:50',
             'telegram_username' => 'nullable|string|max:100',
             'password' => 'nullable|string|min:6',
@@ -546,6 +555,9 @@ class PortalAdminController extends Controller
                 }
                 if (isset($validated['branch_id'])) {
                     $employee->branch_id = $validated['branch_id'];
+                }
+                if (array_key_exists('line_manager_user_id', $validated)) {
+                    $employee->line_manager_user_id = $validated['line_manager_user_id'] ?: null;
                 }
                 if (isset($validated['phone'])) {
                     $employee->phone = $validated['phone'];
@@ -729,7 +741,7 @@ class PortalAdminController extends Controller
     {
         abort_unless(Auth::user()->hasRole(['system_admin', 'hod']), 403);
 
-        $departments = Department::with(['head', 'employees', 'parent', 'children.head'])
+        $departments = Department::with(['head', 'employees', 'parent', 'children.head', 'approvers.user'])
             ->withCount('employees')
             ->orderByRaw("CASE WHEN parent_id IS NULL THEN 0 ELSE 1 END, name ASC")
             ->get();
@@ -823,6 +835,55 @@ class PortalAdminController extends Controller
 
         $approverName = $department->head ? $department->head->name : 'Auto / Role Fallback';
         return back()->with('status', "Department '{$department->name}' approver updated to {$approverName}.");
+    }
+
+    /**
+     * Add or update a Department Approver Card (Level 1, Level 2, etc.)
+     */
+    public function storeDepartmentApprover(Request $request, Department $department): RedirectResponse
+    {
+        abort_unless(Auth::user()->hasRole(['system_admin', 'hod']), 403);
+
+        $validated = $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'level' => 'required|integer|min:1|max:4',
+            'title' => 'nullable|string|max:100',
+        ]);
+
+        $defaultTitle = match ((int) $validated['level']) {
+            1 => 'Team Leader',
+            2 => 'Supervisor',
+            3 => 'Department Manager',
+            default => 'Approver',
+        };
+
+        DepartmentApprover::updateOrCreate(
+            [
+                'department_id' => $department->id,
+                'user_id' => $validated['user_id'],
+            ],
+            [
+                'level' => $validated['level'],
+                'title' => !empty($validated['title']) ? $validated['title'] : $defaultTitle,
+                'is_active' => true,
+            ]
+        );
+
+        return back()->with('status', "Approver card added successfully to '{$department->name}'.");
+    }
+
+    /**
+     * Delete a Department Approver Card.
+     */
+    public function deleteDepartmentApprover(Department $department, DepartmentApprover $approver): RedirectResponse
+    {
+        abort_unless(Auth::user()->hasRole(['system_admin', 'hod']), 403);
+
+        if ($approver->department_id === $department->id) {
+            $approver->delete();
+        }
+
+        return back()->with('status', "Approver card removed from '{$department->name}'.");
     }
 
     /**

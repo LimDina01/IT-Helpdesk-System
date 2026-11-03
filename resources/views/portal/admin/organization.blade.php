@@ -10,6 +10,7 @@
     createBranchModal: false, 
     editBranchModal: false,
     assignBranchManagerModal: false,
+    manageApproversModal: false,
     targetDept: {}, 
     targetBranch: {},
     targetParentId: '',
@@ -272,24 +273,36 @@
                                         </div>
                                     </td>
 
-                                    <td class="py-3 px-3 whitespace-nowrap">
-                                        @if($dept->head)
-                                            <div class="flex items-center space-x-2">
-                                                <div class="w-7 h-7 rounded-full bg-slate-800 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
-                                                    {{ strtoupper(substr($dept->head->name, 0, 2)) }}
+                                    <td class="py-3 px-3">
+                                        <div class="space-y-1.5">
+                                            @if($dept->approvers && $dept->approvers->count() > 0)
+                                                <div class="flex flex-wrap gap-1 max-w-xs">
+                                                    @foreach($dept->approvers as $appr)
+                                                        <div class="inline-flex items-center space-x-1 text-[10px] font-semibold {{ $appr->level == 1 ? 'bg-blue-50 text-blue-700 border-blue-200' : ($appr->level == 2 ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200') }} border px-2 py-0.5 rounded-lg shadow-2xs">
+                                                            <span class="font-extrabold uppercase">L{{ $appr->level }}:</span>
+                                                            <span class="truncate max-w-[90px]">{{ $appr->user ? $appr->user->name : 'Unknown' }}</span>
+                                                            <span class="text-slate-400 font-normal">({{ $appr->title }})</span>
+                                                        </div>
+                                                    @endforeach
                                                 </div>
-                                                <div>
-                                                    <div class="font-bold text-slate-800 text-xs">{{ $dept->head->name }}</div>
-                                                    <div class="text-[10px] text-slate-400">{{ $dept->head->email }}</div>
+                                            @elseif($dept->head)
+                                                <div class="flex items-center space-x-2">
+                                                    <div class="w-7 h-7 rounded-full bg-slate-800 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
+                                                        {{ strtoupper(substr($dept->head->name, 0, 2)) }}
+                                                    </div>
+                                                    <div>
+                                                        <div class="font-bold text-slate-800 text-xs">{{ $dept->head->name }}</div>
+                                                        <div class="text-[10px] text-slate-400">{{ $dept->head->email }}</div>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        @else
-                                            <button type="button" 
-                                                    @click="targetDept = {{ json_encode($dept) }}; assignDeptApproverModal = true"
-                                                    class="inline-flex items-center space-x-1 text-[11px] font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-2 py-0.5 rounded-full transition">
-                                                <span>⚡ Auto (Role Fallback)</span>
-                                            </button>
-                                        @endif
+                                            @else
+                                                <button type="button" 
+                                                        @click="targetDept = {{ json_encode($dept) }}; assignDeptApproverModal = true"
+                                                        class="inline-flex items-center space-x-1 text-[11px] font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-2 py-0.5 rounded-full transition">
+                                                    <span>⚡ Auto (Role Fallback)</span>
+                                                </button>
+                                            @endif
+                                        </div>
                                     </td>
 
                                     <td class="py-3 px-3 text-center whitespace-nowrap">
@@ -306,10 +319,16 @@
 
                                     <td class="py-3 px-4 text-right whitespace-nowrap space-x-1.5">
                                         <button type="button" 
+                                                @click="targetDept = {{ json_encode($dept) }}; manageApproversModal = true"
+                                                class="text-[11px] text-indigo-700 hover:text-indigo-900 font-bold bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-2.5 py-1 rounded-lg transition"
+                                                title="Manage Multi-Level Approver Cards">
+                                            🗂️ Cards ({{ $dept->approvers->count() }})
+                                        </button>
+                                        <button type="button" 
                                                 @click="targetDept = {{ json_encode($dept) }}; assignDeptApproverModal = true"
-                                                class="text-[11px] text-indigo-600 hover:text-indigo-800 font-bold bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-lg transition"
-                                                title="Assign or Change Approver">
-                                            👤 Approver
+                                                class="text-[11px] text-slate-600 hover:text-slate-800 font-bold bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded-lg transition"
+                                                title="Designate Department Head">
+                                            👤 Head
                                         </button>
                                         <button type="button" 
                                                 @click="targetDept = {{ json_encode($dept) }}; editDeptModal = true"
@@ -759,6 +778,104 @@
                     <button type="submit" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition">Save Manager</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- ======================================================= -->
+    <!-- 7. MANAGE MULTI-LEVEL DEPARTMENT APPROVER CARDS MODAL    -->
+    <!-- ======================================================= -->
+    <div x-show="manageApproversModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto" x-cloak>
+        <div @click.away="manageApproversModal = false" class="bg-white rounded-3xl max-w-2xl w-full shadow-2xl p-6 space-y-6 my-8">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-xl">
+                        🗂️
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold text-slate-900">Department Approver Cards & Levels</h3>
+                        <p class="text-[11px] text-slate-500">
+                            Department: <span class="font-bold text-indigo-700" x-text="targetDept.name + ' (' + targetDept.code + ')'"></span>
+                        </p>
+                    </div>
+                </div>
+                <button type="button" @click="manageApproversModal = false" class="text-slate-400 hover:text-slate-600 text-sm font-bold">✕</button>
+            </div>
+
+            <!-- Existing Approver Cards in Department -->
+            <div>
+                <div class="flex items-center justify-between mb-2">
+                    <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider">Configured Approver Cards</h4>
+                    <span class="text-[10px] text-slate-400">Requesters map to Level 1, who can approve or escalate upwards</span>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-56 overflow-y-auto p-1">
+                    <template x-for="appr in (targetDept.approvers || [])" :key="appr.id">
+                        <div class="border border-slate-200 rounded-2xl p-3.5 bg-slate-50/60 hover:bg-white transition shadow-2xs relative flex flex-col justify-between">
+                            <div>
+                                <div class="flex items-center justify-between">
+                                    <span class="text-[10px] font-black px-2 py-0.5 rounded-full uppercase"
+                                          :class="appr.level == 1 ? 'bg-blue-100 text-blue-800' : (appr.level == 2 ? 'bg-purple-100 text-purple-800' : 'bg-emerald-100 text-emerald-800')"
+                                          x-text="'Level ' + appr.level">
+                                    </span>
+                                    <form :action="'{{ url('portal/admin/departments') }}/' + targetDept.id + '/approvers/' + appr.id" method="POST" onsubmit="return confirm('Remove this approver card?')">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="text-[10px] font-bold text-rose-500 hover:text-rose-700 hover:underline">
+                                            Remove ✕
+                                        </button>
+                                    </form>
+                                </div>
+                                <div class="font-bold text-slate-900 text-xs mt-2" x-text="appr.title || ('Level ' + appr.level + ' Approver')"></div>
+                                <div class="text-[11px] text-indigo-600 font-semibold mt-0.5" x-text="appr.user ? appr.user.name : 'Unknown User'"></div>
+                                <div class="text-[10px] text-slate-400 truncate" x-text="appr.user ? appr.user.email : ''"></div>
+                            </div>
+                        </div>
+                    </template>
+                    <div x-show="!targetDept.approvers || targetDept.approvers.length === 0" class="col-span-2 text-center py-6 border-2 border-dashed border-slate-200 rounded-2xl text-slate-400 text-xs">
+                        No approver cards configured yet. Fallbacks to designated HOD or traditional role.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Add New Approver Card Form -->
+            <div class="border-t border-slate-100 pt-4">
+                <h4 class="text-xs font-bold text-slate-900 uppercase tracking-wider mb-3">➕ Add New Approver Card</h4>
+                <form :action="'{{ url('portal/admin/departments') }}/' + targetDept.id + '/approvers'" method="POST" class="space-y-3">
+                    @csrf
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Approval Level</label>
+                            <select name="level" required class="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+                                <option value="1">Level 1: Team Leader</option>
+                                <option value="2">Level 2: Supervisor</option>
+                                <option value="3">Level 3: Department Manager</option>
+                                <option value="4">Level 4: Executive / Director</option>
+                            </select>
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Custom Title (Optional)</label>
+                            <input type="text" name="title" placeholder="e.g. Team Leader - Accounts Payable" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Designated Staff / User</label>
+                        <select name="user_id" required class="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+                            <option value="">-- Select Bank User --</option>
+                            @foreach($approverCandidates as $candidate)
+                                <option value="{{ $candidate->id }}">
+                                    {{ $candidate->name }} ({{ $candidate->email }}) [{{ $candidate->roles->pluck('name')->join(', ') }}]
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="flex justify-end space-x-2 pt-2">
+                        <button type="button" @click="manageApproversModal = false" class="px-4 py-2 text-xs text-slate-600 font-semibold hover:bg-slate-100 rounded-xl transition">Done</button>
+                        <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-xs transition">+ Add Card</button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 

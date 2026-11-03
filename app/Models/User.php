@@ -158,6 +158,16 @@ class User extends Authenticatable
         return $this->hasMany(NotificationLog::class, 'recipient_user_id');
     }
 
+    public function departmentApproverRoles(): HasMany
+    {
+        return $this->hasMany(DepartmentApprover::class);
+    }
+
+    public function subordinates(): HasMany
+    {
+        return $this->hasMany(Employee::class, 'line_manager_user_id');
+    }
+
     public function headedDepartments(): HasMany
     {
         return $this->hasMany(Department::class, 'head_user_id');

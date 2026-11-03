@@ -48,6 +48,16 @@ class Department extends Model
         return $this->hasMany(TicketCategory::class, 'it_department_id');
     }
 
+    public function approvers(): HasMany
+    {
+        return $this->hasMany(DepartmentApprover::class)->orderBy('level')->orderBy('id');
+    }
+
+    public function activeApprovers(): HasMany
+    {
+        return $this->hasMany(DepartmentApprover::class)->where('is_active', true)->orderBy('level')->orderBy('id');
+    }
+
     public function isItDepartment(): bool
     {
         return $this->code === 'IT' || ($this->parent && $this->parent->code === 'IT') || str_starts_with($this->code, 'IT-');

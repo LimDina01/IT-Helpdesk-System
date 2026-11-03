@@ -39,6 +39,7 @@
             employee_code: u.employee ? (u.employee.employee_code || '') : '',
             department_id: u.employee ? (u.employee.department_id || '') : '',
             branch_id: u.employee ? (u.employee.branch_id || '') : '',
+            line_manager_user_id: u.employee ? (u.employee.line_manager_user_id || '') : '',
             phone: u.employee ? (u.employee.phone || '') : '',
             telegram_username: u.telegram_username || '',
             telegram_id: u.telegram_id || '',
@@ -175,7 +176,12 @@
 
                             <td class="py-3.5 px-4 whitespace-nowrap min-w-[200px]">
                                 <div class="font-semibold text-slate-700">{{ $user->employee?->department?->name ?? 'Standalone IT Account' }}</div>
-                                <div class="text-[10px] text-slate-400">{{ $user->employee?->branch?->name ?? 'Head Office' }}</div>
+                                <div class="text-[10px] text-slate-400">
+                                    {{ $user->employee?->branch?->name ?? 'Head Office' }}
+                                    @if($user->employee?->lineManager)
+                                        &bull; <span class="text-indigo-600 font-semibold" title="Direct Line Manager / Level 1 Approver">👤 Mgr: {{ $user->employee->lineManager->name }}</span>
+                                    @endif
+                                </div>
                             </td>
 
                             <td class="py-3.5 px-4 whitespace-nowrap">
@@ -396,6 +402,18 @@
                             <p class="text-[10px] text-slate-400 mt-0.5">Physical office for equipment support.</p>
                         </div>
                     </div>
+
+                    <!-- Direct Line Manager / Team Leader (Option B) -->
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Direct Line Manager / Team Leader (Level 1 Approver)</label>
+                        <select name="line_manager_user_id" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                            <option value="">-- Auto (Department Approver Card Fallback) --</option>
+                            @foreach($lineManagerCandidates as $mgr)
+                                <option value="{{ $mgr->id }}">{{ $mgr->name }} [{{ $mgr->employee?->department?->code ?? 'Staff' }}]</option>
+                            @endforeach
+                        </select>
+                        <p class="text-[10px] text-slate-400 mt-0.5">Option B: Service requests from this employee route directly to this Team Leader for Level 1 review.</p>
+                    </div>
                 </div>
 
                 <!-- Row 4: Role Selection in TMA -->
@@ -543,6 +561,18 @@
                             @endforeach
                         </select>
                     </div>
+                </div>
+
+                <!-- Direct Line Manager / Team Leader (Option B) -->
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Direct Line Manager / Team Leader (Level 1 Approver)</label>
+                    <select name="line_manager_user_id" x-model="editForm.line_manager_user_id" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+                        <option value="">-- Auto (Department Approver Card Fallback) --</option>
+                        @foreach($lineManagerCandidates as $mgr)
+                            <option value="{{ $mgr->id }}">{{ $mgr->name }} [{{ $mgr->employee?->department?->code ?? 'Staff' }}]</option>
+                        @endforeach
+                    </select>
+                    <p class="text-[10px] text-slate-400 mt-0.5">Option B: Service requests from this employee route directly to this Team Leader for Level 1 review.</p>
                 </div>
 
                 <!-- Row 4: Telegram & Password Reset -->

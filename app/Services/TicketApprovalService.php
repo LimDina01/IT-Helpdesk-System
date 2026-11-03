@@ -37,11 +37,18 @@ class TicketApprovalService
         $deptCode = $department?->code;
         $isItDept = ($department && $department->isItDepartment()) || ($deptCode === 'IT' || str_starts_with($deptCode ?? '', 'IT') || $deptId == 2);
 
-        // Check if requester's branch & department has a designated HOD (excluding IT Department / IT HOD)
+        // Check if requester's branch & department has a designated HOD, Line Manager, or Approvers (excluding IT Department / IT HOD)
+        $lineManagerId = $ticket->requester->employee?->line_manager_user_id;
+        $hasLineManager = !empty($lineManagerId);
+
         $hasDeptHod = false;
-        if (!$isItDept && $department && $department->head_user_id) {
-            $hasDeptHod = true;
-        } elseif (!$isItDept && $deptId && $branchId) {
+        if (!$isItDept && $department) {
+            $hasDeptHod = $hasLineManager
+                || $department->activeApprovers()->exists()
+                || !empty($department->head_user_id);
+        }
+
+        if (!$hasDeptHod && !$isItDept && $deptId && $branchId) {
             $hasDeptHod = User::whereHas('roles', fn($q) => $q->where('name', 'hod'))
                 ->whereNotNull('employee_id')
                 ->where('email', '!=', 'admin@cbvh.com.kh')
@@ -53,14 +60,16 @@ class TicketApprovalService
         $itStepName = $itDivision === 'prd' ? 'IT Production Manager Approval' : 'IT Operations Manager Approval';
 
         if ($hasDeptHod) {
-            // Normal 2-Stage Approval: Step 1 is Branch Department HOD
+            // Normal 2-Stage Approval: Step 1 is Branch Department Approver (Team Leader / Line Manager or HOD)
+            $step1Name = $hasLineManager ? 'Team Leader Approval' : 'Department HOD Approval';
             $step1 = TicketApproval::create([
                 'ticket_id' => $ticket->id,
                 'step_number' => 1,
-                'step_name' => 'Department HOD Approval',
+                'step_name' => $step1Name,
                 'role_name' => 'department_hod',
                 'department_id' => $deptId,
                 'branch_id' => $branchId,
+                'approver_id' => $lineManagerId,
                 'status' => 'pending',
             ]);
 
@@ -176,29 +185,58 @@ class TicketApprovalService
         $isItHod = $user->isItHod();
 
         // ========================================================
-        // Process 1: Department HOD Approval (Strictly Step 1)
+        // Process 1: Department HOD / Team Leader / Supervisor Approval (Step 1 or Escalated Step)
         // Branch + Department specific
         // ========================================================
-        if ($approval->role_name === 'department_hod' || ($approval->step_number === 1 && empty($approval->role_name))) {
+        if (in_array($approval->role_name, ['department_hod', 'department_supervisor']) || ($approval->step_number === 1 && empty($approval->role_name))) {
             $targetDeptId = $approval->department_id ?? $ticket->requester->employee?->department_id;
             $targetDept = $targetDeptId ? \App\Models\Department::find($targetDeptId) : null;
             $targetDeptCode = $targetDept?->code ?? $ticket->requester->employee?->department?->code;
 
             // IT HOD cannot approve Step 1 for business departments (Operations, Finance, Sales, HR, etc.)
             if ($isItHod && !in_array($targetDeptCode, ['IT', 'IT-OPR', 'IT-PRD']) && $targetDeptId != 2) {
-                if (!$targetDept || $targetDept->head_user_id !== $user->id) {
+                $isExplicitHead = $targetDept && $targetDept->head_user_id === $user->id;
+                $isConfiguredApprover = $targetDeptId && \App\Models\DepartmentApprover::where('department_id', $targetDeptId)->where('user_id', $user->id)->exists();
+                if (!$isExplicitHead && !$isConfiguredApprover) {
                     return false;
                 }
             }
 
-            // 1. Direct Designated Approver Match: Explicitly configured in Admin Portal
+            // 1. Direct Assigned Approver Match (Option B: Line Manager or specific assigned user)
+            if ($approval->approver_id && $user->id === $approval->approver_id) {
+                return true;
+            }
+
+            // 2. Requester's Line Manager (Option B direct mapping)
+            $lineManagerId = $ticket->requester->employee?->line_manager_user_id;
+            if ($lineManagerId && $user->id === $lineManagerId) {
+                return true;
+            }
+
+            // 3. Department Approver card match (Level 1 / Level 2 in department_approvers)
+            if ($targetDeptId) {
+                $deptApprover = \App\Models\DepartmentApprover::where('department_id', $targetDeptId)
+                    ->where('user_id', $user->id)
+                    ->where('is_active', true)
+                    ->first();
+
+                if ($deptApprover) {
+                    if ($approval->role_name === 'department_supervisor') {
+                        // For supervisor escalation step: user must be Level 2 or higher
+                        return $deptApprover->level >= 2;
+                    }
+                    return true;
+                }
+            }
+
+            // 4. Direct Designated Approver Match: Explicitly configured in Admin Portal (head_user_id)
             if ($targetDept && $targetDept->head_user_id) {
                 return $user->id === $targetDept->head_user_id;
             }
 
             $targetBranchId = $approval->branch_id ?? $ticket->branch_id ?? $ticket->requester->employee?->branch_id;
 
-            // 2. Direct match fallback: User MUST be the HOD of the requester's department AND branch
+            // 5. Direct match fallback: User MUST be the HOD of the requester's department AND branch
             if ($userDeptId && $targetDeptId && $userDeptId === $targetDeptId
                 && $userBranchId && $targetBranchId && $userBranchId === $targetBranchId
                 && $user->hasRole('hod')) {
@@ -501,15 +539,175 @@ class TicketApprovalService
     }
 
     /**
+     * Escalate a step to a higher level (e.g. Level 1 Team Leader escalates to Level 2 Supervisor or designated person).
+     */
+    public function escalate(TicketApproval $approval, User $actor, ?string $comment = null, ?int $targetUserId = null): bool
+    {
+        if (!$this->canUserApprove($actor, $approval)) {
+            return false;
+        }
+
+        $ticket = $approval->ticket;
+        $department = $ticket->requester->employee?->department;
+
+        // 1. Resolve Target Higher Approver
+        $targetApprover = null;
+        $stepTitle = 'Level 2: Supervisor Approval';
+        $roleName = 'department_supervisor';
+
+        if ($targetUserId) {
+            $targetApprover = User::find($targetUserId);
+        }
+
+        if (!$targetApprover && $department) {
+            // Find active approver at Level 2 (or higher)
+            $deptApprover = $department->activeApprovers()
+                ->where('level', '>=', 2)
+                ->where('user_id', '!=', $actor->id)
+                ->first();
+
+            if ($deptApprover) {
+                $targetApprover = $deptApprover->user;
+                $stepTitle = $deptApprover->title ? "{$deptApprover->title} Approval" : 'Level 2: Supervisor Approval';
+            } elseif ($department->head_user_id && $department->head_user_id !== $actor->id) {
+                $targetApprover = User::find($department->head_user_id);
+                $stepTitle = 'Department Head Approval';
+            } elseif ($department->parent && $department->parent->head_user_id) {
+                $targetApprover = User::find($department->parent->head_user_id);
+                $stepTitle = "Parent Department Head ({$department->parent->name}) Approval";
+            }
+        }
+
+        // 2. Mark current step as endorsed & escalated
+        $endorsementComment = 'Endorsed & Escalated to superior' . ($comment ? ": {$comment}" : '');
+        $approval->update([
+            'status' => 'approved',
+            'approver_id' => $actor->id,
+            'comments' => $endorsementComment,
+            'actioned_at' => now(),
+        ]);
+
+        // 3. Shift subsequent steps up by 1 (e.g. IT Manager becomes step 3)
+        $subsequentSteps = $ticket->approvals()
+            ->where('step_number', '>', $approval->step_number)
+            ->orderBy('step_number', 'desc')
+            ->get();
+
+        foreach ($subsequentSteps as $step) {
+            $step->update(['step_number' => $step->step_number + 1]);
+        }
+
+        // 4. Create the new escalated step right after current step
+        $newStepNumber = $approval->step_number + 1;
+        $escalatedStep = TicketApproval::create([
+            'ticket_id' => $ticket->id,
+            'step_number' => $newStepNumber,
+            'step_name' => $stepTitle . ' (Escalated)',
+            'role_name' => $roleName,
+            'department_id' => $department?->id,
+            'branch_id' => $approval->branch_id,
+            'approver_id' => $targetApprover?->id,
+            'status' => 'pending',
+            'comments' => null,
+        ]);
+
+        // 5. Audit Log & Ticket Chat Message
+        TicketAuditLog::create([
+            'ticket_id' => $ticket->id,
+            'actor_id' => $actor->id,
+            'action' => 'STEP_ESCALATED',
+            'old_value' => $approval->step_name,
+            'new_value' => $escalatedStep->step_name,
+            'metadata' => [
+                'escalated_by' => $actor->name,
+                'target_approver' => $targetApprover?->name,
+                'comment' => $comment,
+            ],
+        ]);
+
+        TicketMessage::create([
+            'ticket_id' => $ticket->id,
+            'sender_id' => $actor->id,
+            'visibility' => 'system_event',
+            'message_type' => 'status_change',
+            'body' => "⬆️ {$approval->step_name} endorsed by {$actor->name} and escalated to " . ($targetApprover ? $targetApprover->name : 'Department Supervisor') . ($comment ? " (Note: {$comment})" : '') . '.',
+        ]);
+
+        // 6. Notify the escalated approver
+        $this->notifyStepApprover($escalatedStep, $ticket);
+
+        return true;
+    }
+
+    /**
+     * Forward / Delegate a pending step to another approver (e.g. peer Team Leader).
+     */
+    public function forward(TicketApproval $approval, User $actor, User $targetUser, ?string $comment = null): bool
+    {
+        if (!$this->canUserApprove($actor, $approval)) {
+            return false;
+        }
+
+        $ticket = $approval->ticket;
+
+        $approval->update([
+            'approver_id' => $targetUser->id,
+            'comments' => "Delegated by {$actor->name}" . ($comment ? ": {$comment}" : ''),
+        ]);
+
+        TicketAuditLog::create([
+            'ticket_id' => $ticket->id,
+            'actor_id' => $actor->id,
+            'action' => 'STEP_DELEGATED',
+            'old_value' => $actor->name,
+            'new_value' => $targetUser->name,
+            'metadata' => ['comment' => $comment],
+        ]);
+
+        TicketMessage::create([
+            'ticket_id' => $ticket->id,
+            'sender_id' => $actor->id,
+            'visibility' => 'system_event',
+            'message_type' => 'status_change',
+            'body' => "🔄 {$approval->step_name} review delegated from {$actor->name} to {$targetUser->name}" . ($comment ? " (Note: {$comment})" : '') . '.',
+        ]);
+
+        // Notify new approver
+        $this->notifyStepApprover($approval, $ticket);
+
+        return true;
+    }
+
+    /**
      * Helper to find and alert designated approvers via Telegram.
      */
     protected function notifyStepApprover(TicketApproval $step, Ticket $ticket): void
     {
-        if ($step->role_name === 'department_hod') {
-            $deptId = $step->department_id ?? $ticket->requester->employee?->department_id;
-            $department = $deptId ? \App\Models\Department::with('head')->find($deptId) : null;
+        // Direct assigned approver notification
+        if ($step->approver_id) {
+            $assignedUser = User::find($step->approver_id);
+            if ($assignedUser && $assignedUser->telegram_id) {
+                $this->telegramNotification->sendApprovalRequestAlert($assignedUser, $ticket, $step);
+                return;
+            }
+        }
 
-            if ($department && $department->head && $department->head->telegram_id) {
+        if (in_array($step->role_name, ['department_hod', 'department_supervisor'])) {
+            $deptId = $step->department_id ?? $ticket->requester->employee?->department_id;
+            $department = $deptId ? \App\Models\Department::with(['head', 'activeApprovers.user'])->find($deptId) : null;
+
+            // Check department_approvers
+            $level = $step->role_name === 'department_supervisor' ? 2 : 1;
+            $approverUsers = $department?->activeApprovers()
+                ->where('level', $level)
+                ->with('user')
+                ->get()
+                ->pluck('user')
+                ->filter(fn($u) => !empty($u->telegram_id));
+
+            if ($approverUsers && $approverUsers->isNotEmpty()) {
+                $approvers = $approverUsers;
+            } elseif ($department && $department->head && $department->head->telegram_id) {
                 $approvers = collect([$department->head]);
             } else {
                 $branchId = $step->branch_id ?? $ticket->branch_id ?? $ticket->requester->employee?->branch_id;

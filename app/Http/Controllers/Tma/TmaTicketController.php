@@ -477,6 +477,57 @@ class TmaTicketController extends Controller
     }
 
     /**
+     * Escalate a pending approval step via TMA (e.g. Team Leader escalates to Supervisor).
+     */
+    public function escalateStep(Request $request, \App\Models\TicketApproval $approval, \App\Services\TicketApprovalService $approvalService): JsonResponse
+    {
+        $comment = $request->input('comments');
+        $targetUserId = $request->input('target_user_id') ? (int) $request->input('target_user_id') : null;
+        $approver = $this->getTmaUser();
+        if (!$approver) {
+            return response()->json(['error' => 'Unauthenticated.'], 401);
+        }
+        $success = $approvalService->escalate($approval, $approver, $comment, $targetUserId);
+
+        if (!$success) {
+            return response()->json(['error' => 'Unauthorized or invalid approval step for escalation.'], 403);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'message' => "{$approval->step_name} escalated to supervisor successfully!",
+        ]);
+    }
+
+    /**
+     * Forward / Delegate a pending approval step via TMA to another approver.
+     */
+    public function forwardStep(Request $request, \App\Models\TicketApproval $approval, \App\Services\TicketApprovalService $approvalService): JsonResponse
+    {
+        $validated = $request->validate([
+            'target_user_id' => 'required|exists:users,id',
+            'comments' => 'nullable|string|max:500',
+        ]);
+
+        $approver = $this->getTmaUser();
+        if (!$approver) {
+            return response()->json(['error' => 'Unauthenticated.'], 401);
+        }
+
+        $targetUser = \App\Models\User::findOrFail($validated['target_user_id']);
+        $success = $approvalService->forward($approval, $approver, $targetUser, $validated['comments'] ?? null);
+
+        if (!$success) {
+            return response()->json(['error' => 'Unauthorized or invalid approval step for forwarding.'], 403);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'message' => "{$approval->step_name} forwarded to {$targetUser->name} successfully!",
+        ]);
+    }
+
+    /**
      * Send a reply message from the employee.
      */
     public function addMessage(Request $request, Ticket $ticket): JsonResponse

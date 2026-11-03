@@ -47,6 +47,8 @@ Route::prefix('tma/api')->group(function () {
         Route::post('/tickets/{ticket}/confirm', [TmaTicketController::class, 'confirmResolution'])->name('tma.tickets.confirm');
         Route::post('/tickets/{ticket}/reopen', [TmaTicketController::class, 'reopenTicket'])->name('tma.tickets.reopen');
         Route::post('/approvals/{approval}/approve', [TmaTicketController::class, 'approveStep'])->name('tma.approvals.approve');
+        Route::post('/approvals/{approval}/escalate', [TmaTicketController::class, 'escalateStep'])->name('tma.approvals.escalate');
+        Route::post('/approvals/{approval}/forward', [TmaTicketController::class, 'forwardStep'])->name('tma.approvals.forward');
         Route::post('/approvals/{approval}/reject', [TmaTicketController::class, 'rejectStep'])->name('tma.approvals.reject');
     });
 });
@@ -88,6 +90,8 @@ Route::prefix('portal')->group(function () {
         Route::post('/tickets/{ticket}/messages', [PortalTicketController::class, 'addMessage'])->name('portal.tickets.messages.store');
         Route::get('/tickets/{ticket}/attachments/{attachment}/download', [PortalTicketController::class, 'downloadAttachment'])->name('portal.attachments.download');
         Route::post('/tickets/{ticket}/approvals/{approval}/approve', [PortalTicketController::class, 'approveStep'])->name('portal.tickets.approvals.approve');
+        Route::post('/tickets/{ticket}/approvals/{approval}/escalate', [PortalTicketController::class, 'escalateStep'])->name('portal.tickets.approvals.escalate');
+        Route::post('/tickets/{ticket}/approvals/{approval}/forward', [PortalTicketController::class, 'forwardStep'])->name('portal.tickets.approvals.forward');
         Route::post('/tickets/{ticket}/approvals/{approval}/reject', [PortalTicketController::class, 'rejectStep'])->name('portal.tickets.approvals.reject');
         Route::post('/tickets/{ticket}/reclassify', [PortalTicketController::class, 'reclassify'])->name('portal.tickets.reclassify');
 
@@ -126,6 +130,8 @@ Route::prefix('portal')->group(function () {
             Route::post('/departments', [PortalAdminController::class, 'storeDepartment'])->name('portal.admin.departments.store');
             Route::put('/departments/{department}', [PortalAdminController::class, 'updateDepartment'])->name('portal.admin.departments.update');
             Route::post('/departments/{department}/approver', [PortalAdminController::class, 'updateDepartmentApprover'])->name('portal.admin.departments.approver');
+            Route::post('/departments/{department}/approvers', [PortalAdminController::class, 'storeDepartmentApprover'])->name('portal.admin.departments.approvers.store');
+            Route::delete('/departments/{department}/approvers/{approver}', [PortalAdminController::class, 'deleteDepartmentApprover'])->name('portal.admin.departments.approvers.destroy');
             Route::post('/departments/{department}/toggle', [PortalAdminController::class, 'toggleDepartment'])->name('portal.admin.departments.toggle');
             Route::delete('/departments/{department}', [PortalAdminController::class, 'destroyDepartment'])->name('portal.admin.departments.destroy');
 
