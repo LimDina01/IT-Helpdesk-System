@@ -70,6 +70,48 @@ class MultiLevelDepartmentApprovalTest extends TestCase
         $this->assertDatabaseMissing('department_approvers', ['id' => $approverCard->id]);
     }
 
+    public function test_admin_can_edit_department_approver_card_and_level(): void
+    {
+        $this->actingAs($this->adminUser);
+
+        $dept = Department::where('code', 'SALES')->firstOrFail();
+
+        $originalUser = User::factory()->create([
+            'name' => 'Jewelry Store Sales Lead',
+            'email' => 'sales.lead@cbvh.com.kh',
+            'is_active' => true,
+        ]);
+
+        $approver = DepartmentApprover::create([
+            'department_id' => $dept->id,
+            'user_id' => $originalUser->id,
+            'level' => 1,
+            'title' => 'Sales Team Leader',
+            'is_active' => true,
+        ]);
+
+        $promotedUser = User::factory()->create([
+            'name' => 'Regional Jewelry Retail Manager',
+            'email' => 'retail.mgr@cbvh.com.kh',
+            'is_active' => true,
+        ]);
+
+        // Edit level from 1 to 4 and change title and assigned user
+        $response = $this->put(route('portal.admin.departments.approvers.update', [$dept->id, $approver->id]), [
+            'user_id' => $promotedUser->id,
+            'level' => 4,
+            'title' => 'Retail General Manager',
+        ]);
+
+        $response->assertRedirect();
+        $response->assertSessionHas('status');
+
+        $approver->refresh();
+        $this->assertEquals(4, $approver->level);
+        $this->assertEquals('Retail General Manager', $approver->title);
+        $this->assertEquals($promotedUser->id, $approver->user_id);
+    }
+
     public function test_option_b_requester_routes_step_1_directly_to_designated_line_manager(): void
     {
         $dept = Department::where('code', 'FIN')->firstOrFail();

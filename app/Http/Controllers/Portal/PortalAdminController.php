@@ -329,10 +329,12 @@ class PortalAdminController extends Controller
         $allRoles = Role::orderBy('id')->get();
         $departments = Department::where('is_active', true)->orderBy('name')->get();
         $branches = Branch::where('is_active', true)->orderBy('name')->get();
-        $lineManagerCandidates = User::where('is_active', true)
-            ->whereHas('roles', fn($r) => $r->whereIn('name', ['hod', 'requester', 'system_admin']))
-            ->orderBy('name')
-            ->get();
+        $lineManagerCandidates = $filter === 'portal'
+            ? collect()
+            : User::where('is_active', true)
+                ->whereHas('roles', fn($r) => $r->whereIn('name', ['hod', 'requester', 'system_admin']))
+                ->orderBy('name')
+                ->get();
 
         return view('portal.admin.users', compact(
             'users',
@@ -838,7 +840,7 @@ class PortalAdminController extends Controller
     }
 
     /**
-     * Add or update a Department Approver Card (Level 1, Level 2, etc.)
+     * Add a Department Approver Card (Level 1, Level 2, etc.)
      */
     public function storeDepartmentApprover(Request $request, Department $department): RedirectResponse
     {
@@ -846,7 +848,7 @@ class PortalAdminController extends Controller
 
         $validated = $request->validate([
             'user_id' => 'required|exists:users,id',
-            'level' => 'required|integer|min:1|max:4',
+            'level' => 'required|integer|min:1|max:20',
             'title' => 'nullable|string|max:100',
         ]);
 
@@ -854,22 +856,53 @@ class PortalAdminController extends Controller
             1 => 'Team Leader',
             2 => 'Supervisor',
             3 => 'Department Manager',
-            default => 'Approver',
+            4 => 'General Manager',
+            5 => 'Director / Executive',
+            default => "Level {$validated['level']} Approver",
         };
 
-        DepartmentApprover::updateOrCreate(
-            [
-                'department_id' => $department->id,
-                'user_id' => $validated['user_id'],
-            ],
-            [
-                'level' => $validated['level'],
-                'title' => !empty($validated['title']) ? $validated['title'] : $defaultTitle,
-                'is_active' => true,
-            ]
-        );
+        DepartmentApprover::create([
+            'department_id' => $department->id,
+            'user_id' => $validated['user_id'],
+            'level' => $validated['level'],
+            'title' => !empty($validated['title']) ? $validated['title'] : $defaultTitle,
+            'is_active' => true,
+        ]);
 
         return back()->with('status', "Approver card added successfully to '{$department->name}'.");
+    }
+
+    /**
+     * Edit / Update an existing Department Approver Card (Level, Title, Assigned User).
+     */
+    public function updateDepartmentApproverCard(Request $request, Department $department, DepartmentApprover $approver): RedirectResponse
+    {
+        abort_unless(Auth::user()->hasRole(['system_admin', 'hod']), 403);
+
+        $validated = $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'level' => 'required|integer|min:1|max:20',
+            'title' => 'nullable|string|max:100',
+        ]);
+
+        if ($approver->department_id === $department->id) {
+            $defaultTitle = match ((int) $validated['level']) {
+                1 => 'Team Leader',
+                2 => 'Supervisor',
+                3 => 'Department Manager',
+                4 => 'General Manager',
+                5 => 'Director / Executive',
+                default => "Level {$validated['level']} Approver",
+            };
+
+            $approver->update([
+                'user_id' => $validated['user_id'],
+                'level' => $validated['level'],
+                'title' => !empty($validated['title']) ? $validated['title'] : $defaultTitle,
+            ]);
+        }
+
+        return back()->with('status', "Approver card updated successfully in '{$department->name}'.");
     }
 
     /**

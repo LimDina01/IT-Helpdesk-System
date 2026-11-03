@@ -131,6 +131,7 @@ Route::prefix('portal')->group(function () {
             Route::put('/departments/{department}', [PortalAdminController::class, 'updateDepartment'])->name('portal.admin.departments.update');
             Route::post('/departments/{department}/approver', [PortalAdminController::class, 'updateDepartmentApprover'])->name('portal.admin.departments.approver');
             Route::post('/departments/{department}/approvers', [PortalAdminController::class, 'storeDepartmentApprover'])->name('portal.admin.departments.approvers.store');
+            Route::put('/departments/{department}/approvers/{approver}', [PortalAdminController::class, 'updateDepartmentApproverCard'])->name('portal.admin.departments.approvers.update');
             Route::delete('/departments/{department}/approvers/{approver}', [PortalAdminController::class, 'deleteDepartmentApprover'])->name('portal.admin.departments.approvers.destroy');
             Route::post('/departments/{department}/toggle', [PortalAdminController::class, 'toggleDepartment'])->name('portal.admin.departments.toggle');
             Route::delete('/departments/{department}', [PortalAdminController::class, 'destroyDepartment'])->name('portal.admin.departments.destroy');

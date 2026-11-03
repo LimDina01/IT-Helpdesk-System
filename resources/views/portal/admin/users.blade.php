@@ -57,7 +57,7 @@
         <div>
             <div class="text-xs text-indigo-600 font-extrabold uppercase tracking-wider">System Administration</div>
             <h1 class="text-xl sm:text-2xl font-black text-slate-900 mt-1">Staff Roster & User Management</h1>
-            <p class="text-xs text-slate-500 mt-0.5">Manage Web Portal IT technical staff as well as bank employees and department approvers for Telegram Mini App.</p>
+            <p class="text-xs text-slate-500 mt-0.5">Manage Web Portal IT technical staff as well as company employees and department approvers for Telegram Mini App.</p>
         </div>
 
         <!-- 2 Distinct Creation Actions -->
@@ -335,7 +335,7 @@
                     <span class="text-2xl">📱</span>
                     <div>
                         <h3 class="text-base font-bold text-slate-900">Register TMA Employee / Requester</h3>
-                        <p class="text-[11px] text-slate-500">Pre-register bank employee for Telegram Mini App & department approval routing.</p>
+                        <p class="text-[11px] text-slate-500">Pre-register company employee for Telegram Mini App & department approval routing.</p>
                     </div>
                 </div>
                 <button type="button" @click="createTmaModal = false" class="text-slate-400 hover:text-slate-600 text-sm font-bold">✕</button>
@@ -409,7 +409,7 @@
                         <select name="line_manager_user_id" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
                             <option value="">-- Auto (Department Approver Card Fallback) --</option>
                             @foreach($lineManagerCandidates as $mgr)
-                                <option value="{{ $mgr->id }}">{{ $mgr->name }} [{{ $mgr->employee?->department?->code ?? 'Staff' }}]</option>
+                                <option value="{{ $mgr->id }}">{{ $mgr->name }} ({{ $mgr->email }})</option>
                             @endforeach
                         </select>
                         <p class="text-[10px] text-slate-400 mt-0.5">Option B: Service requests from this employee route directly to this Team Leader for Level 1 review.</p>
@@ -419,7 +419,7 @@
                 <!-- Row 4: Role Selection in TMA -->
                 <div>
                     <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1.5">TMA Account Roles</label>
-                    <p class="text-[10px] text-slate-400 mb-2">Select roles for this bank employee (Department HODs can hold both Requester and HOD):</p>
+                    <p class="text-[10px] text-slate-400 mb-2">Select roles for this company employee (Department HODs can hold both Requester and HOD):</p>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                         <label class="flex items-start space-x-2.5 p-3 rounded-2xl border border-slate-200 hover:bg-slate-50 cursor-pointer transition">
                             <input type="checkbox" name="roles[]" value="requester" checked class="mt-0.5 rounded text-blue-600 focus:ring-blue-500">
@@ -569,7 +569,7 @@
                     <select name="line_manager_user_id" x-model="editForm.line_manager_user_id" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
                         <option value="">-- Auto (Department Approver Card Fallback) --</option>
                         @foreach($lineManagerCandidates as $mgr)
-                            <option value="{{ $mgr->id }}">{{ $mgr->name }} [{{ $mgr->employee?->department?->code ?? 'Staff' }}]</option>
+                            <option value="{{ $mgr->id }}">{{ $mgr->name }} [{{ $mgr->employee?->department?->code ?? 'STAFF' }}]</option>
                         @endforeach
                     </select>
                     <p class="text-[10px] text-slate-400 mt-0.5">Option B: Service requests from this employee route directly to this Team Leader for Level 1 review.</p>
@@ -637,7 +637,7 @@
                     </div>
                 </div>
 
-                <!-- SECTION B: TMA Employee Configuration (Only shown for TMA bank employees) -->
+                <!-- SECTION B: TMA Employee Configuration (Only shown for TMA company employees) -->
                 <div x-show="!isTargetStaff" class="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
                     <div class="flex items-center justify-between">
                         <div>
@@ -645,7 +645,7 @@
                                 <span>📱</span>
                                 <span>Telegram Mini App (TMA) Scope</span>
                             </div>
-                            <p class="text-[10px] text-slate-500 mt-0.5">Bank employee accessing IT service requests via Telegram Mini App.</p>
+                            <p class="text-[10px] text-slate-500 mt-0.5">Company employee accessing IT service requests via Telegram Mini App.</p>
                         </div>
                         <span class="inline-flex items-center space-x-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200">
                             <span>📱</span>
