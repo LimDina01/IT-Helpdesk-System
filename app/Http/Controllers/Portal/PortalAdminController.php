@@ -35,8 +35,9 @@ class PortalAdminController extends Controller
 
         $branches = Branch::withCount('tickets')->orderBy('code')->get();
         $departments = Department::withCount('employees')->orderBy('name')->get();
+        $itUnits = Department::itUnits()->where('is_active', true)->orderBy('name')->get();
 
-        return view('portal.admin.index', compact('categories', 'branches', 'departments'));
+        return view('portal.admin.index', compact('categories', 'branches', 'departments', 'itUnits'));
     }
 
     /**
@@ -50,6 +51,7 @@ class PortalAdminController extends Controller
             'parent_id' => 'nullable|exists:ticket_categories,id',
             'code' => 'nullable|string|max:20',
             'it_division' => 'nullable|in:opr,prd',
+            'it_department_id' => 'nullable|exists:departments,id',
             'name' => 'required|string|max:100',
             'name_km' => 'nullable|string|max:150',
             'description' => 'nullable|string|max:255',
@@ -97,6 +99,14 @@ class PortalAdminController extends Controller
             $validated['icon_url'] = '/uploads/categories/' . $filename;
         }
 
+        if (!empty($validated['it_department_id'])) {
+            $dept = Department::find($validated['it_department_id']);
+            if ($dept) {
+                $clean = strtolower(str_replace('IT-', '', $dept->code));
+                $validated['it_division'] = in_array($clean, ['opr', 'prd']) ? $clean : ($validated['it_division'] ?? 'opr');
+            }
+        }
+
         $created = TicketCategory::create($validated);
         $typeLabel = $created->parent_id ? 'Subcategory' : 'Parent Category Group';
 
@@ -114,6 +124,7 @@ class PortalAdminController extends Controller
             'parent_id' => 'nullable|exists:ticket_categories,id|not_in:' . $category->id,
             'code' => 'nullable|string|max:20',
             'it_division' => 'nullable|in:opr,prd',
+            'it_department_id' => 'nullable|exists:departments,id',
             'name' => 'required|string|max:100',
             'name_km' => 'nullable|string|max:150',
             'description' => 'nullable|string|max:255',
@@ -173,6 +184,14 @@ class PortalAdminController extends Controller
         // If explicitly set empty, allow removing parent (promoting to root)
         if ($request->has('parent_id') && empty($request->input('parent_id'))) {
             $validated['parent_id'] = null;
+        }
+
+        if (!empty($validated['it_department_id'])) {
+            $dept = Department::find($validated['it_department_id']);
+            if ($dept) {
+                $clean = strtolower(str_replace('IT-', '', $dept->code));
+                $validated['it_division'] = in_array($clean, ['opr', 'prd']) ? $clean : ($validated['it_division'] ?? 'opr');
+            }
         }
 
         $category->update($validated);
@@ -710,9 +729,9 @@ class PortalAdminController extends Controller
     {
         abort_unless(Auth::user()->hasRole(['system_admin', 'hod']), 403);
 
-        $departments = Department::with(['head', 'employees'])
+        $departments = Department::with(['head', 'employees', 'parent', 'children.head'])
             ->withCount('employees')
-            ->orderBy('name')
+            ->orderByRaw("CASE WHEN parent_id IS NULL THEN 0 ELSE 1 END, name ASC")
             ->get();
 
         $branches = Branch::with(['manager', 'employees'])
@@ -720,13 +739,22 @@ class PortalAdminController extends Controller
             ->orderBy('name')
             ->get();
 
+        // Potential parent departments (top-level only)
+        $parentDepartments = Department::whereNull('parent_id')->orderBy('name')->get();
+
+        // IT parent department specifically
+        $itParent = Department::where('code', 'IT')->with(['children.head', 'head'])->first();
+
+        // Dynamic IT sub-units (IT-OPR, IT-PRD, IT-SOL, etc.)
+        $itUnits = Department::itUnits()->with('head')->orderBy('name')->get();
+
         // Eligible candidates to be assigned as HOD or Branch Manager
         $approverCandidates = User::where('is_active', true)
             ->with(['roles', 'employee.department', 'employee.branch'])
             ->orderBy('name')
             ->get();
 
-        return view('portal.admin.organization', compact('departments', 'branches', 'approverCandidates'));
+        return view('portal.admin.organization', compact('departments', 'branches', 'parentDepartments', 'itParent', 'itUnits', 'approverCandidates'));
     }
 
     /**
@@ -739,12 +767,14 @@ class PortalAdminController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:100',
             'code' => 'required|string|max:20|unique:departments,code',
+            'parent_id' => 'nullable|exists:departments,id',
             'head_user_id' => 'nullable|exists:users,id',
         ]);
 
         $dept = Department::create([
             'name' => trim($validated['name']),
             'code' => strtoupper(trim($validated['code'])),
+            'parent_id' => $validated['parent_id'] ?? null,
             'head_user_id' => $validated['head_user_id'] ?? null,
             'is_active' => true,
         ]);
@@ -762,12 +792,14 @@ class PortalAdminController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:100',
             'code' => 'required|string|max:20|unique:departments,code,' . $department->id,
+            'parent_id' => 'nullable|exists:departments,id|not_in:' . $department->id,
             'head_user_id' => 'nullable|exists:users,id',
         ]);
 
         $department->update([
             'name' => trim($validated['name']),
             'code' => strtoupper(trim($validated['code'])),
+            'parent_id' => $validated['parent_id'] ?? null,
             'head_user_id' => $validated['head_user_id'] ?? null,
         ]);
 

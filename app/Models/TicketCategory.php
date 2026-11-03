@@ -23,6 +23,7 @@ class TicketCategory extends Model
         'icon_color',
         'type',
         'it_division',
+        'it_department_id',
         'requires_approval',
         'default_priority',
         'sla_critical_hours',
@@ -67,6 +68,11 @@ class TicketCategory extends Model
     public function children(): HasMany
     {
         return $this->hasMany(TicketCategory::class, 'parent_id');
+    }
+
+    public function itDepartment(): BelongsTo
+    {
+        return $this->belongsTo(Department::class, 'it_department_id');
     }
 
     public function tickets(): HasMany

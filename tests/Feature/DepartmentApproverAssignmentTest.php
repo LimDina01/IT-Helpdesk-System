@@ -39,8 +39,8 @@ class DepartmentApproverAssignmentTest extends TestCase
         $response = $this->get(route('portal.admin.organization'));
         $response->assertStatus(200);
         $response->assertSee('Organization: Departments, Branches & Approvers', false);
-        $response->assertSee('IT Operations Department');
-        $response->assertSee('IT Production Department');
+        $response->assertSee('IT Operations');
+        $response->assertSee('IT Production');
         $response->assertSee('IT-OPR');
         $response->assertSee('IT-PRD');
         $response->assertSee('Designated HOD / Approver');
@@ -232,5 +232,84 @@ class DepartmentApproverAssignmentTest extends TestCase
 
         // System Admin can always approve
         $this->assertTrue($this->approvalService->canUserApprove($this->adminUser, $step2));
+    }
+
+    public function test_dynamic_it_sub_unit_creation_and_approval_routing(): void
+    {
+        $itParent = Department::where('code', 'IT')->firstOrFail();
+
+        // 1. Create a dynamic new IT office / sub-unit (e.g. IT Solutions & Custom Apps)
+        $itSol = Department::create([
+            'name' => 'IT Solutions Office',
+            'code' => 'IT-SOL-NEW',
+            'parent_id' => $itParent->id,
+            'is_active' => true,
+        ]);
+
+        $solHead = User::factory()->create([
+            'name' => 'Solutions Office Head',
+            'email' => 'sol.head@cbvh.com.kh',
+            'is_active' => true,
+        ]);
+        $solHead->roles()->attach(Role::where('name', 'hod')->firstOrFail());
+        $itSol->update(['head_user_id' => $solHead->id]);
+
+        // 2. An OPR head for another office
+        $oprHead = User::factory()->create([
+            'name' => 'Operations Office Head',
+            'email' => 'operations.chief@cbvh.com.kh',
+            'is_active' => true,
+        ]);
+        $oprHead->roles()->attach(Role::where('name', 'hod')->firstOrFail());
+        Department::where('code', 'IT-OPR')->update(['head_user_id' => $oprHead->id]);
+
+        // 3. Category dynamically linked to this new sub-unit
+        $category = TicketCategory::create([
+            'name' => 'Custom Core Banking Modules',
+            'code' => 'SOL-099',
+            'it_division' => 'prd',
+            'it_department_id' => $itSol->id,
+            'requires_approval' => true,
+            'is_active' => true,
+        ]);
+
+        $ticket = Ticket::create([
+            'ticket_code' => 'IT-202611-9994',
+            'subject' => 'Deploy custom loan schedule workflow',
+            'description' => 'Requirement for banking loan schedules',
+            'ticket_type' => 'service_request',
+            'category_id' => $category->id,
+            'it_division' => 'prd',
+            'requester_id' => $this->requesterUser->id,
+            'branch_id' => Branch::firstOrFail()->id,
+            'priority' => 'high',
+            'status' => 'submitted',
+        ]);
+
+        $this->approvalService->createApprovalChain($ticket);
+        $step2 = $ticket->approvals()->where('step_number', 2)->firstOrFail();
+
+        // Step 1 approved
+        $step1 = $ticket->approvals()->where('step_number', 1)->first();
+        if ($step1 && $step1->status === 'pending') {
+            $step1->update(['status' => 'approved', 'actioned_at' => now()]);
+        }
+
+        // Verification:
+        // - Newly designated IT Solutions Head CAN approve this ticket
+        $this->assertTrue($this->approvalService->canUserApprove($solHead, $step2));
+
+        // - Parent IT Head / Admin CAN approve
+        $this->assertTrue($this->approvalService->canUserApprove($this->adminUser, $step2));
+
+        // - Another sub-unit head (Operations) CANNOT approve IT Solutions ticket
+        $this->assertFalse($this->approvalService->canUserApprove($oprHead, $step2));
+
+        // 4. Verify Admin Organization screen displays the nested hierarchy
+        $this->actingAs($this->adminUser);
+        $response = $this->get(route('portal.admin.organization'));
+        $response->assertStatus(200);
+        $response->assertSee('IT Solutions Office');
+        $response->assertSee('Part of Information Technology');
     }
 }

@@ -12,23 +12,28 @@ class ItDivisionClassificationSeeder extends Seeder
 {
     public function run(): void
     {
-        // 1. Ensure IT-OPR and IT-PRD departments exist
-        $itDept = Department::where('code', 'IT')->first();
-        if ($itDept) {
-            $itDept->update([
-                'name' => 'IT Operations (IT-OPR)',
-                'code' => 'IT-OPR',
-            ]);
-        } else {
-            Department::firstOrCreate(
-                ['code' => 'IT-OPR'],
-                ['name' => 'IT Operations (IT-OPR)', 'is_active' => true]
-            );
-        }
+        // 1. Ensure parent Information Technology department exists
+        $adminUser = DB::table('users')->where('email', 'admin@cbvh.com.kh')->first();
+        $itParent = Department::firstOrCreate(
+            ['code' => 'IT'],
+            ['name' => 'Information Technology', 'parent_id' => null, 'head_user_id' => $adminUser?->id, 'is_active' => true]
+        );
 
-        Department::firstOrCreate(
+        // Ensure sub-units (IT-OPR, IT-PRD, IT-SOL) exist under IT parent
+        $oprHead = DB::table('users')->where('email', 'rithyseng.cbvh@gmail.com')->first();
+        $itOpr = Department::updateOrCreate(
+            ['code' => 'IT-OPR'],
+            ['name' => 'IT Operations (IT-OPR)', 'parent_id' => $itParent->id, 'head_user_id' => $oprHead?->id, 'is_active' => true]
+        );
+
+        $itPrd = Department::updateOrCreate(
             ['code' => 'IT-PRD'],
-            ['name' => 'IT Production (IT-PRD)', 'is_active' => true]
+            ['name' => 'IT Production (IT-PRD)', 'parent_id' => $itParent->id, 'head_user_id' => $adminUser?->id, 'is_active' => true]
+        );
+
+        $itSol = Department::firstOrCreate(
+            ['code' => 'IT-SOL'],
+            ['name' => 'IT Solutions & Development (IT-SOL)', 'parent_id' => $itParent->id, 'is_active' => true]
         );
 
         // 2. Map existing top-level parent categories
@@ -237,6 +242,17 @@ class ItDivisionClassificationSeeder extends Seeder
                     ]);
                 }
             }
+        }
+
+        // 5. Link categories to their IT sub-departments
+        $itOprId = Department::where('code', 'IT-OPR')->value('id');
+        $itPrdId = Department::where('code', 'IT-PRD')->value('id');
+
+        if ($itOprId) {
+            TicketCategory::where('it_division', 'opr')->whereNull('it_department_id')->update(['it_department_id' => $itOprId]);
+        }
+        if ($itPrdId) {
+            TicketCategory::where('it_division', 'prd')->whereNull('it_department_id')->update(['it_department_id' => $itPrdId]);
         }
     }
 }

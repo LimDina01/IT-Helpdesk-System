@@ -35,7 +35,7 @@ class TicketApprovalService
         $branchId = $ticket->branch_id ?? $ticket->requester->employee?->branch_id;
         $department = $ticket->requester->employee?->department;
         $deptCode = $department?->code;
-        $isItDept = ($deptCode === 'IT' || $deptCode === 'IT-OPR' || $deptCode === 'IT-PRD' || $deptId == 2 || ($deptCode && str_starts_with($deptCode, 'IT')));
+        $isItDept = ($department && $department->isItDepartment()) || ($deptCode === 'IT' || str_starts_with($deptCode ?? '', 'IT') || $deptId == 2);
 
         // Check if requester's branch & department has a designated HOD (excluding IT Department / IT HOD)
         $hasDeptHod = false;
@@ -236,20 +236,58 @@ class TicketApprovalService
 
         // ========================================================
         // Process 3: IT Department HOD Approval (Final Slot / IT Manager)
-        // Centralized at HQ for all bank branches, split by IT Division (OPR vs PRD)
+        // Centralized at HQ for all bank branches, split dynamically by IT Unit/Division
         // ========================================================
         if ($approval->role_name === 'it_manager' || $approval->step_number === 2 || $approval->step_number === 3) {
             if ($user->hasRole('system_admin')) {
                 return true;
             }
 
-            $itDivision = $ticket->it_division ?? $ticket->category?->it_division ?? 'opr';
-            $targetDeptCode = $itDivision === 'prd' ? 'IT-PRD' : 'IT-OPR';
-            $itDept = \App\Models\Department::where('code', $targetDeptCode)->first();
+            // 1. Resolve Target IT Unit/Sub-Department dynamically
+            $itDept = $ticket->category?->itDepartment;
 
-            // 1. Designated IT Division Head match: Explicitly configured in Admin Portal
+            if (!$itDept) {
+                $itDivision = $ticket->it_division ?? $ticket->category?->it_division;
+                if ($itDivision) {
+                    $targetDeptCode = str_starts_with($itDivision, 'IT-') ? $itDivision : 'IT-' . strtoupper($itDivision);
+                    $itDept = \App\Models\Department::where('code', $targetDeptCode)->first();
+                }
+            }
+
+            // Fallback default to IT-OPR if neither is set
+            if (!$itDept) {
+                $itDept = \App\Models\Department::where('code', 'IT-OPR')->first();
+            }
+
+            // 2. Direct Designated Unit Head match: Explicitly configured in Admin Portal (e.g. IT-OPR, IT-PRD, IT-SOL)
             if ($itDept && $itDept->head_user_id && $user->id === $itDept->head_user_id) {
                 return true;
+            }
+
+            // 3. Parent IT Department Head match: Chief Information Officer / Head of IT (can approve across IT units)
+            $parentItDept = $itDept?->parent ?? \App\Models\Department::where('code', 'IT')->first();
+            if ($parentItDept && $parentItDept->head_user_id && $user->id === $parentItDept->head_user_id) {
+                return true;
+            }
+
+            // If user is explicitly designated as the head of another IT unit, they cannot approve this unit's tickets
+            if ($itDept) {
+                $isHeadOfOtherUnit = \App\Models\Department::where('head_user_id', $user->id)
+                    ->where('id', '!=', $itDept->id)
+                    ->where(function ($q) {
+                        $q->where('code', 'LIKE', 'IT-%')
+                          ->orWhereNotNull('parent_id');
+                    })
+                    ->exists();
+
+                if ($isHeadOfOtherUnit) {
+                    return false;
+                }
+            }
+
+            // If this IT unit has an explicit designated head, only that designated head or parent IT head can approve
+            if ($itDept && $itDept->head_user_id) {
+                return false;
             }
 
             if (!$isItHod) {
@@ -257,19 +295,20 @@ class TicketApprovalService
             }
 
             $userDeptCode = $user->employee?->department?->code;
+            $userDeptId = $user->employee?->department_id;
 
-            // If user belongs specifically to IT-PRD, they approve PRD tickets
-            if ($itDivision === 'prd' && $userDeptCode === 'IT-PRD') {
+            // 4. If user belongs specifically to this IT sub-department
+            if ($itDept && $userDeptId && $userDeptId === $itDept->id) {
                 return true;
             }
 
-            // If user belongs specifically to IT-OPR, they approve OPR tickets
-            if ($itDivision === 'opr' && $userDeptCode === 'IT-OPR') {
+            // 5. Code match for division
+            if ($itDept && $userDeptCode === $itDept->code) {
                 return true;
             }
 
-            // Central IT HOD / System Admin / or general IT without sub-division
-            if (empty($userDeptCode) || in_array($userDeptCode, ['IT', 'IT-OPR', 'IT-PRD']) || $userDeptId == 2) {
+            // 6. Central IT HOD / System Admin / or general IT parent without sub-division
+            if (empty($userDeptCode) || $userDeptCode === 'IT' || $userDeptId == 2) {
                 return true;
             }
 
@@ -492,18 +531,22 @@ class TicketApprovalService
                     ->get();
             }
         } else {
-            // Process: Central IT Department HOD (HQ) & IT HODs (filtered by OPR / PRD)
-            $itDivision = $ticket->it_division ?? $ticket->category?->it_division ?? 'opr';
-            $targetDeptCode = $itDivision === 'prd' ? 'IT-PRD' : 'IT-OPR';
-            $itDept = \App\Models\Department::where('code', $targetDeptCode)->with('head')->first();
+            // Process: Central IT Department HOD (HQ) & IT HODs (filtered by dynamic IT unit: OPR / PRD / SOL / etc.)
+            $itDept = $ticket->category?->itDepartment;
+            if (!$itDept) {
+                $itDivision = $ticket->it_division ?? $ticket->category?->it_division ?? 'opr';
+                $targetDeptCode = str_starts_with($itDivision, 'IT-') ? $itDivision : 'IT-' . strtoupper($itDivision);
+                $itDept = \App\Models\Department::where('code', $targetDeptCode)->with('head')->first();
+            }
 
             if ($itDept && $itDept->head && $itDept->head->telegram_id) {
                 $approvers = collect([$itDept->head]);
             } else {
+                $targetDeptCode = $itDept?->code ?? 'IT-OPR';
                 $approvers = User::whereHas('roles', fn($q) => $q->whereIn('name', ['hod', 'system_admin']))
                     ->where(function ($q) use ($targetDeptCode) {
                         $q->whereDoesntHave('employee')
-                          ->orWhereHas('employee.department', fn($d) => $d->whereIn('code', [$targetDeptCode, 'IT', 'IT-OPR', 'IT-PRD'])->orWhere('id', 2));
+                          ->orWhereHas('employee.department', fn($d) => $d->whereIn('code', [$targetDeptCode, 'IT', 'IT-OPR', 'IT-PRD', 'IT-SOL'])->orWhere('id', 2));
                     })
                     ->whereNotNull('telegram_id')
                     ->get();

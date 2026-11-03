@@ -37,3 +37,4 @@ if ($LASTEXITCODE -eq 0) {
     Write-Host "If your application path on the server is different from '$AppPath'," -ForegroundColor Yellow
     Write-Host "pass the path explicitly: .\deploy.ps1 -AppPath '/your/server/path'`n" -ForegroundColor Yellow
 }
+

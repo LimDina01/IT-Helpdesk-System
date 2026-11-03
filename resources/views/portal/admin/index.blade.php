@@ -147,6 +147,7 @@
         this.editCat.remove_icon_file = 0;
         this.editCat.previewLang = 'en';
         this.editCat.it_division = this.editCat.it_division || 'opr';
+        this.editCat.it_department_id = this.editCat.it_department_id || '';
         this.editCat.default_priority = this.editCat.default_priority || 'medium';
         this.editCat.sla_critical_hours = this.editCat.sla_critical_hours || 4;
         this.editCat.sla_high_hours = this.editCat.sla_high_hours || 8;
@@ -833,9 +834,14 @@
 
                     <div>
                         <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Responsible IT Unit</label>
-                        <select name="it_division" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white font-semibold">
-                            <option value="opr">🛠️ IT-OPR (Operations)</option>
-                            <option value="prd">💻 IT-PRD (Production)</option>
+                        <select name="it_department_id" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white font-semibold">
+                            @if(isset($itUnits) && $itUnits->count() > 0)
+                                @foreach($itUnits as $u)
+                                    <option value="{{ $u->id }}">{{ $u->code }} &bull; {{ $u->name }}</option>
+                                @endforeach
+                            @else
+                                <option value="">🛠️ IT-OPR (Operations)</option>
+                            @endif
                         </select>
                     </div>
 
@@ -1041,9 +1047,14 @@
 
                     <div>
                         <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Responsible IT Unit</label>
-                        <select name="it_division" x-model="editCat.it_division" required class="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 bg-white font-semibold">
-                            <option value="opr">🛠️ IT-OPR (Operations)</option>
-                            <option value="prd">💻 IT-PRD (Production)</option>
+                        <select name="it_department_id" x-model="editCat.it_department_id" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 bg-white font-semibold">
+                            @if(isset($itUnits) && $itUnits->count() > 0)
+                                @foreach($itUnits as $u)
+                                    <option value="{{ $u->id }}">{{ $u->code }} &bull; {{ $u->name }}</option>
+                                @endforeach
+                            @else
+                                <option value="">🛠️ IT-OPR (Operations)</option>
+                            @endif
                         </select>
                     </div>
 
