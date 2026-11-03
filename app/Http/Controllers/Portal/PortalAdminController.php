@@ -710,15 +710,23 @@ class PortalAdminController extends Controller
     {
         abort_unless(Auth::user()->hasRole(['system_admin', 'hod']), 403);
 
-        $departments = Department::withCount('employees')
+        $departments = Department::with(['head', 'employees'])
+            ->withCount('employees')
             ->orderBy('name')
             ->get();
 
-        $branches = Branch::withCount(['employees', 'tickets'])
+        $branches = Branch::with(['manager', 'employees'])
+            ->withCount(['employees', 'tickets'])
             ->orderBy('name')
             ->get();
 
-        return view('portal.admin.organization', compact('departments', 'branches'));
+        // Eligible candidates to be assigned as HOD or Branch Manager
+        $approverCandidates = User::where('is_active', true)
+            ->with(['roles', 'employee.department', 'employee.branch'])
+            ->orderBy('name')
+            ->get();
+
+        return view('portal.admin.organization', compact('departments', 'branches', 'approverCandidates'));
     }
 
     /**
@@ -731,15 +739,17 @@ class PortalAdminController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:100',
             'code' => 'required|string|max:20|unique:departments,code',
+            'head_user_id' => 'nullable|exists:users,id',
         ]);
 
-        Department::create([
+        $dept = Department::create([
             'name' => trim($validated['name']),
             'code' => strtoupper(trim($validated['code'])),
+            'head_user_id' => $validated['head_user_id'] ?? null,
             'is_active' => true,
         ]);
 
-        return back()->with('status', "Department '{$validated['name']}' created successfully.");
+        return back()->with('status', "Department '{$dept->name}' created successfully.");
     }
 
     /**
@@ -752,14 +762,35 @@ class PortalAdminController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:100',
             'code' => 'required|string|max:20|unique:departments,code,' . $department->id,
+            'head_user_id' => 'nullable|exists:users,id',
         ]);
 
         $department->update([
             'name' => trim($validated['name']),
             'code' => strtoupper(trim($validated['code'])),
+            'head_user_id' => $validated['head_user_id'] ?? null,
         ]);
 
         return back()->with('status', "Department '{$department->name}' updated successfully.");
+    }
+
+    /**
+     * Quick-assign or update Department Designated Approver (HOD).
+     */
+    public function updateDepartmentApprover(Request $request, Department $department): RedirectResponse
+    {
+        abort_unless(Auth::user()->hasRole(['system_admin', 'hod']), 403);
+
+        $validated = $request->validate([
+            'head_user_id' => 'nullable|exists:users,id',
+        ]);
+
+        $department->update([
+            'head_user_id' => $validated['head_user_id'] ?? null,
+        ]);
+
+        $approverName = $department->head ? $department->head->name : 'Auto / Role Fallback';
+        return back()->with('status', "Department '{$department->name}' approver updated to {$approverName}.");
     }
 
     /**
@@ -802,15 +833,17 @@ class PortalAdminController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:100',
             'code' => 'required|string|max:20|unique:branches,code',
+            'manager_user_id' => 'nullable|exists:users,id',
         ]);
 
-        Branch::create([
+        $branch = Branch::create([
             'name' => trim($validated['name']),
             'code' => strtoupper(trim($validated['code'])),
+            'manager_user_id' => $validated['manager_user_id'] ?? null,
             'is_active' => true,
         ]);
 
-        return back()->with('status', "Branch '{$validated['name']}' created successfully.");
+        return back()->with('status', "Branch '{$branch->name}' created successfully.");
     }
 
     /**
@@ -823,14 +856,35 @@ class PortalAdminController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:100',
             'code' => 'required|string|max:20|unique:branches,code,' . $branch->id,
+            'manager_user_id' => 'nullable|exists:users,id',
         ]);
 
         $branch->update([
             'name' => trim($validated['name']),
             'code' => strtoupper(trim($validated['code'])),
+            'manager_user_id' => $validated['manager_user_id'] ?? null,
         ]);
 
         return back()->with('status', "Branch '{$branch->name}' updated successfully.");
+    }
+
+    /**
+     * Quick-assign or update Branch Manager / Approver.
+     */
+    public function updateBranchManager(Request $request, Branch $branch): RedirectResponse
+    {
+        abort_unless(Auth::user()->hasRole(['system_admin', 'hod']), 403);
+
+        $validated = $request->validate([
+            'manager_user_id' => 'nullable|exists:users,id',
+        ]);
+
+        $branch->update([
+            'manager_user_id' => $validated['manager_user_id'] ?? null,
+        ]);
+
+        $managerName = $branch->manager ? $branch->manager->name : 'Unassigned';
+        return back()->with('status', "Branch '{$branch->name}' manager updated to {$managerName}.");
     }
 
     /**

@@ -115,7 +115,7 @@ class User extends Authenticatable
 
             $deptCode = $this->employee?->department?->code;
             $deptId = $this->employee?->department_id;
-            if ($deptCode === 'IT' || $deptId == 2) {
+            if ($deptCode === 'IT' || $deptCode === 'IT-OPR' || $deptCode === 'IT-PRD' || $deptId == 2 || ($deptCode && str_starts_with($deptCode, 'IT'))) {
                 return true;
             }
         }
@@ -156,5 +156,15 @@ class User extends Authenticatable
     public function notificationLogs(): HasMany
     {
         return $this->hasMany(NotificationLog::class, 'recipient_user_id');
+    }
+
+    public function headedDepartments(): HasMany
+    {
+        return $this->hasMany(Department::class, 'head_user_id');
+    }
+
+    public function managedBranches(): HasMany
+    {
+        return $this->hasMany(Branch::class, 'manager_user_id');
     }
 }

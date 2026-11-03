@@ -1,26 +1,36 @@
 @extends('portal.layout')
 
-@section('title', 'System Administration - Departments & Branches')
+@section('title', 'System Administration - Departments, Branches & Approver Management')
 
 @section('content')
 <div x-data="{ 
     createDeptModal: false, 
     editDeptModal: false, 
+    assignDeptApproverModal: false,
     createBranchModal: false, 
     editBranchModal: false,
+    assignBranchManagerModal: false,
     targetDept: {}, 
-    targetBranch: {} 
+    targetBranch: {},
+    showWorkflowInfo: false
 }" class="space-y-6">
 
     <!-- Top Admin Header -->
     <div class="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-            <div class="text-xs text-indigo-600 font-extrabold uppercase tracking-wider">System Administration</div>
-            <h1 class="text-xl sm:text-2xl font-black text-slate-900 mt-1">Organization: Departments & Branches</h1>
-            <p class="text-xs text-slate-500 mt-0.5">Manage bank departments for HOD service request approvals and branches for ticket asset routing.</p>
+            <div class="text-xs text-indigo-600 font-extrabold uppercase tracking-wider flex items-center space-x-1.5">
+                <span>⚡</span>
+                <span>System Administration &bull; Approval Routing</span>
+            </div>
+            <h1 class="text-xl sm:text-2xl font-black text-slate-900 mt-1">Organization: Departments, Branches & Approvers</h1>
+            <p class="text-xs text-slate-500 mt-0.5">Explicitly assign designated HODs for Slot 1 service approvals, branch managers, and IT division routing (IT-OPR vs IT-PRD).</p>
         </div>
 
         <div class="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+            <button type="button" @click="showWorkflowInfo = !showWorkflowInfo" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs px-3.5 py-2.5 rounded-xl shadow-xs transition flex items-center space-x-1.5">
+                <span>ℹ️</span>
+                <span x-text="showWorkflowInfo ? 'Hide Workflow' : 'Approval Rules'">Approval Rules</span>
+            </button>
             <button type="button" @click="createDeptModal = true" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3.5 py-2.5 rounded-xl shadow-xs transition flex items-center space-x-1.5">
                 <span>➕</span>
                 <span>Add Department</span>
@@ -48,7 +58,7 @@
         </a>
         <a href="{{ route('portal.admin.organization') }}" class="bg-white text-indigo-600 shadow-xs px-4 py-2 rounded-xl transition flex items-center space-x-1.5">
             <span>🏢</span>
-            <span>Departments & Branches</span>
+            <span>Departments & Approvers</span>
         </a>
     </div>
 
@@ -67,7 +77,193 @@
         </div>
     @endif
 
-    <!-- Two-Column Organization Layout: Departments vs Branches -->
+    <!-- Workflow Architecture Guide (Collapsible) -->
+    <div x-show="showWorkflowInfo" x-transition class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-6 text-white shadow-xl space-y-4">
+        <div class="flex items-center justify-between border-b border-white/10 pb-3">
+            <div class="flex items-center space-x-2">
+                <span class="text-xl">🔀</span>
+                <div>
+                    <h3 class="text-sm font-bold text-white uppercase tracking-wider">3-Slot Approval Architecture Overview</h3>
+                    <p class="text-xs text-slate-300">How service requests and approval-required tickets are routed through the bank hierarchy</p>
+                </div>
+            </div>
+            <button type="button" @click="showWorkflowInfo = false" class="text-slate-400 hover:text-white text-xs font-bold">✕ Close</button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <!-- Slot 1 -->
+            <div class="bg-white/10 rounded-2xl p-4 border border-white/10 space-y-2">
+                <div class="flex items-center justify-between">
+                    <span class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-indigo-500/30 text-indigo-200 border border-indigo-400/30">Slot 1</span>
+                    <span class="text-xs">👔</span>
+                </div>
+                <h4 class="text-xs font-black text-white">Requester Department HOD</h4>
+                <p class="text-[11px] text-slate-300 leading-relaxed">
+                    Evaluates business justification. Routes to the <strong>Designated HOD</strong> configured on the department. If requester is in IT, this step is automatically bypassed.
+                </p>
+            </div>
+
+            <!-- Slot 2 -->
+            <div class="bg-white/10 rounded-2xl p-4 border border-white/10 space-y-2">
+                <div class="flex items-center justify-between">
+                    <span class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-amber-500/30 text-amber-200 border border-amber-400/30">Slot 2</span>
+                    <span class="text-xs">🏢</span>
+                </div>
+                <h4 class="text-xs font-black text-white">Branch Manager (Intermediate)</h4>
+                <p class="text-[11px] text-slate-300 leading-relaxed">
+                    Branch-level endorsement. Routes to the <strong>Branch Manager</strong> configured on the branch. Auto-skipped by default unless branch endorsement is required.
+                </p>
+            </div>
+
+            <!-- Slot 3 -->
+            <div class="bg-white/10 rounded-2xl p-4 border border-white/10 space-y-2">
+                <div class="flex items-center justify-between">
+                    <span class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-emerald-500/30 text-emerald-200 border border-emerald-400/30">Slot 3</span>
+                    <span class="text-xs">🛡️</span>
+                </div>
+                <h4 class="text-xs font-black text-white">IT Final Approver (OPR vs PRD)</h4>
+                <p class="text-[11px] text-slate-300 leading-relaxed">
+                    Technical feasibility signoff:
+                    <br>&bull; <strong>IT-OPR</strong> routes to IT Operations Head (Hardware, Network, Mail)
+                    <br>&bull; <strong>IT-PRD</strong> routes to IT Production Head (Core Banking, Database, Server)
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- IT DIVISION HEADS SPOTLIGHT (OPR vs PRD)                  -->
+    <!-- ======================================================== -->
+    @php
+        $oprDept = $departments->firstWhere('code', 'IT-OPR');
+        $prdDept = $departments->firstWhere('code', 'IT-PRD');
+    @endphp
+    <div class="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+            <div>
+                <div class="flex items-center space-x-2">
+                    <span class="text-lg">🛡️</span>
+                    <h2 class="text-sm font-bold text-slate-900">IT Department Approval Division: Operations vs Production</h2>
+                </div>
+                <p class="text-[11px] text-slate-400 mt-0.5">Tickets requiring IT HOD approval (Slot 3) are automatically split and routed to either IT-OPR or IT-PRD based on category classification.</p>
+            </div>
+            <span class="text-[11px] font-bold text-indigo-600 bg-indigo-50 border border-indigo-200/60 px-3 py-1 rounded-full w-fit">Slot 3 Routing Engine</span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- IT Operations (IT-OPR) -->
+            <div class="p-4 rounded-2xl border {{ $oprDept && $oprDept->head ? 'border-indigo-200 bg-indigo-50/30' : 'border-amber-200 bg-amber-50/30' }} flex flex-col justify-between space-y-3">
+                <div>
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-2">
+                            <span class="px-2 py-0.5 rounded-md text-[11px] font-black font-mono bg-indigo-100 text-indigo-800 border border-indigo-200">IT-OPR</span>
+                            <span class="text-xs font-bold text-slate-900">IT Operations Department</span>
+                        </div>
+                        <span class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full {{ $oprDept && $oprDept->is_active ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800' }}">
+                            {{ $oprDept && $oprDept->is_active ? 'Active' : 'Inactive' }}
+                        </span>
+                    </div>
+                    <p class="text-[11px] text-slate-500 mt-1">Scope: End-user workstations, printers, office network, VPN, emails, MS Office, basic hardware.</p>
+
+                    <div class="mt-3 p-3 bg-white rounded-xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-8 h-8 rounded-full bg-indigo-600 text-white font-bold text-xs flex items-center justify-center">
+                                {{ $oprDept && $oprDept->head ? strtoupper(substr($oprDept->head->name, 0, 2)) : '??' }}
+                            </div>
+                            <div>
+                                <div class="text-xs font-bold text-slate-900">
+                                    {{ $oprDept && $oprDept->head ? $oprDept->head->name : 'No Designated Approver' }}
+                                </div>
+                                <div class="text-[11px] text-slate-400">
+                                    {{ $oprDept && $oprDept->head ? $oprDept->head->email : 'Will fallback to any user with hod role' }}
+                                </div>
+                            </div>
+                        </div>
+                        @if($oprDept && $oprDept->head && $oprDept->head->telegram_id)
+                            <span class="text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full flex items-center space-x-1">
+                                <span>📱</span>
+                                <span>Telegram Linked</span>
+                            </span>
+                        @elseif($oprDept && $oprDept->head)
+                            <span class="text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full flex items-center space-x-1">
+                                <span>⚠️</span>
+                                <span>No Telegram</span>
+                            </span>
+                        @endif
+                    </div>
+                </div>
+
+                @if($oprDept)
+                    <div class="pt-2 border-t border-slate-100 flex items-center justify-end">
+                        <button type="button" 
+                                @click="targetDept = {{ json_encode($oprDept) }}; assignDeptApproverModal = true"
+                                class="text-xs font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-xl transition flex items-center space-x-1">
+                            <span>👤</span>
+                            <span>Change IT-OPR Head</span>
+                        </button>
+                    </div>
+                @endif
+            </div>
+
+            <!-- IT Production (IT-PRD) -->
+            <div class="p-4 rounded-2xl border {{ $prdDept && $prdDept->head ? 'border-purple-200 bg-purple-50/30' : 'border-amber-200 bg-amber-50/30' }} flex flex-col justify-between space-y-3">
+                <div>
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-2">
+                            <span class="px-2 py-0.5 rounded-md text-[11px] font-black font-mono bg-purple-100 text-purple-800 border border-purple-200">IT-PRD</span>
+                            <span class="text-xs font-bold text-slate-900">IT Production Department</span>
+                        </div>
+                        <span class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full {{ $prdDept && $prdDept->is_active ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800' }}">
+                            {{ $prdDept && $prdDept->is_active ? 'Active' : 'Inactive' }}
+                        </span>
+                    </div>
+                    <p class="text-[11px] text-slate-500 mt-1">Scope: Core banking system, SQL database queries/updates, production servers, cloud infra, APIs.</p>
+
+                    <div class="mt-3 p-3 bg-white rounded-xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-8 h-8 rounded-full bg-purple-600 text-white font-bold text-xs flex items-center justify-center">
+                                {{ $prdDept && $prdDept->head ? strtoupper(substr($prdDept->head->name, 0, 2)) : '??' }}
+                            </div>
+                            <div>
+                                <div class="text-xs font-bold text-slate-900">
+                                    {{ $prdDept && $prdDept->head ? $prdDept->head->name : 'No Designated Approver' }}
+                                </div>
+                                <div class="text-[11px] text-slate-400">
+                                    {{ $prdDept && $prdDept->head ? $prdDept->head->email : 'Will fallback to admin / IT manager' }}
+                                </div>
+                            </div>
+                        </div>
+                        @if($prdDept && $prdDept->head && $prdDept->head->telegram_id)
+                            <span class="text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full flex items-center space-x-1">
+                                <span>📱</span>
+                                <span>Telegram Linked</span>
+                            </span>
+                        @elseif($prdDept && $prdDept->head)
+                            <span class="text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full flex items-center space-x-1">
+                                <span>⚠️</span>
+                                <span>No Telegram</span>
+                            </span>
+                        @endif
+                    </div>
+                </div>
+
+                @if($prdDept)
+                    <div class="pt-2 border-t border-slate-100 flex items-center justify-end">
+                        <button type="button" 
+                                @click="targetDept = {{ json_encode($prdDept) }}; assignDeptApproverModal = true"
+                                class="text-xs font-bold text-purple-600 hover:text-purple-800 bg-purple-50 hover:bg-purple-100 px-3 py-1.5 rounded-xl transition flex items-center space-x-1">
+                            <span>👤</span>
+                            <span>Change IT-PRD Head</span>
+                        </button>
+                    </div>
+                @endif
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- TWO-COLUMN LAYOUT: DEPARTMENTS VS BRANCHES  -->
+    <!-- ========================================== -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
         <!-- ========================================== -->
@@ -79,10 +275,10 @@
                     <div>
                         <div class="flex items-center space-x-2">
                             <span class="text-lg">🏛️</span>
-                            <h2 class="text-sm font-bold text-slate-900">Company Departments</h2>
+                            <h2 class="text-sm font-bold text-slate-900">Company Departments & Designated Approvers</h2>
                             <span class="text-[10px] font-extrabold bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full border border-indigo-200/60">{{ $departments->count() }}</span>
                         </div>
-                        <p class="text-[11px] text-slate-400 mt-0.5">Used for Department HOD service approvals in Telegram Mini App.</p>
+                        <p class="text-[11px] text-slate-400 mt-0.5">Assigned HOD approves Slot 1 service requests for their department staff.</p>
                     </div>
                     <button type="button" @click="createDeptModal = true" class="text-xs text-indigo-600 hover:text-indigo-800 font-bold flex items-center space-x-1">
                         <span>➕ Add</span>
@@ -93,38 +289,65 @@
                     <table class="w-full text-left text-xs">
                         <thead class="bg-slate-50 text-slate-500 font-bold uppercase tracking-wider text-[10px] border-b border-slate-200">
                             <tr>
-                                <th class="py-3 px-5">Department Name</th>
-                                <th class="py-3 px-3">Code</th>
-                                <th class="py-3 px-3 text-center">Staff Count</th>
+                                <th class="py-3 px-4">Department & Code</th>
+                                <th class="py-3 px-3">Designated HOD / Approver</th>
+                                <th class="py-3 px-3 text-center">Staff</th>
                                 <th class="py-3 px-3">Status</th>
-                                <th class="py-3 px-5 text-right">Actions</th>
+                                <th class="py-3 px-4 text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100">
                             @forelse($departments as $dept)
                                 <tr class="hover:bg-slate-50/70 transition">
-                                    <td class="py-3 px-5 font-bold text-slate-800 whitespace-nowrap">
-                                        {{ $dept->name }}
-                                    </td>
-                                    <td class="py-3 px-3 font-mono text-indigo-700 font-bold whitespace-nowrap">
-                                        <span class="bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-md text-[11px]">
+                                    <td class="py-3 px-4 whitespace-nowrap">
+                                        <div class="font-bold text-slate-900">{{ $dept->name }}</div>
+                                        <span class="inline-block mt-0.5 font-mono text-indigo-700 font-bold text-[10px] bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 rounded">
                                             {{ $dept->code }}
                                         </span>
                                     </td>
+
+                                    <td class="py-3 px-3 whitespace-nowrap">
+                                        @if($dept->head)
+                                            <div class="flex items-center space-x-2">
+                                                <div class="w-7 h-7 rounded-full bg-slate-800 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
+                                                    {{ strtoupper(substr($dept->head->name, 0, 2)) }}
+                                                </div>
+                                                <div>
+                                                    <div class="font-bold text-slate-800 text-xs">{{ $dept->head->name }}</div>
+                                                    <div class="text-[10px] text-slate-400">{{ $dept->head->email }}</div>
+                                                </div>
+                                            </div>
+                                        @else
+                                            <button type="button" 
+                                                    @click="targetDept = {{ json_encode($dept) }}; assignDeptApproverModal = true"
+                                                    class="inline-flex items-center space-x-1 text-[11px] font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-2 py-0.5 rounded-full transition">
+                                                <span>⚡ Auto (Role Fallback)</span>
+                                            </button>
+                                        @endif
+                                    </td>
+
                                     <td class="py-3 px-3 text-center whitespace-nowrap">
                                         <span class="text-slate-600 font-semibold bg-slate-100 px-2 py-0.5 rounded-full text-[11px]">
-                                            {{ $dept->employees_count }} staff
+                                            {{ $dept->employees_count }}
                                         </span>
                                     </td>
+
                                     <td class="py-3 px-3 whitespace-nowrap">
                                         <span class="text-[10px] font-bold px-2 py-0.5 rounded-full border {{ $dept->is_active ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200' }}">
                                             {{ $dept->is_active ? 'Active' : 'Suspended' }}
                                         </span>
                                     </td>
-                                    <td class="py-3 px-5 text-right whitespace-nowrap space-x-2">
+
+                                    <td class="py-3 px-4 text-right whitespace-nowrap space-x-1.5">
+                                        <button type="button" 
+                                                @click="targetDept = {{ json_encode($dept) }}; assignDeptApproverModal = true"
+                                                class="text-[11px] text-indigo-600 hover:text-indigo-800 font-bold bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-lg transition"
+                                                title="Assign or Change Approver">
+                                            👤 Approver
+                                        </button>
                                         <button type="button" 
                                                 @click="targetDept = {{ json_encode($dept) }}; editDeptModal = true"
-                                                class="text-[11px] text-indigo-600 hover:underline font-semibold">
+                                                class="text-[11px] text-slate-600 hover:text-slate-900 font-semibold">
                                             Edit
                                         </button>
                                         <form method="POST" action="{{ route('portal.admin.departments.toggle', $dept->id) }}" class="inline-block">
@@ -167,7 +390,7 @@
                             <h2 class="text-sm font-bold text-slate-900">Branches & Offices</h2>
                             <span class="text-[10px] font-extrabold bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full border border-emerald-200/60">{{ $branches->count() }}</span>
                         </div>
-                        <p class="text-[11px] text-slate-400 mt-0.5">Physical banking branch locations for on-site hardware and IT routing.</p>
+                        <p class="text-[11px] text-slate-400 mt-0.5">Physical branches for hardware routing & optional Slot 2 endorsement.</p>
                     </div>
                     <button type="button" @click="createBranchModal = true" class="text-xs text-emerald-600 hover:text-emerald-800 font-bold flex items-center space-x-1">
                         <span>➕ Add</span>
@@ -178,38 +401,65 @@
                     <table class="w-full text-left text-xs">
                         <thead class="bg-slate-50 text-slate-500 font-bold uppercase tracking-wider text-[10px] border-b border-slate-200">
                             <tr>
-                                <th class="py-3 px-5">Branch Name</th>
-                                <th class="py-3 px-3">Code</th>
+                                <th class="py-3 px-4">Branch & Code</th>
+                                <th class="py-3 px-3">Branch Manager</th>
                                 <th class="py-3 px-3 text-center">Staff & Tickets</th>
                                 <th class="py-3 px-3">Status</th>
-                                <th class="py-3 px-5 text-right">Actions</th>
+                                <th class="py-3 px-4 text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100">
                             @forelse($branches as $branch)
                                 <tr class="hover:bg-slate-50/70 transition">
-                                    <td class="py-3 px-5 font-bold text-slate-800 whitespace-nowrap">
-                                        {{ $branch->name }}
-                                    </td>
-                                    <td class="py-3 px-3 font-mono text-emerald-700 font-bold whitespace-nowrap">
-                                        <span class="bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-md text-[11px]">
+                                    <td class="py-3 px-4 whitespace-nowrap">
+                                        <div class="font-bold text-slate-900">{{ $branch->name }}</div>
+                                        <span class="inline-block mt-0.5 font-mono text-emerald-700 font-bold text-[10px] bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded">
                                             {{ $branch->code }}
                                         </span>
                                     </td>
+
+                                    <td class="py-3 px-3 whitespace-nowrap">
+                                        @if($branch->manager)
+                                            <div class="flex items-center space-x-2">
+                                                <div class="w-7 h-7 rounded-full bg-emerald-800 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
+                                                    {{ strtoupper(substr($branch->manager->name, 0, 2)) }}
+                                                </div>
+                                                <div>
+                                                    <div class="font-bold text-slate-800 text-xs">{{ $branch->manager->name }}</div>
+                                                    <div class="text-[10px] text-slate-400">{{ $branch->manager->email }}</div>
+                                                </div>
+                                            </div>
+                                        @else
+                                            <button type="button" 
+                                                    @click="targetBranch = {{ json_encode($branch) }}; assignBranchManagerModal = true"
+                                                    class="inline-flex items-center space-x-1 text-[11px] font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 border border-slate-200 px-2 py-0.5 rounded-full transition">
+                                                <span>➕ Assign Manager</span>
+                                            </button>
+                                        @endif
+                                    </td>
+
                                     <td class="py-3 px-3 text-center whitespace-nowrap">
                                         <span class="text-slate-600 font-semibold bg-slate-100 px-2 py-0.5 rounded-full text-[11px]">
                                             {{ $branch->employees_count }} staff &bull; {{ $branch->tickets_count }} tickets
                                         </span>
                                     </td>
+
                                     <td class="py-3 px-3 whitespace-nowrap">
                                         <span class="text-[10px] font-bold px-2 py-0.5 rounded-full border {{ $branch->is_active ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200' }}">
                                             {{ $branch->is_active ? 'Active' : 'Suspended' }}
                                         </span>
                                     </td>
-                                    <td class="py-3 px-5 text-right whitespace-nowrap space-x-2">
+
+                                    <td class="py-3 px-4 text-right whitespace-nowrap space-x-1.5">
+                                        <button type="button" 
+                                                @click="targetBranch = {{ json_encode($branch) }}; assignBranchManagerModal = true"
+                                                class="text-[11px] text-emerald-600 hover:text-emerald-800 font-bold bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-lg transition"
+                                                title="Assign or Change Manager">
+                                            👤 Manager
+                                        </button>
                                         <button type="button" 
                                                 @click="targetBranch = {{ json_encode($branch) }}; editBranchModal = true"
-                                                class="text-[11px] text-emerald-600 hover:underline font-semibold">
+                                                class="text-[11px] text-slate-600 hover:text-slate-900 font-semibold">
                                             Edit
                                         </button>
                                         <form method="POST" action="{{ route('portal.admin.branches.toggle', $branch->id) }}" class="inline-block">
@@ -252,7 +502,7 @@
                     <span class="text-xl">🏛️</span>
                     <div>
                         <h3 class="text-base font-bold text-slate-900">Add New Department</h3>
-                        <p class="text-[11px] text-slate-500">Departments group employees for HOD approvals.</p>
+                        <p class="text-[11px] text-slate-500">Departments group employees for HOD service request approvals.</p>
                     </div>
                 </div>
                 <button type="button" @click="createDeptModal = false" class="text-slate-400 hover:text-slate-600 text-sm font-bold">✕</button>
@@ -268,7 +518,20 @@
                 <div>
                     <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Department Code</label>
                     <input type="text" name="code" required placeholder="e.g. RISK" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono uppercase">
-                    <p class="text-[10px] text-slate-400 mt-0.5">Short unique identifier (e.g. OPS, FIN, IT, HR).</p>
+                    <p class="text-[10px] text-slate-400 mt-0.5">Short unique identifier (e.g. OPS, FIN, IT-OPR, IT-PRD).</p>
+                </div>
+
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Designated Approver (HOD)</label>
+                    <select name="head_user_id" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+                        <option value="">-- Auto / Role Fallback (No Designated User) --</option>
+                        @foreach($approverCandidates as $candidate)
+                            <option value="{{ $candidate->id }}">
+                                {{ $candidate->name }} ({{ $candidate->email }}) [{{ $candidate->roles->pluck('name')->join(', ') }}]
+                            </option>
+                        @endforeach
+                    </select>
+                    <p class="text-[10px] text-slate-400 mt-0.5">Primary approver for Slot 1 tickets from this department.</p>
                 </div>
 
                 <div class="flex justify-end space-x-2 pt-3 border-t border-slate-100">
@@ -308,6 +571,18 @@
                     <input type="text" name="code" required :value="targetDept.code" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono uppercase">
                 </div>
 
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Designated Approver (HOD)</label>
+                    <select name="head_user_id" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+                        <option value="">-- Auto / Role Fallback (No Designated User) --</option>
+                        @foreach($approverCandidates as $candidate)
+                            <option value="{{ $candidate->id }}" :selected="targetDept.head_user_id == {{ $candidate->id }}">
+                                {{ $candidate->name }} ({{ $candidate->email }}) [{{ $candidate->roles->pluck('name')->join(', ') }}]
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+
                 <div class="flex justify-end space-x-2 pt-3 border-t border-slate-100">
                     <button type="button" @click="editDeptModal = false" class="px-4 py-2 text-xs text-slate-600 font-semibold hover:bg-slate-100 rounded-xl transition">Cancel</button>
                     <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-xs transition">Update Department</button>
@@ -317,7 +592,48 @@
     </div>
 
     <!-- ========================================== -->
-    <!-- MODAL 3: ADD BRANCH                        -->
+    <!-- MODAL 3: QUICK ASSIGN DEPARTMENT APPROVER  -->
+    <!-- ========================================== -->
+    <div x-show="assignDeptApproverModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4" x-cloak>
+        <div @click.away="assignDeptApproverModal = false" class="bg-white rounded-3xl max-w-md w-full shadow-2xl p-6 space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div class="flex items-center space-x-2">
+                    <span class="text-xl">👤</span>
+                    <div>
+                        <h3 class="text-base font-bold text-slate-900">Assign Designated Approver (HOD)</h3>
+                        <p class="text-[11px] text-slate-500" x-text="targetDept.name + ' (' + targetDept.code + ')'"></p>
+                    </div>
+                </div>
+                <button type="button" @click="assignDeptApproverModal = false" class="text-slate-400 hover:text-slate-600 text-sm font-bold">✕</button>
+            </div>
+            
+            <form :action="'{{ url('portal/admin/departments') }}/' + targetDept.id + '/approver'" method="POST" class="space-y-4">
+                @csrf
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Designated Head of Department</label>
+                    <select name="head_user_id" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+                        <option value="">-- Remove Designated Approver (Use Role Fallback) --</option>
+                        @foreach($approverCandidates as $candidate)
+                            <option value="{{ $candidate->id }}" :selected="targetDept.head_user_id == {{ $candidate->id }}">
+                                {{ $candidate->name }} ({{ $candidate->email }}) [{{ $candidate->roles->pluck('name')->join(', ') }}]
+                            </option>
+                        @endforeach
+                    </select>
+                    <p class="text-[10px] text-slate-400 mt-1">
+                        When set, tickets submitted by employees of this department will route directly to this user for Slot 1 approval.
+                    </p>
+                </div>
+
+                <div class="flex justify-end space-x-2 pt-3 border-t border-slate-100">
+                    <button type="button" @click="assignDeptApproverModal = false" class="px-4 py-2 text-xs text-slate-600 font-semibold hover:bg-slate-100 rounded-xl transition">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-xs transition">Save Approver</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODAL 4: ADD BRANCH                        -->
     <!-- ========================================== -->
     <div x-show="createBranchModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4" x-cloak>
         <div @click.away="createBranchModal = false" class="bg-white rounded-3xl max-w-md w-full shadow-2xl p-6 space-y-4">
@@ -341,8 +657,20 @@
 
                 <div>
                     <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Branch Code</label>
-                    <input type="text" name="code" required placeholder="e.g. BB-01" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono uppercase">
-                    <p class="text-[10px] text-slate-400 mt-0.5">Short unique identifier (e.g. HQ-PP, TK-01, SR-01).</p>
+                    <input type="text" name="code" required placeholder="e.g. BTB-01" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono uppercase">
+                    <p class="text-[10px] text-slate-400 mt-0.5">Short unique identifier (e.g. HQ-PP, BT-PP, BTB-01, VH-SR).</p>
+                </div>
+
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Branch Manager / Approver</label>
+                    <select name="manager_user_id" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
+                        <option value="">-- Unassigned (No Manager) --</option>
+                        @foreach($approverCandidates as $candidate)
+                            <option value="{{ $candidate->id }}">
+                                {{ $candidate->name }} ({{ $candidate->email }}) [{{ $candidate->roles->pluck('name')->join(', ') }}]
+                            </option>
+                        @endforeach
+                    </select>
                 </div>
 
                 <div class="flex justify-end space-x-2 pt-3 border-t border-slate-100">
@@ -354,7 +682,7 @@
     </div>
 
     <!-- ========================================== -->
-    <!-- MODAL 4: EDIT BRANCH                       -->
+    <!-- MODAL 5: EDIT BRANCH                       -->
     <!-- ========================================== -->
     <div x-show="editBranchModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4" x-cloak>
         <div @click.away="editBranchModal = false" class="bg-white rounded-3xl max-w-md w-full shadow-2xl p-6 space-y-4">
@@ -382,9 +710,62 @@
                     <input type="text" name="code" required :value="targetBranch.code" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono uppercase">
                 </div>
 
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Branch Manager / Approver</label>
+                    <select name="manager_user_id" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
+                        <option value="">-- Unassigned (No Manager) --</option>
+                        @foreach($approverCandidates as $candidate)
+                            <option value="{{ $candidate->id }}" :selected="targetBranch.manager_user_id == {{ $candidate->id }}">
+                                {{ $candidate->name }} ({{ $candidate->email }}) [{{ $candidate->roles->pluck('name')->join(', ') }}]
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+
                 <div class="flex justify-end space-x-2 pt-3 border-t border-slate-100">
                     <button type="button" @click="editBranchModal = false" class="px-4 py-2 text-xs text-slate-600 font-semibold hover:bg-slate-100 rounded-xl transition">Cancel</button>
                     <button type="submit" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition">Update Branch</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODAL 6: QUICK ASSIGN BRANCH MANAGER       -->
+    <!-- ========================================== -->
+    <div x-show="assignBranchManagerModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4" x-cloak>
+        <div @click.away="assignBranchManagerModal = false" class="bg-white rounded-3xl max-w-md w-full shadow-2xl p-6 space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div class="flex items-center space-x-2">
+                    <span class="text-xl">👤</span>
+                    <div>
+                        <h3 class="text-base font-bold text-slate-900">Assign Branch Manager</h3>
+                        <p class="text-[11px] text-slate-500" x-text="targetBranch.name + ' (' + targetBranch.code + ')'"></p>
+                    </div>
+                </div>
+                <button type="button" @click="assignBranchManagerModal = false" class="text-slate-400 hover:text-slate-600 text-sm font-bold">✕</button>
+            </div>
+            
+            <form :action="'{{ url('portal/admin/branches') }}/' + targetBranch.id + '/manager'" method="POST" class="space-y-4">
+                @csrf
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Designated Branch Manager</label>
+                    <select name="manager_user_id" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
+                        <option value="">-- Remove Manager (Unassigned) --</option>
+                        @foreach($approverCandidates as $candidate)
+                            <option value="{{ $candidate->id }}" :selected="targetBranch.manager_user_id == {{ $candidate->id }}">
+                                {{ $candidate->name }} ({{ $candidate->email }}) [{{ $candidate->roles->pluck('name')->join(', ') }}]
+                            </option>
+                        @endforeach
+                    </select>
+                    <p class="text-[10px] text-slate-400 mt-1">
+                        Assigned manager can approve Slot 2 intermediate branch endorsement steps.
+                    </p>
+                </div>
+
+                <div class="flex justify-end space-x-2 pt-3 border-t border-slate-100">
+                    <button type="button" @click="assignBranchManagerModal = false" class="px-4 py-2 text-xs text-slate-600 font-semibold hover:bg-slate-100 rounded-xl transition">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition">Save Manager</button>
                 </div>
             </form>
         </div>

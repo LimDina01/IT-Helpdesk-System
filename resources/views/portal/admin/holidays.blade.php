@@ -35,7 +35,7 @@
         </a>
         <a href="{{ route('portal.admin.organization') }}" class="text-slate-600 hover:text-slate-900 px-4 py-2 rounded-xl transition flex items-center space-x-1.5">
             <span>🏢</span>
-            <span>Departments & Branches</span>
+            <span>Departments & Approvers</span>
         </a>
     </div>
 

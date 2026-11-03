@@ -33,15 +33,21 @@ class TicketApprovalService
 
         $deptId = $ticket->requester->employee?->department_id;
         $branchId = $ticket->branch_id ?? $ticket->requester->employee?->branch_id;
-        $deptCode = $ticket->requester->employee?->department?->code;
+        $department = $ticket->requester->employee?->department;
+        $deptCode = $department?->code;
         $isItDept = ($deptCode === 'IT' || $deptCode === 'IT-OPR' || $deptCode === 'IT-PRD' || $deptId == 2 || ($deptCode && str_starts_with($deptCode, 'IT')));
 
         // Check if requester's branch & department has a designated HOD (excluding IT Department / IT HOD)
-        $hasDeptHod = !$isItDept && $deptId && $branchId && User::whereHas('roles', fn($q) => $q->where('name', 'hod'))
-            ->whereNotNull('employee_id')
-            ->where('email', '!=', 'admin@cbvh.com.kh')
-            ->whereHas('employee', fn($q) => $q->where('department_id', $deptId)->where('branch_id', $branchId))
-            ->exists();
+        $hasDeptHod = false;
+        if (!$isItDept && $department && $department->head_user_id) {
+            $hasDeptHod = true;
+        } elseif (!$isItDept && $deptId && $branchId) {
+            $hasDeptHod = User::whereHas('roles', fn($q) => $q->where('name', 'hod'))
+                ->whereNotNull('employee_id')
+                ->where('email', '!=', 'admin@cbvh.com.kh')
+                ->whereHas('employee', fn($q) => $q->where('department_id', $deptId)->where('branch_id', $branchId))
+                ->exists();
+        }
 
         $itDivision = $ticket->it_division ?? $ticket->category?->it_division ?? 'opr';
         $itStepName = $itDivision === 'prd' ? 'IT Production Manager Approval' : 'IT Operations Manager Approval';
@@ -175,16 +181,24 @@ class TicketApprovalService
         // ========================================================
         if ($approval->role_name === 'department_hod' || ($approval->step_number === 1 && empty($approval->role_name))) {
             $targetDeptId = $approval->department_id ?? $ticket->requester->employee?->department_id;
-            $targetDeptCode = $ticket->requester->employee?->department?->code;
+            $targetDept = $targetDeptId ? \App\Models\Department::find($targetDeptId) : null;
+            $targetDeptCode = $targetDept?->code ?? $ticket->requester->employee?->department?->code;
 
             // IT HOD cannot approve Step 1 for business departments (Operations, Finance, Sales, HR, etc.)
-            if ($isItHod && $targetDeptCode !== 'IT' && $targetDeptId != 2) {
-                return false;
+            if ($isItHod && !in_array($targetDeptCode, ['IT', 'IT-OPR', 'IT-PRD']) && $targetDeptId != 2) {
+                if (!$targetDept || $targetDept->head_user_id !== $user->id) {
+                    return false;
+                }
+            }
+
+            // 1. Direct Designated Approver Match: Explicitly configured in Admin Portal
+            if ($targetDept && $targetDept->head_user_id) {
+                return $user->id === $targetDept->head_user_id;
             }
 
             $targetBranchId = $approval->branch_id ?? $ticket->branch_id ?? $ticket->requester->employee?->branch_id;
 
-            // Direct match ONLY: User MUST be the designated HOD of the requester's department AND branch
+            // 2. Direct match fallback: User MUST be the HOD of the requester's department AND branch
             if ($userDeptId && $targetDeptId && $userDeptId === $targetDeptId
                 && $userBranchId && $targetBranchId && $userBranchId === $targetBranchId
                 && $user->hasRole('hod')) {
@@ -200,13 +214,23 @@ class TicketApprovalService
         // Branch Manager / Division Head / Operations Head
         // ========================================================
         if (in_array($approval->role_name, ['branch_manager', 'division_head', 'intermediate_approver'])) {
-            $targetBranchId = $approval->branch_id ?? $ticket->branch_id ?? $ticket->requester->employee?->branch_id;
-            if ($userBranchId && $targetBranchId && $userBranchId === $targetBranchId && $user->hasRole(['hod', 'system_admin'])) {
-                return true;
-            }
             if ($user->hasRole('system_admin')) {
                 return true;
             }
+
+            $targetBranchId = $approval->branch_id ?? $ticket->branch_id ?? $ticket->requester->employee?->branch_id;
+            $targetBranch = $targetBranchId ? \App\Models\Branch::find($targetBranchId) : null;
+
+            // 1. Designated Branch Manager match: Explicitly configured in Admin Portal
+            if ($targetBranch && $targetBranch->manager_user_id && $user->id === $targetBranch->manager_user_id) {
+                return true;
+            }
+
+            // 2. Fallback to branch HOD
+            if ($userBranchId && $targetBranchId && $userBranchId === $targetBranchId && $user->hasRole(['hod', 'system_admin'])) {
+                return true;
+            }
+
             return false;
         }
 
@@ -219,11 +243,19 @@ class TicketApprovalService
                 return true;
             }
 
+            $itDivision = $ticket->it_division ?? $ticket->category?->it_division ?? 'opr';
+            $targetDeptCode = $itDivision === 'prd' ? 'IT-PRD' : 'IT-OPR';
+            $itDept = \App\Models\Department::where('code', $targetDeptCode)->first();
+
+            // 1. Designated IT Division Head match: Explicitly configured in Admin Portal
+            if ($itDept && $itDept->head_user_id && $user->id === $itDept->head_user_id) {
+                return true;
+            }
+
             if (!$isItHod) {
                 return false;
             }
 
-            $itDivision = $ticket->it_division ?? $ticket->category?->it_division ?? 'opr';
             $userDeptCode = $user->employee?->department?->code;
 
             // If user belongs specifically to IT-PRD, they approve PRD tickets
@@ -436,29 +468,46 @@ class TicketApprovalService
     {
         if ($step->role_name === 'department_hod') {
             $deptId = $step->department_id ?? $ticket->requester->employee?->department_id;
-            $branchId = $step->branch_id ?? $ticket->branch_id ?? $ticket->requester->employee?->branch_id;
-            $approvers = User::whereHas('roles', fn($q) => $q->where('name', 'hod'))
-                ->whereHas('employee', fn($q) => $q->where('department_id', $deptId)->where('branch_id', $branchId))
-                ->whereNotNull('telegram_id')
-                ->get();
+            $department = $deptId ? \App\Models\Department::with('head')->find($deptId) : null;
+
+            if ($department && $department->head && $department->head->telegram_id) {
+                $approvers = collect([$department->head]);
+            } else {
+                $branchId = $step->branch_id ?? $ticket->branch_id ?? $ticket->requester->employee?->branch_id;
+                $approvers = User::whereHas('roles', fn($q) => $q->where('name', 'hod'))
+                    ->whereHas('employee', fn($q) => $q->where('department_id', $deptId)->where('branch_id', $branchId))
+                    ->whereNotNull('telegram_id')
+                    ->get();
+            }
         } elseif (in_array($step->role_name, ['branch_manager', 'division_head', 'intermediate_approver'])) {
             $branchId = $step->branch_id ?? $ticket->branch_id ?? $ticket->requester->employee?->branch_id;
-            $approvers = User::whereHas('roles', fn($q) => $q->whereIn('name', ['hod', 'system_admin']))
-                ->whereHas('employee', fn($q) => $q->where('branch_id', $branchId))
-                ->whereNotNull('telegram_id')
-                ->get();
+            $branch = $branchId ? \App\Models\Branch::with('manager')->find($branchId) : null;
+
+            if ($branch && $branch->manager && $branch->manager->telegram_id) {
+                $approvers = collect([$branch->manager]);
+            } else {
+                $approvers = User::whereHas('roles', fn($q) => $q->whereIn('name', ['hod', 'system_admin']))
+                    ->whereHas('employee', fn($q) => $q->where('branch_id', $branchId))
+                    ->whereNotNull('telegram_id')
+                    ->get();
+            }
         } else {
             // Process: Central IT Department HOD (HQ) & IT HODs (filtered by OPR / PRD)
             $itDivision = $ticket->it_division ?? $ticket->category?->it_division ?? 'opr';
             $targetDeptCode = $itDivision === 'prd' ? 'IT-PRD' : 'IT-OPR';
+            $itDept = \App\Models\Department::where('code', $targetDeptCode)->with('head')->first();
 
-            $approvers = User::whereHas('roles', fn($q) => $q->whereIn('name', ['hod', 'system_admin']))
-                ->where(function ($q) use ($targetDeptCode) {
-                    $q->whereDoesntHave('employee')
-                      ->orWhereHas('employee.department', fn($d) => $d->whereIn('code', [$targetDeptCode, 'IT', 'IT-OPR', 'IT-PRD'])->orWhere('id', 2));
-                })
-                ->whereNotNull('telegram_id')
-                ->get();
+            if ($itDept && $itDept->head && $itDept->head->telegram_id) {
+                $approvers = collect([$itDept->head]);
+            } else {
+                $approvers = User::whereHas('roles', fn($q) => $q->whereIn('name', ['hod', 'system_admin']))
+                    ->where(function ($q) use ($targetDeptCode) {
+                        $q->whereDoesntHave('employee')
+                          ->orWhereHas('employee.department', fn($d) => $d->whereIn('code', [$targetDeptCode, 'IT', 'IT-OPR', 'IT-PRD'])->orWhere('id', 2));
+                    })
+                    ->whereNotNull('telegram_id')
+                    ->get();
+            }
         }
 
         foreach ($approvers as $approver) {
