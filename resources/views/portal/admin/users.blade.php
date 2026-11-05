@@ -132,7 +132,7 @@
                     <input type="text"
                            name="search"
                            value="{{ $search ?? '' }}"
-                           placeholder="🔍 Search name, email, code, dept... (Enter)"
+                           placeholder="Search name, email, code, dept... (Enter)"
                            class="w-full text-xs pl-8 pr-7 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-2xs">
                     <span class="absolute left-2.5 top-2.5 text-slate-400 text-xs">🔍</span>
                     @if(!empty($search))

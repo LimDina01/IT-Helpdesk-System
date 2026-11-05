@@ -799,6 +799,14 @@ class HodCockpitAndAdminTest extends TestCase
         $userResponse->assertStatus(200);
         $userResponse->assertSee('Chhayly Tep');
 
+        // Test user search with tma filter and substring search (e.g. 'sre' for Sreyneang)
+        $tmaSearchResponse = $this->get(route('portal.admin.users', [
+            'filter' => 'tma',
+            'per_page' => 50,
+            'search' => 'sre',
+        ]));
+        $tmaSearchResponse->assertStatus(200);
+
         // 3. Approvers server-side search
         $approverResponse = $this->get(route('portal.admin.approvers', [
             'search' => 'Chhayly',

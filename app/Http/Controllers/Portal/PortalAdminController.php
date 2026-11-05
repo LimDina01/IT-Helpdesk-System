@@ -320,7 +320,8 @@ class PortalAdminController extends Controller
                   ->orWhere('telegram_username', 'like', "%{$search}%")
                   ->orWhereHas('employee', function ($eq) use ($search) {
                       $eq->where('employee_code', 'like', "%{$search}%")
-                         ->orWhere('job_title', 'like', "%{$search}%")
+                         ->orWhere('full_name', 'like', "%{$search}%")
+                         ->orWhere('phone', 'like', "%{$search}%")
                          ->orWhereHas('department', fn($dq) => $dq->where('name', 'like', "%{$search}%"))
                          ->orWhereHas('branch', fn($bq) => $bq->where('name', 'like', "%{$search}%"));
                   });

@@ -195,8 +195,9 @@
                             <input type="text" 
                                    name="dept_search"
                                    value="{{ $deptSearch ?? '' }}"
-                                   placeholder="🔍 Search name or code... (Enter)" 
-                                   class="w-full text-xs pl-3.5 pr-8 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50 focus:bg-white transition">
+                                   placeholder="Search name or code... (Enter)" 
+                                   class="w-full text-xs pl-8 pr-8 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50 focus:bg-white transition">
+                            <span class="absolute left-2.5 top-2.5 text-slate-400 text-xs">🔍</span>
                             @if(!empty($deptSearch))
                                 <a href="{{ route('portal.admin.organization', array_filter(['tab' => 'departments', 'dept_per_page' => (isset($deptPerPage) && $deptPerPage != 10) ? $deptPerPage : null])) }}" 
                                    class="absolute right-2.5 top-2 text-xs text-slate-400 hover:text-slate-600 font-bold" title="Clear search">✕</a>
@@ -379,8 +380,9 @@
                             <input type="text" 
                                    name="branch_search"
                                    value="{{ $branchSearch ?? '' }}"
-                                   placeholder="🔍 Search name or code... (Enter)" 
-                                   class="w-full text-xs pl-3.5 pr-8 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 focus:bg-white transition">
+                                   placeholder="Search branch name or code... (Enter)" 
+                                   class="w-full text-xs pl-8 pr-8 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 focus:bg-white transition">
+                            <span class="absolute left-2.5 top-2.5 text-slate-400 text-xs">🔍</span>
                             @if(!empty($branchSearch))
                                 <a href="{{ route('portal.admin.organization', array_filter(['tab' => 'branches', 'branch_per_page' => (isset($branchPerPage) && $branchPerPage != 10) ? $branchPerPage : null])) }}" 
                                    class="absolute right-2.5 top-2 text-xs text-slate-400 hover:text-slate-600 font-bold" title="Clear search">✕</a>

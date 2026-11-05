@@ -242,7 +242,7 @@
                     <input type="text"
                            name="search"
                            value="{{ $search ?? '' }}"
-                           placeholder="🔍 Search cards by name, dept, title... (Enter)"
+                           placeholder="Search cards by name, dept, title... (Enter)"
                            class="w-full text-xs pl-8 pr-7 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-2xs">
                     <span class="absolute left-2.5 top-2.5 text-slate-400 text-xs">🔍</span>
                     @if(!empty($search))
@@ -509,7 +509,7 @@
                                    x-model="searchUserText" 
                                    @focus="userDropdownOpen = true"
                                    @input="userDropdownOpen = true"
-                                   placeholder="🔍 Type name or email to search staff..." 
+                                   placeholder="Type name or email to search staff..."
                                    class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
                             <button type="button" x-show="searchUserText" @click="searchUserText = ''" class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 text-xs font-bold">✕</button>
                         </div>
@@ -625,7 +625,7 @@
                                x-model="editSearchUserText" 
                                @focus="editUserDropdownOpen = true"
                                @input="editUserDropdownOpen = true"
-                               placeholder="🔍 Search staff to reassign..." 
+                               placeholder="Search staff to reassign..."
                                class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
                         
                         <div x-show="editUserDropdownOpen" 
