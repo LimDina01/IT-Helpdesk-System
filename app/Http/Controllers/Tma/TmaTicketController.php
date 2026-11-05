@@ -42,7 +42,7 @@ class TmaTicketController extends Controller
     {
         $user = $this->getTmaUser();
         $isStaff = $user->isStaff();
-        $isHod = $user->hasRole(['hod', 'system_admin']);
+        $isHod = $user->isApprover();
 
         // TMA is the self-service requester portal for employees.
         // "My Requests" strictly shows tickets personally requested by the current authenticated employee.
@@ -847,7 +847,7 @@ class TmaTicketController extends Controller
         $userBranchName = $emp?->branch?->name ?? $branches->first()?->name ?? 'Main Branch';
         $userDeptName = $emp?->department?->name ?? 'General Department';
 
-        $isHod = $user ? $user->hasRole(['hod', 'system_admin']) : false;
+        $isHod = $user ? $user->isApprover() : false;
         $userDeptCode = $user?->employee?->department?->code;
         $userEmpCode = $user?->employee?->employee_code;
         $isItHod = $user ? $user->isItHod() : false;

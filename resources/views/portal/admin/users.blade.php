@@ -219,7 +219,12 @@
                                         @if($role->name === 'system_admin')
                                             <span class="bg-red-100 text-red-800 font-extrabold text-[9px] uppercase px-1.5 py-0.2 rounded border border-red-200">Admin</span>
                                         @elseif($role->name === 'hod')
-                                            <span class="bg-purple-100 text-purple-800 font-extrabold text-[9px] uppercase px-1.5 py-0.2 rounded border border-purple-200">{{ $user->isItStaff() ? 'IT HOD' : 'HOD' }}</span>
+                                            @php
+                                                $approverBadge = $user->getApproverBadge();
+                                            @endphp
+                                            <span class="{{ $approverBadge['class'] ?? 'bg-purple-100 text-purple-800 border-purple-200' }} font-extrabold text-[9px] uppercase px-1.5 py-0.2 rounded border">
+                                                {{ $approverBadge['label'] ?? ($user->isItStaff() ? 'IT HOD' : 'HOD') }}
+                                            </span>
                                         @elseif($role->name === 'helpdesk')
                                             <span class="bg-blue-100 text-blue-800 font-extrabold text-[9px] uppercase px-1.5 py-0.2 rounded border border-blue-200">Help Desk</span>
                                         @elseif($role->name === 'technician')
@@ -228,6 +233,16 @@
                                             <span class="bg-slate-100 text-slate-700 font-medium text-[9px] uppercase px-1.5 py-0.2 rounded border border-slate-200">Requester</span>
                                         @endif
                                     @endforeach
+                                    @if(!$user->hasRole('hod') && $user->isApprover() && !$user->hasRole('system_admin'))
+                                        @php
+                                            $autoBadge = $user->getApproverBadge();
+                                        @endphp
+                                        @if($autoBadge)
+                                            <span class="{{ $autoBadge['class'] }} font-extrabold text-[9px] uppercase px-1.5 py-0.2 rounded border">
+                                                {{ $autoBadge['label'] }}
+                                            </span>
+                                        @endif
+                                    @endif
                                 </div>
                             </td>
 
@@ -669,8 +684,8 @@
                                            @change="if ($event.target.checked) { if (!editForm.roles.includes({{ $role->id }})) editForm.roles.push({{ $role->id }}); } else { editForm.roles = editForm.roles.filter(id => id !== {{ $role->id }}); }"
                                            class="rounded text-indigo-600 focus:ring-indigo-500">
                                     <div>
-                                        <div class="text-xs font-bold text-slate-800">{{ $role->name === 'hod' ? 'Department Head (Approver)' : 'Employee (Requester)' }}</div>
-                                        <div class="text-[10px] text-slate-400 font-mono">{{ $role->name === 'hod' ? 'TMA Step 1 Approver' : 'Standard Requester' }}</div>
+                                        <div class="text-xs font-bold text-slate-800">{{ $role->name === 'hod' ? 'Department Approver / HOD' : 'Employee (Requester)' }}</div>
+                                        <div class="text-[10px] text-slate-400 font-mono">{{ $role->name === 'hod' ? 'Step 1 Approver & TMA Reviewer' : 'Standard Requester' }}</div>
                                     </div>
                                 </label>
                             @endforeach

@@ -104,6 +104,7 @@ function tmaApp() {
             if (this.currentUser && this.currentUser.id) {
                 return !!(
                     this.currentUser.is_hod ||
+                    this.currentUser.is_approver ||
                     (Array.isArray(this.currentUser.roles) && this.currentUser.roles.some(r => ['hod', 'system_admin'].includes(r)))
                 );
             }

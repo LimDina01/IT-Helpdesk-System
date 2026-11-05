@@ -306,7 +306,7 @@ class TmaAuthController extends Controller
      */
     protected function formatUserPayload(User $user): array
     {
-        $isHod = $user->hasRole(['hod', 'system_admin']);
+        $isHod = $user->isApprover();
         $userDeptCode = $user->employee?->department?->code;
         $userEmpCode = $user->employee?->employee_code;
         $isItHod = $user->isItHod();
@@ -325,6 +325,7 @@ class TmaAuthController extends Controller
             'department_id' => $user->employee?->department_id,
             'department_code' => $userDeptCode,
             'is_hod' => $isHod,
+            'is_approver' => $isHod,
             'is_it_hod' => $isItHod,
             'roles' => $user->roles->pluck('name')->values()->toArray(),
         ];

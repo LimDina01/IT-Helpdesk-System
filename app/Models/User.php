@@ -128,6 +128,80 @@ class User extends Authenticatable
         return $this->hasRole('hod') && !$this->isItHod();
     }
 
+    public function isApprover(): bool
+    {
+        if ($this->hasRole(['hod', 'system_admin'])) {
+            return true;
+        }
+
+        if ($this->relationLoaded('departmentApproverRoles')
+            ? $this->departmentApproverRoles->where('is_active', true)->isNotEmpty()
+            : $this->departmentApproverRoles()->where('is_active', true)->exists()) {
+            return true;
+        }
+
+        if ($this->relationLoaded('subordinates')
+            ? $this->subordinates->where('is_active', true)->isNotEmpty()
+            : $this->subordinates()->where('is_active', true)->exists()) {
+            return true;
+        }
+
+        if ($this->relationLoaded('headedDepartments')
+            ? $this->headedDepartments->isNotEmpty()
+            : $this->headedDepartments()->exists()) {
+            return true;
+        }
+
+        if ($this->relationLoaded('managedBranches')
+            ? $this->managedBranches->isNotEmpty()
+            : $this->managedBranches()->exists()) {
+            return true;
+        }
+
+        return false;
+    }
+
+    public function getApproverBadge(): ?array
+    {
+        if ($this->isItHod()) {
+            return ['label' => 'IT HOD', 'class' => 'bg-indigo-100 text-indigo-800 border-indigo-200'];
+        }
+
+        $card = $this->relationLoaded('departmentApproverRoles')
+            ? $this->departmentApproverRoles->where('is_active', true)->sortBy('level')->first()
+            : $this->departmentApproverRoles()->where('is_active', true)->orderBy('level')->first();
+
+        if ($card) {
+            $label = match ($card->level) {
+                1 => 'Level 1: Team Leader',
+                2 => 'Level 2: Supervisor',
+                3 => 'Level 3: Dept Manager',
+                default => "Level {$card->level}: Approver",
+            };
+            $cls = match ($card->level) {
+                1 => 'bg-blue-100 text-blue-800 border-blue-200',
+                2 => 'bg-purple-100 text-purple-800 border-purple-200',
+                3 => 'bg-emerald-100 text-emerald-800 border-emerald-200',
+                default => 'bg-amber-100 text-amber-800 border-amber-200',
+            };
+            return ['label' => $label, 'class' => $cls];
+        }
+
+        $hasSubordinates = $this->relationLoaded('subordinates')
+            ? $this->subordinates->where('is_active', true)->isNotEmpty()
+            : $this->subordinates()->where('is_active', true)->exists();
+
+        if ($hasSubordinates) {
+            return ['label' => 'Team Leader', 'class' => 'bg-blue-100 text-blue-800 border-blue-200'];
+        }
+
+        if ($this->hasRole('hod')) {
+            return ['label' => 'HOD', 'class' => 'bg-purple-100 text-purple-800 border-purple-200'];
+        }
+
+        return null;
+    }
+
     public function canAccessPortal(): bool
     {
         return (bool) $this->can_access_portal;

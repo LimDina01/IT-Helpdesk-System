@@ -418,8 +418,7 @@ class TicketApprovalService
      */
     public function getPendingApprovalTicketsForUser(User $user): \Illuminate\Support\Collection
     {
-        $isHod = $user->hasRole(['hod', 'system_admin']);
-        if (!$isHod) {
+        if (!$user->isApprover()) {
             return collect();
         }
 

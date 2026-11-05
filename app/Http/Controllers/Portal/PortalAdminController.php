@@ -299,7 +299,7 @@ class PortalAdminController extends Controller
 
         $filter = $request->input('filter', 'all');
 
-        $query = User::with(['roles', 'employee.department', 'employee.branch', 'employee.lineManager'])
+        $query = User::with(['roles', 'employee.department', 'employee.branch', 'employee.lineManager', 'departmentApproverRoles'])
             ->orderBy('name');
 
         $staffFilterClosure = function ($q) {
