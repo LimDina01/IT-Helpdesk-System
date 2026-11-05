@@ -195,8 +195,8 @@ class User extends Authenticatable
             return ['label' => 'Team Leader', 'class' => 'bg-blue-100 text-blue-800 border-blue-200'];
         }
 
-        if ($this->hasRole('hod')) {
-            return ['label' => 'HOD', 'class' => 'bg-purple-100 text-purple-800 border-purple-200'];
+        if ($this->hasRole('hod') && $this->isItStaff()) {
+            return ['label' => 'IT HOD', 'class' => 'bg-indigo-100 text-indigo-800 border-indigo-200'];
         }
 
         return null;

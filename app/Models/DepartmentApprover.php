@@ -25,19 +25,6 @@ class DepartmentApprover extends Model
         'is_active' => 'boolean',
     ];
 
-    protected static function booted(): void
-    {
-        static::saved(function (DepartmentApprover $card) {
-            if ($card->is_active && $card->user_id) {
-                $user = User::find($card->user_id);
-                if ($user) {
-                    $hodRole = Role::firstOrCreate(['name' => 'hod'], ['label' => 'Head of Department']);
-                    $user->roles()->syncWithoutDetaching([$hodRole->id]);
-                }
-            }
-        });
-    }
-
     public function department(): BelongsTo
     {
         return $this->belongsTo(Department::class);

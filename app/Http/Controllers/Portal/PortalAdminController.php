@@ -484,7 +484,7 @@ class PortalAdminController extends Controller
             ]);
         }
 
-        // 3. Assign roles (HODs always hold both Requester and HOD)
+        // 3. Assign roles (defaults to Requester; supports HOD if explicitly provided)
         $selectedRoles = !empty($validated['roles']) ? $validated['roles'] : (!empty($validated['role']) ? [$validated['role']] : ['requester']);
         $rolesToAttach = [];
         $requesterRole = Role::firstOrCreate(['name' => 'requester'], ['label' => 'Requester']);
@@ -599,11 +599,11 @@ class PortalAdminController extends Controller
         $hodRoleId = Role::where('name', 'hod')->value('id');
 
         if (!$isStaff) {
-            // For TMA bank employees: must always have at least requester role
+            // For TMA employees: must always have at least requester role
             if ($requesterRoleId && !in_array($requesterRoleId, $roleIds)) {
                 $roleIds[] = $requesterRoleId;
             }
-            // Strip any IT technical roles from TMA bank employees
+            // Strip any IT technical roles from TMA employees
             $itRoleIds = Role::whereIn('name', ['technician', 'helpdesk', 'system_admin'])->pluck('id')->toArray();
             $roleIds = array_values(array_diff($roleIds, $itRoleIds));
         } else {

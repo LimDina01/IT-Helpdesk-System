@@ -27,10 +27,11 @@
         roles: [],
         tma_role: ''
     },
-    openEditModal(u, isStaff) {
+    editApproverBadge: null,
+    openEditModal(u, isStaff, approverBadge = null) {
         this.targetUser = u;
         this.isTargetStaff = isStaff;
-        const hodRole = u.roles ? u.roles.find(r => r.name === 'hod') : null;
+        this.editApproverBadge = approverBadge;
         const reqRole = u.roles ? u.roles.find(r => r.name === 'requester') : null;
         this.editForm = {
             id: u.id,
@@ -46,7 +47,7 @@
             is_active: u.is_active ? 1 : 0,
             can_access_portal: u.can_access_portal ? 1 : 0,
             roles: u.roles ? u.roles.map(r => r.id) : [],
-            tma_role: hodRole ? hodRole.id : (reqRole ? reqRole.id : '')
+            tma_role: reqRole ? reqRole.id : ''
         };
         this.editUserModal = true;
     }
@@ -212,34 +213,26 @@
 
                             <td class="py-3.5 px-4 whitespace-nowrap">
                                 <div class="flex flex-wrap gap-1">
-                                    @foreach($user->roles as $role)
-                                        @if($user->isItStaff() && $role->name === 'requester')
-                                            @continue
-                                        @endif
-                                        @if($role->name === 'system_admin')
-                                            <span class="bg-red-100 text-red-800 font-extrabold text-[9px] uppercase px-1.5 py-0.2 rounded border border-red-200">Admin</span>
-                                        @elseif($role->name === 'hod')
-                                            @php
-                                                $approverBadge = $user->getApproverBadge();
-                                            @endphp
-                                            <span class="{{ $approverBadge['class'] ?? 'bg-purple-100 text-purple-800 border-purple-200' }} font-extrabold text-[9px] uppercase px-1.5 py-0.2 rounded border">
-                                                {{ $approverBadge['label'] ?? ($user->isItStaff() ? 'IT HOD' : 'HOD') }}
-                                            </span>
-                                        @elseif($role->name === 'helpdesk')
-                                            <span class="bg-blue-100 text-blue-800 font-extrabold text-[9px] uppercase px-1.5 py-0.2 rounded border border-blue-200">Help Desk</span>
-                                        @elseif($role->name === 'technician')
-                                            <span class="bg-emerald-100 text-emerald-800 font-extrabold text-[9px] uppercase px-1.5 py-0.2 rounded border border-emerald-200">Technician</span>
-                                        @else
-                                            <span class="bg-slate-100 text-slate-700 font-medium text-[9px] uppercase px-1.5 py-0.2 rounded border border-slate-200">Requester</span>
-                                        @endif
-                                    @endforeach
-                                    @if(!$user->hasRole('hod') && $user->isApprover() && !$user->hasRole('system_admin'))
+                                    @if($user->isItStaff())
+                                        @foreach($user->roles as $role)
+                                            @if($role->name === 'system_admin')
+                                                <span class="bg-red-100 text-red-800 font-extrabold text-[9px] uppercase px-1.5 py-0.2 rounded border border-red-200">Admin</span>
+                                            @elseif($role->name === 'hod')
+                                                <span class="bg-indigo-100 text-indigo-800 font-extrabold text-[9px] uppercase px-1.5 py-0.2 rounded border border-indigo-200">IT HOD</span>
+                                            @elseif($role->name === 'helpdesk')
+                                                <span class="bg-blue-100 text-blue-800 font-extrabold text-[9px] uppercase px-1.5 py-0.2 rounded border border-blue-200">Help Desk</span>
+                                            @elseif($role->name === 'technician')
+                                                <span class="bg-emerald-100 text-emerald-800 font-extrabold text-[9px] uppercase px-1.5 py-0.2 rounded border border-emerald-200">Technician</span>
+                                            @endif
+                                        @endforeach
+                                    @else
+                                        <span class="bg-slate-100 text-slate-700 font-medium text-[9px] uppercase px-1.5 py-0.2 rounded border border-slate-200">Requester</span>
                                         @php
-                                            $autoBadge = $user->getApproverBadge();
+                                            $approverBadge = $user->getApproverBadge();
                                         @endphp
-                                        @if($autoBadge)
-                                            <span class="{{ $autoBadge['class'] }} font-extrabold text-[9px] uppercase px-1.5 py-0.2 rounded border">
-                                                {{ $autoBadge['label'] }}
+                                        @if($approverBadge)
+                                            <span class="{{ $approverBadge['class'] }} font-extrabold text-[9px] uppercase px-1.5 py-0.2 rounded border">
+                                                {{ $approverBadge['label'] }}
                                             </span>
                                         @endif
                                     @endif
@@ -248,7 +241,7 @@
 
                             <td class="py-3.5 px-6 text-right whitespace-nowrap space-x-2">
                                 <button type="button"
-                                        @click="openEditModal({{ json_encode($user) }}, {{ $user->isItStaff() ? 'true' : 'false' }})"
+                                        @click="openEditModal({{ json_encode($user) }}, {{ $user->isItStaff() ? 'true' : 'false' }}, {{ json_encode($user->getApproverBadge()) }})"
                                         class="text-[11px] text-blue-600 hover:text-blue-800 font-bold hover:underline inline-flex items-center space-x-1 cursor-pointer">
                                     <span>✏️</span>
                                     <span>Edit</span>
@@ -435,26 +428,16 @@
                     </div>
                 </div>
 
-                <!-- Row 4: Role Selection in TMA -->
-                <div>
-                    <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1.5">TMA Account Roles</label>
-                    <p class="text-[10px] text-slate-400 mb-2">Select roles for this company employee (Department HODs can hold both Requester and HOD):</p>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                        <label class="flex items-start space-x-2.5 p-3 rounded-2xl border border-slate-200 hover:bg-slate-50 cursor-pointer transition">
-                            <input type="checkbox" name="roles[]" value="requester" checked class="mt-0.5 rounded text-blue-600 focus:ring-blue-500">
-                            <div>
-                                <div class="text-xs font-bold text-slate-900">👤 Requester (Employee)</div>
-                                <div class="text-[10px] text-slate-500 mt-0.5">Standard staff member. Can submit tickets and chat with support.</div>
-                            </div>
-                        </label>
-
-                        <label class="flex items-start space-x-2.5 p-3 rounded-2xl border border-slate-200 hover:bg-slate-50 cursor-pointer transition">
-                            <input type="checkbox" name="roles[]" value="hod" class="mt-0.5 rounded text-blue-600 focus:ring-blue-500">
-                            <div>
-                                <div class="text-xs font-bold text-slate-900">👔 Department HOD</div>
-                                <div class="text-[10px] text-slate-500 mt-0.5">Department Head. Approves Step 1 service requests for this department.</div>
-                            </div>
-                        </label>
+                <!-- Row 4: Account Role & Approver Routing Info -->
+                <div class="p-3.5 bg-blue-50/70 rounded-2xl border border-blue-100 flex items-start space-x-3">
+                    <span class="text-xl">ℹ️</span>
+                    <div>
+                        <div class="text-xs font-bold text-blue-900">Standard TMA Account: Requester</div>
+                        <p class="text-[11px] text-blue-700 mt-0.5 leading-relaxed">
+                            New company employees are created with the <strong>Requester</strong> role to submit service requests via Telegram.
+                            To grant approval authority (Team Leader, Supervisor, or Dept Manager), configure an approver card in the 
+                            <a href="{{ url('portal/admin/approvers') }}" class="underline font-bold text-blue-800 hover:text-blue-950">Approvers &amp; Levels</a> tab or select a Direct Line Manager above.
+                        </p>
                     </div>
                 </div>
 
@@ -488,12 +471,12 @@
             <h3 class="text-base font-bold text-slate-800">
                 Assign Roles: <span class="text-indigo-600" x-text="targetUser.name"></span>
             </h3>
-            <p class="text-xs text-slate-500">Users can hold multiple operational roles simultaneously (e.g. Technician + Help Desk, or Requester + HOD).</p>
+            <p class="text-xs text-slate-500">Assign IT Portal operational roles (e.g. Technician, Help Desk, IT HOD, System Administrator).</p>
             
             <form :action="'{{ url('portal/admin/users') }}/' + targetUser.id + '/roles'" method="POST" class="space-y-4">
                 @csrf
                 <div class="space-y-2">
-                    @foreach($allRoles as $role)
+                    @foreach($allRoles->whereIn('name', ['technician', 'helpdesk', 'system_admin', 'hod']) as $role)
                         <label class="flex items-center space-x-3 p-3 rounded-2xl border border-slate-200 hover:bg-slate-50 cursor-pointer transition">
                             <input type="checkbox" name="roles[]" value="{{ $role->id }}" :checked="userRoles.includes({{ $role->id }})" class="rounded text-indigo-600 focus:ring-indigo-500">
                             <div>
@@ -662,34 +645,42 @@
                         <div>
                             <div class="text-xs font-bold text-slate-900 flex items-center space-x-1.5">
                                 <span>📱</span>
-                                <span>Telegram Mini App (TMA) Scope</span>
+                                <span>Telegram Mini App (TMA) Employee</span>
                             </div>
-                            <p class="text-[10px] text-slate-500 mt-0.5">Company employee accessing IT service requests via Telegram Mini App.</p>
+                            <p class="text-[10px] text-slate-500 mt-0.5">Company employee submitting service requests via Telegram Mini App.</p>
                         </div>
-                        <span class="inline-flex items-center space-x-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200">
-                            <span>📱</span>
-                            <span>TMA Only</span>
+                        <span class="inline-flex items-center space-x-1 text-[10px] font-semibold px-2.5 py-1 rounded-full bg-slate-200/80 text-slate-700">
+                            <span>Requester</span>
                         </span>
                     </div>
 
-                    <div class="border-t border-slate-200/80 pt-3 space-y-2">
-                        <label class="block text-[11px] font-bold text-slate-700 uppercase">Assigned TMA Roles</label>
-                        <p class="text-[10px] text-slate-500">Select roles for this employee (Department HODs can hold both Requester and HOD):</p>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
-                            @foreach($allRoles->whereIn('name', ['requester', 'hod']) as $role)
-                                <label class="flex items-center space-x-2.5 p-2.5 bg-white rounded-xl border border-slate-200 hover:border-indigo-400 cursor-pointer transition shadow-2xs">
-                                    <input type="checkbox" name="roles[]" value="{{ $role->id }}"
-                                           :checked="editForm.roles.includes({{ $role->id }})"
-                                           :disabled="isTargetStaff"
-                                           @change="if ($event.target.checked) { if (!editForm.roles.includes({{ $role->id }})) editForm.roles.push({{ $role->id }}); } else { editForm.roles = editForm.roles.filter(id => id !== {{ $role->id }}); }"
-                                           class="rounded text-indigo-600 focus:ring-indigo-500">
-                                    <div>
-                                        <div class="text-xs font-bold text-slate-800">{{ $role->name === 'hod' ? 'Department Approver / HOD' : 'Employee (Requester)' }}</div>
-                                        <div class="text-[10px] text-slate-400 font-mono">{{ $role->name === 'hod' ? 'Step 1 Approver & TMA Reviewer' : 'Standard Requester' }}</div>
-                                    </div>
-                                </label>
-                            @endforeach
+                    <div class="border-t border-slate-200/80 pt-3">
+                        <div class="flex items-center justify-between mb-1.5">
+                            <label class="block text-[11px] font-bold text-slate-700 uppercase">Approver Authority Status</label>
+                            <a href="{{ url('portal/admin/approvers') }}" class="text-[10px] text-indigo-600 hover:text-indigo-800 font-bold hover:underline">
+                                Configure in Approvers &amp; Levels ↗
+                            </a>
                         </div>
+                        <template x-if="editApproverBadge">
+                            <div class="p-3 bg-white rounded-xl border border-indigo-100 flex items-center justify-between shadow-2xs">
+                                <div class="flex items-center space-x-2">
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-extrabold uppercase border" :class="editApproverBadge.class" x-text="editApproverBadge.label"></span>
+                                    <span class="text-xs text-slate-600 font-medium">Configured Approver</span>
+                                </div>
+                                <span class="text-[10px] text-emerald-600 font-bold flex items-center space-x-1">
+                                    <span>●</span>
+                                    <span>Active Reviewer</span>
+                                </span>
+                            </div>
+                        </template>
+                        <template x-if="!editApproverBadge">
+                            <div class="p-3 bg-white rounded-xl border border-slate-200 flex items-center justify-between shadow-2xs">
+                                <div class="text-xs text-slate-500">
+                                    <span class="font-semibold text-slate-700">Standard Requester</span> — No approver cards currently assigned.
+                                </div>
+                                <span class="text-[10px] text-slate-400 font-medium">Requester Only</span>
+                            </div>
+                        </template>
                     </div>
                 </div>
 
