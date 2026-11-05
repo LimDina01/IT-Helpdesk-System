@@ -167,13 +167,20 @@
                 
                 <div>
                     <label class="block text-[10px] font-bold text-indigo-900 uppercase mb-1">Designated Superior (Optional):</label>
-                    <select x-model="escalateTargetUserId"
-                            class="tma-input w-full text-xs p-2 rounded-xl border border-indigo-300 focus:outline-none bg-white text-slate-900 font-medium">
-                        <option value="">-- Auto: Next Level Supervisor / Dept Manager --</option>
-                        <template x-for="sup in (selectedTicket?.eligible_escalate_users || [])" :key="sup.id">
-                            <option :value="sup.id" x-text="`${sup.name} (${sup.email})`"></option>
-                        </template>
-                    </select>
+                    <template x-if="(selectedTicket?.eligible_escalate_users || []).length > 0">
+                        <select x-model="escalateTargetUserId"
+                                class="tma-input w-full text-xs p-2 rounded-xl border border-indigo-300 focus:outline-none bg-white text-slate-900 font-medium">
+                            <option value="">-- Auto: Next Level Supervisor / Dept Manager --</option>
+                            <template x-for="sup in (selectedTicket?.eligible_escalate_users || [])" :key="sup.id">
+                                <option :value="sup.id" x-text="`${sup.name} (${sup.email})`"></option>
+                            </template>
+                        </select>
+                    </template>
+                    <template x-if="!(selectedTicket?.eligible_escalate_users || []).length">
+                        <div class="p-2.5 rounded-xl bg-indigo-100/70 border border-indigo-200 text-indigo-900 text-[11px] leading-snug">
+                            ℹ️ The system will automatically route to your department head or company management.
+                        </div>
+                    </template>
                 </div>
 
                 <div>
@@ -205,13 +212,20 @@
 
                 <div>
                     <label class="block text-[10px] font-bold text-sky-900 uppercase mb-1">Delegate To (Required):</label>
-                    <select x-model="forwardTargetUserId"
-                            class="tma-input w-full text-xs p-2 rounded-xl border border-sky-300 focus:outline-none bg-white text-slate-900 font-medium">
-                        <option value="">-- Select Eligible Approver --</option>
-                        <template x-for="colleague in (selectedTicket?.eligible_forward_users || [])" :key="colleague.id">
-                            <option :value="colleague.id" x-text="`${colleague.name} (${colleague.email})`"></option>
-                        </template>
-                    </select>
+                    <template x-if="(selectedTicket?.eligible_forward_users || []).length > 0">
+                        <select x-model="forwardTargetUserId"
+                                class="tma-input w-full text-xs p-2 rounded-xl border border-sky-300 focus:outline-none bg-white text-slate-900 font-medium">
+                            <option value="">-- Select Eligible Approver --</option>
+                            <template x-for="colleague in (selectedTicket?.eligible_forward_users || [])" :key="colleague.id">
+                                <option :value="colleague.id" x-text="`${colleague.name} (${colleague.email})`"></option>
+                            </template>
+                        </select>
+                    </template>
+                    <template x-if="!(selectedTicket?.eligible_forward_users || []).length">
+                        <div class="p-2.5 rounded-xl bg-amber-100/80 border border-amber-300 text-amber-900 text-[11px] leading-snug">
+                            ⚠️ <strong>No peer approvers available</strong> at this level in your branch. If you are unable to review, please use <strong>Escalate</strong> to pass to your manager.
+                        </div>
+                    </template>
                 </div>
 
                 <div>
@@ -223,7 +237,7 @@
 
                 <div class="flex justify-end space-x-2 pt-1">
                     <button @click="showForwardPrompt = false" class="text-xs px-2.5 py-1 text-slate-600 font-semibold active:scale-95 transition-all duration-150" x-text="t('cancel_action')">Cancel</button>
-                    <button @click="submitForward()" :disabled="actioningApproval || !forwardTargetUserId || !forwardComment || !forwardComment.trim()" class="text-xs px-3 py-1 bg-sky-600 active:bg-sky-700 active:scale-95 text-white font-bold rounded-md transition-all duration-150 disabled:opacity-50 disabled:pointer-events-none">Confirm Delegation</button>
+                    <button @click="submitForward()" :disabled="actioningApproval || !forwardTargetUserId || !forwardComment || !forwardComment.trim() || !(selectedTicket?.eligible_forward_users || []).length" class="text-xs px-3 py-1 bg-sky-600 active:bg-sky-700 active:scale-95 text-white font-bold rounded-md transition-all duration-150 disabled:opacity-50 disabled:pointer-events-none">Confirm Delegation</button>
                 </div>
             </div>
 

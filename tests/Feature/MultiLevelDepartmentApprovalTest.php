@@ -316,6 +316,14 @@ class MultiLevelDepartmentApprovalTest extends TestCase
             'is_active' => true,
         ]);
         $tl2->roles()->attach(Role::where('name', 'hod')->firstOrFail());
+        DepartmentApprover::create([
+            'department_id' => $dept->id,
+            'branch_id' => $branch->id,
+            'user_id' => $tl2->id,
+            'level' => 1,
+            'title' => 'Team Leader 2',
+            'is_active' => true,
+        ]);
 
         $emp = Employee::create([
             'employee_code' => 'OPS-777',
@@ -547,6 +555,100 @@ class MultiLevelDepartmentApprovalTest extends TestCase
 
         $response = $this->get(route('portal.admin.approvers'));
         $response->assertForbidden();
+    }
+
+    public function test_forward_and_escalate_eligibility_strictly_enforces_hierarchy_and_excludes_admins(): void
+    {
+        $dept = Department::where('code', 'SALES')->firstOrFail();
+        $branch = Branch::where('code', 'BTB-01')->firstOrFail();
+
+        // Level 1: Team Leader
+        $tl = User::factory()->create(['name' => 'Vicheka Longer', 'email' => 'vicheka.longer_test@cbvh.com.kh', 'is_active' => true]);
+        $tl->roles()->attach(Role::where('name', 'hod')->firstOrFail());
+        DepartmentApprover::create([
+            'department_id' => $dept->id,
+            'branch_id' => $branch->id,
+            'user_id' => $tl->id,
+            'level' => 1,
+            'title' => 'Team Leader',
+            'is_active' => true,
+        ]);
+
+        // Level 3: Department Manager (Vireak Morm)
+        $deptMgr = User::where('email', 'hod.btb@cbvh.com.kh')->first();
+        if (!$deptMgr) {
+            $deptMgr = User::factory()->create(['name' => 'Vireak Morm', 'email' => 'hod.btb@cbvh.com.kh', 'is_active' => true]);
+            $deptMgr->roles()->attach(Role::where('name', 'hod')->firstOrFail());
+        }
+        DepartmentApprover::firstOrCreate([
+            'department_id' => $dept->id,
+            'branch_id' => $branch->id,
+            'user_id' => $deptMgr->id,
+            'level' => 3,
+        ], [
+            'title' => 'Department Manager',
+            'is_active' => true,
+        ]);
+
+        // Requester in Battambang Sales
+        $emp = Employee::create([
+            'employee_code' => 'BTB-999',
+            'full_name' => 'Vicheka Long',
+            'email' => 'vicheka.long_test@cbvh.com.kh',
+            'department_id' => $dept->id,
+            'branch_id' => $branch->id,
+            'line_manager_user_id' => $tl->id,
+            'is_active' => true,
+        ]);
+        $requester = User::factory()->create([
+            'employee_id' => $emp->id,
+            'name' => 'Vicheka Long',
+            'email' => 'vicheka.long_test@cbvh.com.kh',
+            'is_active' => true,
+        ]);
+        $requester->roles()->attach(Role::where('name', 'requester')->firstOrFail());
+
+        // Create Ticket
+        $category = TicketCategory::where('requires_approval', true)->firstOrFail();
+        $ticket = Ticket::create([
+            'ticket_code' => 'SR-BTB-TEST-001',
+            'subject' => 'Slide is blurry',
+            'description' => 'Test blurry slide',
+            'ticket_type' => 'service_request',
+            'category_id' => $category->id,
+            'requester_id' => $requester->id,
+            'branch_id' => $branch->id,
+            'priority' => 'low',
+            'status' => 'submitted',
+        ]);
+
+        $this->approvalService->createApprovalChain($ticket);
+        $step1 = $ticket->approvals()->where('step_number', 1)->firstOrFail();
+
+        // 1. FORWARD eligibility for Level 1 Team Leader:
+        // Must NOT contain Vireak Morm (Level 3 superior).
+        // Must NOT contain System Admins (Vannak Ouk, Dina LIM).
+        // Must be EMPTY because there are no other Level 1 peers in Battambang Sales!
+        $forwardEligible = $this->approvalService->getEligibleForwardUsers($step1, $tl);
+        $this->assertCount(0, $forwardEligible, 'Forward dropdown must be empty when no same-level peers exist');
+
+        // 2. ESCALATE eligibility for Level 1 Team Leader:
+        // MUST contain Vireak Morm (Level 3 Department Manager).
+        // Must NOT contain System Admins.
+        $escalateEligible = $this->approvalService->getEligibleEscalateUsers($step1, $tl);
+        $this->assertCount(1, $escalateEligible, 'Escalate dropdown must contain only the higher-level manager');
+        $this->assertEquals($deptMgr->id, $escalateEligible->first()->id);
+
+        // 3. Perform escalation to Vireak Morm:
+        $success = $this->approvalService->escalate($step1, $tl, 'Escalating to Department Manager for sign-off', $deptMgr->id);
+        $this->assertTrue($success);
+
+        $step1->refresh();
+        $this->assertEquals('approved', $step1->status);
+
+        $escalatedStep = $ticket->approvals()->where('step_number', 2)->firstOrFail();
+        $this->assertEquals($deptMgr->id, $escalatedStep->approver_id);
+        $this->assertStringContainsString('Department Manager Approval (Escalated)', $escalatedStep->step_name);
     }
 }
 

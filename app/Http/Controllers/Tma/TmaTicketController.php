@@ -283,28 +283,11 @@ class TmaTicketController extends Controller
                     'email' => $u->email,
                 ])->values();
 
-                $deptId = $currentApproval->department_id ?? $ticket->requester->employee?->department_id;
-                $approverUserIds = \App\Models\DepartmentApprover::where('department_id', $deptId)
-                    ->where('level', '>=', 2)
-                    ->where('is_active', true)
-                    ->pluck('user_id');
-
-                $eligibleEscalateUsers = \App\Models\User::where('is_active', true)
-                    ->where('id', '!=', $tmaUser->id)
-                    ->where('id', '!=', $ticket->requester_id)
-                    ->where(function ($q) use ($approverUserIds, $deptId) {
-                        $q->whereHas('roles', fn($r) => $r->where('name', 'system_admin'))
-                          ->orWhereIn('id', $approverUserIds)
-                          ->orWhere(fn($sub) => $sub->whereHas('roles', fn($r) => $r->where('name', 'hod'))->whereHas('employee', fn($e) => $e->where('department_id', $deptId)));
-                    })
-                    ->orderBy('name')
-                    ->get()
-                    ->map(fn($u) => [
-                        'id' => $u->id,
-                        'name' => $u->name,
-                        'email' => $u->email,
-                    ])
-                    ->values();
+                $eligibleEscalateUsers = $approvalService->getEligibleEscalateUsers($currentApproval, $tmaUser)->map(fn($u) => [
+                    'id' => $u->id,
+                    'name' => $u->name,
+                    'email' => $u->email,
+                ])->values();
             }
         }
 

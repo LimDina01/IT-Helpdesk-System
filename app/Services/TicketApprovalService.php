@@ -602,6 +602,52 @@ class TicketApprovalService
     }
 
     /**
+     * Get current approval step's logical level (1 = Team Leader, 2 = Supervisor, 3 = Manager/HOD).
+     */
+    public function getApprovalStepLevel(TicketApproval $approval): int
+    {
+        if ($approval->role_name === 'it_manager') {
+            return 99;
+        }
+
+        $deptId = $approval->department_id ?? $approval->ticket->department_id ?? $approval->ticket->requester->employee?->department_id;
+        $branchId = $approval->branch_id ?? $approval->ticket->branch_id ?? $approval->ticket->requester->employee?->branch_id;
+
+        // 1. If an approver is explicitly assigned, check if they have a card in this dept & branch
+        if ($approval->approver_id && $deptId) {
+            $card = \App\Models\DepartmentApprover::where('department_id', $deptId)
+                ->where('user_id', $approval->approver_id)
+                ->where('is_active', true)
+                ->when($branchId, fn($q) => $q->where(fn($sub) => $sub->where('branch_id', $branchId)->orWhereNull('branch_id')))
+                ->orderBy('level')
+                ->first();
+
+            if ($card) {
+                return (int) $card->level;
+            }
+
+            // If assigned approver is line manager of the requester -> Level 1 (Team Leader)
+            if ($approval->ticket->requester->employee?->line_manager_user_id === $approval->approver_id) {
+                return 1;
+            }
+        }
+
+        // 2. Infer from step name if it contains level indicator
+        $name = strtolower($approval->step_name ?? '');
+        if (str_contains($name, 'level 1') || str_contains($name, 'team leader')) {
+            return 1;
+        }
+        if (str_contains($name, 'level 2') || str_contains($name, 'supervisor')) {
+            return 2;
+        }
+        if (str_contains($name, 'level 3') || str_contains($name, 'department manager') || str_contains($name, 'hod')) {
+            return 3;
+        }
+
+        return 1;
+    }
+
+    /**
      * Escalate a step to a higher level (e.g. Level 1 Team Leader escalates to Level 2 Supervisor or designated person).
      */
     public function escalate(TicketApproval $approval, User $actor, ?string $comment = null, ?int $targetUserId = null): bool
@@ -620,22 +666,59 @@ class TicketApprovalService
 
         if ($targetUserId) {
             $targetApprover = User::find($targetUserId);
+            if ($targetApprover && !$this->canEscalateTo($targetApprover, $approval, $actor)) {
+                return false;
+            }
+            if ($targetApprover && $department) {
+                $card = \App\Models\DepartmentApprover::where('department_id', $department->id)
+                    ->where('user_id', $targetApprover->id)
+                    ->where('is_active', true)
+                    ->when($approval->branch_id, fn($q) => $q->where(fn($sub) => $sub->where('branch_id', $approval->branch_id)->orWhereNull('branch_id')))
+                    ->orderBy('level')
+                    ->first();
+
+                if ($card && $card->title) {
+                    $stepTitle = "{$card->title} Approval";
+                } elseif ($card) {
+                    $stepTitle = "Level {$card->level} Approval";
+                }
+            }
         }
 
         if (!$targetApprover && $department) {
-            // Find active approver at Level 2 (or higher)
-            $deptApprover = $department->activeApprovers()
-                ->where('level', '>=', 2)
-                ->where('user_id', '!=', $actor->id)
-                ->first();
+            $currentLevel = $this->getApprovalStepLevel($approval);
+
+            // Find active approver card at Level > currentLevel (scoped to branch first, then HQ)
+            $deptApprover = null;
+            if ($approval->branch_id) {
+                $deptApprover = \App\Models\DepartmentApprover::where('department_id', $department->id)
+                    ->where('branch_id', $approval->branch_id)
+                    ->where('level', '>', $currentLevel)
+                    ->where('is_active', true)
+                    ->where('user_id', '!=', $actor->id)
+                    ->where('user_id', '!=', $ticket->requester_id)
+                    ->orderBy('level', 'asc')
+                    ->first();
+            }
+
+            if (!$deptApprover) {
+                $deptApprover = \App\Models\DepartmentApprover::where('department_id', $department->id)
+                    ->whereNull('branch_id')
+                    ->where('level', '>', $currentLevel)
+                    ->where('is_active', true)
+                    ->where('user_id', '!=', $actor->id)
+                    ->where('user_id', '!=', $ticket->requester_id)
+                    ->orderBy('level', 'asc')
+                    ->first();
+            }
 
             if ($deptApprover) {
                 $targetApprover = $deptApprover->user;
-                $stepTitle = $deptApprover->title ? "{$deptApprover->title} Approval" : 'Level 2: Supervisor Approval';
-            } elseif ($department->head_user_id && $department->head_user_id !== $actor->id) {
+                $stepTitle = $deptApprover->title ? "{$deptApprover->title} Approval" : "Level {$deptApprover->level} Approval";
+            } elseif ($department->head_user_id && $department->head_user_id !== $actor->id && $department->head_user_id !== $ticket->requester_id) {
                 $targetApprover = User::find($department->head_user_id);
                 $stepTitle = 'Department Head Approval';
-            } elseif ($department->parent && $department->parent->head_user_id) {
+            } elseif ($department->parent && $department->parent->head_user_id && $department->parent->head_user_id !== $actor->id) {
                 $targetApprover = User::find($department->parent->head_user_id);
                 $stepTitle = "Parent Department Head ({$department->parent->name}) Approval";
             }
@@ -703,7 +786,7 @@ class TicketApprovalService
     }
 
     /**
-     * Check if a target user is eligible to receive a delegated/forwarded approval step.
+     * Check if a target user is eligible to receive a delegated/forwarded approval step (SAME level peer).
      */
     public function canForwardTo(User $targetUser, TicketApproval $approval, User $actor): bool
     {
@@ -723,7 +806,7 @@ class TicketApprovalService
             return false;
         }
 
-        // 4. System Administrators can receive any forwarded approval
+        // 4. System Administrators can receive any forwarded approval (system override)
         if ($targetUser->hasRole('system_admin')) {
             return true;
         }
@@ -733,56 +816,12 @@ class TicketApprovalService
             return $targetUser->isItHod() || $targetUser->isItStaff();
         }
 
-        // 6. Branch Manager steps: Target must be branch manager or branch staff with HOD role
-        if (in_array($approval->role_name, ['branch_manager', 'division_head', 'intermediate_approver'])) {
-            $branchId = $approval->branch_id ?? $ticket->branch_id ?? $ticket->requester->employee?->branch_id;
-            $branch = $branchId ? \App\Models\Branch::find($branchId) : null;
-            if ($branch && $branch->manager_user_id === $targetUser->id) {
-                return true;
-            }
-            return $targetUser->hasRole('hod') && $targetUser->employee?->branch_id === $branchId;
-        }
-
-        // 7. Departmental steps (department_hod, department_supervisor):
-        $deptId = $approval->department_id ?? $ticket->requester->employee?->department_id;
-        $branchId = $approval->branch_id ?? $ticket->branch_id ?? $ticket->requester->employee?->branch_id;
-        $department = $deptId ? \App\Models\Department::find($deptId) : null;
-
-        // Explicit Department Head
-        if ($department && $department->head_user_id === $targetUser->id) {
-            return true;
-        }
-
-        // Configured Approver card holder in department
-        $isApproverCardHolder = \App\Models\DepartmentApprover::where('department_id', $deptId)
-            ->where('user_id', $targetUser->id)
-            ->where('is_active', true)
-            ->when($branchId, fn($q) => $q->where(fn($sub) => $sub->where('branch_id', $branchId)->orWhereNull('branch_id')))
-            ->exists();
-        if ($isApproverCardHolder) {
-            return true;
-        }
-
-        // User with HOD role (same department or company-wide / stand-alone HOD)
-        if ($targetUser->hasRole('hod')) {
-            if (!$targetUser->employee || $targetUser->employee->department_id === $deptId) {
-                return true;
-            }
-        }
-
-        // Line manager who manages staff in this department
-        $isLineManagerInDept = \App\Models\Employee::where('department_id', $deptId)
-            ->where('line_manager_user_id', $targetUser->id)
-            ->exists();
-        if ($isLineManagerInDept) {
-            return true;
-        }
-
-        return false;
+        // 6. Must be an eligible peer approver at the same level
+        return $this->getEligibleForwardUsers($approval, $actor)->contains('id', $targetUser->id);
     }
 
     /**
-     * Get all users eligible to receive this approval step upon delegation/forwarding.
+     * Get all users eligible to receive this approval step upon delegation/forwarding (SAME level peers).
      */
     public function getEligibleForwardUsers(TicketApproval $approval, User $currentUser): \Illuminate\Support\Collection
     {
@@ -797,38 +836,163 @@ class TicketApprovalService
 
         if ($approval->role_name === 'it_manager') {
             return $query->where(function ($q) {
-                $q->whereHas('roles', fn($r) => $r->whereIn('name', ['system_admin', 'technician', 'helpdesk']))
-                  ->orWhereHas('roles', fn($r) => $r->where('name', 'hod'));
-            })->get()->filter(fn($u) => $u->isItHod() || $u->isItStaff() || $u->hasRole('system_admin'))->values();
+                $q->whereHas('roles', fn($r) => $r->whereIn('name', ['technician', 'helpdesk']))
+                  ->orWhere(fn($sub) => $sub->whereHas('roles', fn($r) => $r->where('name', 'hod'))->where('email', 'like', '%it%'));
+            })->get()->filter(fn($u) => $u->isItHod() || $u->isItStaff())->values();
         }
 
-        if (in_array($approval->role_name, ['branch_manager', 'division_head', 'intermediate_approver'])) {
-            return $query->where(function ($q) use ($branchId) {
-                $q->whereHas('roles', fn($r) => $r->where('name', 'system_admin'))
-                  ->orWhereHas('employee', fn($e) => $e->where('branch_id', $branchId)->whereHas('user.roles', fn($r) => $r->where('name', 'hod')));
-            })->get();
+        $currentLevel = $this->getApprovalStepLevel($approval);
+
+        // 1. Active approver cards at the SAME level for this branch & department
+        $peerCardUserIds = collect();
+        if ($branchId && $deptId) {
+            $peerCardUserIds = \App\Models\DepartmentApprover::where('department_id', $deptId)
+                ->where('branch_id', $branchId)
+                ->where('level', $currentLevel)
+                ->where('is_active', true)
+                ->pluck('user_id');
         }
 
-        // Departmental steps:
-        $approverUserIds = \App\Models\DepartmentApprover::where('department_id', $deptId)
-            ->where('is_active', true)
-            ->pluck('user_id');
+        // Fallback to company-wide / HQ cards at the same level
+        if ($peerCardUserIds->isEmpty() && $deptId) {
+            $peerCardUserIds = \App\Models\DepartmentApprover::where('department_id', $deptId)
+                ->whereNull('branch_id')
+                ->where('level', $currentLevel)
+                ->where('is_active', true)
+                ->pluck('user_id');
+        }
 
+        // 2. If Level 1 (Team Leader), also include other line managers in that same department & branch
+        $lineManagerIds = collect();
+        if ($currentLevel === 1 && $deptId) {
+            $lineManagerIds = \App\Models\Employee::where('department_id', $deptId)
+                ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
+                ->whereNotNull('line_manager_user_id')
+                ->pluck('line_manager_user_id')
+                ->unique();
+        }
+
+        // 3. If Level >= 3 (Department Head / Manager level): peer HODs in that department
+        $hodPeerIds = collect();
+        if ($currentLevel >= 3 && $deptId) {
+            $hodPeerIds = User::where('is_active', true)
+                ->whereHas('roles', fn($r) => $r->where('name', 'hod'))
+                ->whereDoesntHave('roles', fn($r) => $r->where('name', 'system_admin'))
+                ->where('email', '!=', 'admin@cbvh.com.kh')
+                ->where(function ($q) use ($deptId, $branchId) {
+                    $q->whereDoesntHave('employee')
+                      ->orWhereHas('employee', fn($e) => $e->where('department_id', $deptId)->when($branchId, fn($b) => $b->where('branch_id', $branchId)));
+                })
+                ->pluck('id');
+        }
+
+        $eligibleIds = $peerCardUserIds->concat($lineManagerIds)->concat($hodPeerIds)->unique()
+            ->reject(fn($id) => $id == $currentUser->id || $id == $requesterId);
+
+        if ($eligibleIds->isEmpty()) {
+            return collect();
+        }
+
+        return $query->whereIn('id', $eligibleIds)->orderBy('name')->get();
+    }
+
+    /**
+     * Check if a target user is eligible to receive an escalated approval step (HIGHER level superior).
+     */
+    public function canEscalateTo(User $targetUser, TicketApproval $approval, User $actor): bool
+    {
+        if ($targetUser->id === $actor->id) {
+            return false;
+        }
+
+        if ($targetUser->id === $approval->ticket->requester_id) {
+            return false;
+        }
+
+        if (!$targetUser->is_active) {
+            return false;
+        }
+
+        if ($targetUser->hasRole('system_admin')) {
+            return true;
+        }
+
+        return $this->getEligibleEscalateUsers($approval, $actor)->contains('id', $targetUser->id);
+    }
+
+    /**
+     * Get all users eligible to receive an escalated approval step (HIGHER level superiors).
+     */
+    public function getEligibleEscalateUsers(TicketApproval $approval, User $currentUser): \Illuminate\Support\Collection
+    {
+        $ticket = $approval->ticket;
+        $requesterId = $ticket->requester_id;
+        $deptId = $approval->department_id ?? $ticket->requester->employee?->department_id;
+        $branchId = $approval->branch_id ?? $ticket->branch_id ?? $ticket->requester->employee?->branch_id;
+
+        $query = User::where('is_active', true)
+            ->where('id', '!=', $currentUser->id)
+            ->where('id', '!=', $requesterId);
+
+        $currentLevel = $this->getApprovalStepLevel($approval);
+
+        // 1. Check for active approver cards in this branch & department with Level > currentLevel
+        $higherCardUserIds = collect();
+        if ($branchId && $deptId) {
+            $higherCardUserIds = \App\Models\DepartmentApprover::where('department_id', $deptId)
+                ->where('branch_id', $branchId)
+                ->where('level', '>', $currentLevel)
+                ->where('is_active', true)
+                ->orderBy('level')
+                ->pluck('user_id');
+        }
+
+        // Fallback to company-wide / HQ cards with Level > currentLevel
+        if ($higherCardUserIds->isEmpty() && $deptId) {
+            $higherCardUserIds = \App\Models\DepartmentApprover::where('department_id', $deptId)
+                ->whereNull('branch_id')
+                ->where('level', '>', $currentLevel)
+                ->where('is_active', true)
+                ->orderBy('level')
+                ->pluck('user_id');
+        }
+
+        // 2. Department Head (role 'hod' or explicit head_user_id) or Branch Manager as fallback superiors
         $deptHeadId = $deptId ? \App\Models\Department::where('id', $deptId)->value('head_user_id') : null;
-        $lineManagerIds = \App\Models\Employee::where('department_id', $deptId)
-            ->whereNotNull('line_manager_user_id')
-            ->pluck('line_manager_user_id');
+        $branchManagerId = $branchId ? \App\Models\Branch::where('id', $branchId)->value('manager_user_id') : null;
 
-        return $query->where(function ($q) use ($approverUserIds, $deptHeadId, $lineManagerIds, $deptId) {
-            $q->whereHas('roles', fn($r) => $r->where('name', 'system_admin'))
-              ->orWhereIn('id', $approverUserIds)
-              ->when($deptHeadId, fn($sub) => $sub->orWhere('id', $deptHeadId))
-              ->orWhereIn('id', $lineManagerIds)
-              ->orWhere(function ($sub) use ($deptId) {
-                  $sub->whereHas('roles', fn($r) => $r->where('name', 'hod'))
-                      ->whereHas('employee', fn($e) => $e->where('department_id', $deptId));
-              });
-        })->orderBy('name')->get();
+        $hodSuperiorIds = collect();
+        if ($currentLevel < 3 && $deptId) {
+            $hodSuperiorIds = User::where('is_active', true)
+                ->whereHas('roles', fn($r) => $r->where('name', 'hod'))
+                ->whereDoesntHave('roles', fn($r) => $r->where('name', 'system_admin'))
+                ->where('email', '!=', 'admin@cbvh.com.kh')
+                ->where(function ($q) use ($deptId, $branchId) {
+                    $q->whereDoesntHave('employee')
+                      ->orWhereHas('employee', fn($e) => $e->where('department_id', $deptId)->when($branchId, fn($b) => $b->where('branch_id', $branchId)));
+                })
+                ->pluck('id');
+        }
+
+        $parentHeadId = null;
+        if ($deptId) {
+            $dept = \App\Models\Department::find($deptId);
+            $parentHeadId = $dept?->parent?->head_user_id;
+        }
+
+        $superiorIds = $higherCardUserIds
+            ->concat($hodSuperiorIds)
+            ->when($deptHeadId, fn($c) => $c->push($deptHeadId))
+            ->when($branchManagerId, fn($c) => $c->push($branchManagerId))
+            ->when($parentHeadId, fn($c) => $c->push($parentHeadId))
+            ->unique()
+            ->reject(fn($id) => $id == $currentUser->id || $id == $requesterId);
+
+        if ($superiorIds->isEmpty()) {
+            return collect();
+        }
+
+        return $query->whereIn('id', $superiorIds)->orderBy('name')->get();
     }
 
     /**

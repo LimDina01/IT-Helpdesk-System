@@ -1446,9 +1446,12 @@
 
                     <div>
                         <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Designated Superior (Optional)</label>
+                        @php
+                            $eligibleEscalateUsers = $currentApproval ? app(\App\Services\TicketApprovalService::class)->getEligibleEscalateUsers($currentApproval, Auth::user()) : collect();
+                        @endphp
                         <select name="target_user_id" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
-                            <option value="">-- Auto: Department Supervisor / Parent HOD --</option>
-                            @foreach(\App\Models\User::where('is_active', true)->whereHas('roles', fn($r) => $r->whereIn('name', ['hod', 'system_admin']))->orderBy('name')->get() as $sup)
+                            <option value="">-- Auto: Next Level Supervisor / Dept Manager --</option>
+                            @foreach($eligibleEscalateUsers as $sup)
                                 <option value="{{ $sup->id }}">{{ $sup->name }} ({{ $sup->email }})</option>
                             @endforeach
                         </select>
@@ -1480,15 +1483,21 @@
                     @csrf
                     <div>
                         <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Delegate To</label>
-                        <select name="target_user_id" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white">
-                            <option value="">-- Select Eligible Approver --</option>
-                            @php
-                                $eligibleForwardUsers = $currentApproval ? app(\App\Services\TicketApprovalService::class)->getEligibleForwardUsers($currentApproval, Auth::user()) : collect();
-                            @endphp
-                            @foreach($eligibleForwardUsers as $colleague)
-                                <option value="{{ $colleague->id }}">{{ $colleague->name }} ({{ $colleague->email }})</option>
-                            @endforeach
-                        </select>
+                        @php
+                            $eligibleForwardUsers = $currentApproval ? app(\App\Services\TicketApprovalService::class)->getEligibleForwardUsers($currentApproval, Auth::user()) : collect();
+                        @endphp
+                        @if($eligibleForwardUsers->isNotEmpty())
+                            <select name="target_user_id" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white">
+                                <option value="">-- Select Eligible Approver --</option>
+                                @foreach($eligibleForwardUsers as $colleague)
+                                    <option value="{{ $colleague->id }}">{{ $colleague->name }} ({{ $colleague->email }})</option>
+                                @endforeach
+                            </select>
+                        @else
+                            <div class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 leading-snug">
+                                ⚠️ <strong>No peer approvers available</strong> at this level in this branch. If you cannot review this request, please use <strong>Escalate</strong> to pass to your department manager.
+                            </div>
+                        @endif
                     </div>
 
                     <div>
@@ -1498,7 +1507,7 @@
 
                     <div class="flex justify-end space-x-2 pt-2 border-t border-slate-100">
                         <button type="button" @click="forwardModal = false" class="px-3.5 py-2 text-xs text-slate-600 font-semibold hover:bg-slate-100 rounded-xl transition">Cancel</button>
-                        <button type="submit" class="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs rounded-xl shadow-xs transition">Confirm Delegation</button>
+                        <button type="submit" @disabled($eligibleForwardUsers->isEmpty()) class="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs rounded-xl shadow-xs transition disabled:opacity-50 disabled:pointer-events-none">Confirm Delegation</button>
                     </div>
                 </form>
             @endif
