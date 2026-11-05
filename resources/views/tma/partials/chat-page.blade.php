@@ -121,13 +121,13 @@
                  x-transition:leave-start="opacity-100 translate-y-0"
                  x-transition:leave-end="opacity-0 -translate-y-2"
                  class="bg-emerald-50 p-3 border-b border-emerald-300 space-y-2">
-                <label class="block text-xs font-bold text-emerald-900" x-text="t('comment_optional')">Approval Comment / Instructions (Optional):</label>
-                <input type="text" x-model="approvalComment" :placeholder="t('comment_placeholder')"
+                <label class="block text-xs font-bold text-emerald-900">Approval Note / Instructions (Mandatory):</label>
+                <input type="text" x-model="approvalComment" placeholder="Explain reason or instructions for approval..."
                        class="tma-input w-full text-xs p-2.5 rounded-xl border border-emerald-300 focus:outline-none bg-white text-slate-900 font-medium"
                        style="color: #0f172a !important; -webkit-text-fill-color: #0f172a !important; background-color: #ffffff !important;">
                 <div class="flex justify-end space-x-2">
                     <button @click="showApprovePrompt = false" class="text-xs px-2.5 py-1 text-slate-600 font-semibold active:scale-95 transition-all duration-150" x-text="t('cancel_action')">Cancel</button>
-                    <button @click="submitApprove()" :disabled="actioningApproval" class="text-xs px-3 py-1 bg-emerald-600 active:bg-emerald-700 active:scale-95 text-white font-bold rounded-md transition-all duration-150" x-text="t('confirm_approve')">Confirm Approval</button>
+                    <button @click="submitApprove()" :disabled="actioningApproval || !approvalComment || !approvalComment.trim()" class="text-xs px-3 py-1 bg-emerald-600 active:bg-emerald-700 active:scale-95 text-white font-bold rounded-md transition-all duration-150 disabled:opacity-50 disabled:pointer-events-none" x-text="t('confirm_approve')">Confirm Approval</button>
                 </div>
             </div>
 
@@ -146,7 +146,7 @@
                           style="color: #0f172a !important; -webkit-text-fill-color: #0f172a !important; background-color: #ffffff !important;"></textarea>
                 <div class="flex justify-end space-x-2">
                     <button @click="showRejectPrompt = false" class="text-xs px-2.5 py-1 text-slate-600 font-semibold active:scale-95 transition-all duration-150" x-text="t('cancel_action')">Cancel</button>
-                    <button @click="submitReject()" :disabled="actioningApproval || !rejectionReason" class="text-xs px-3 py-1 bg-rose-600 active:bg-rose-700 active:scale-95 text-white font-bold rounded-md transition-all duration-150" x-text="t('confirm_reject')">Confirm Rejection</button>
+                    <button @click="submitReject()" :disabled="actioningApproval || !rejectionReason || !rejectionReason.trim()" class="text-xs px-3 py-1 bg-rose-600 active:bg-rose-700 active:scale-95 text-white font-bold rounded-md transition-all duration-150 disabled:opacity-50 disabled:pointer-events-none" x-text="t('confirm_reject')">Confirm Rejection</button>
                 </div>
             </div>
 
@@ -176,15 +176,15 @@
                 </div>
 
                 <div>
-                    <label class="block text-[10px] font-bold text-indigo-900 uppercase mb-1">Endorsement Note / Justification (Optional):</label>
-                    <input type="text" x-model="escalateComment" placeholder="e.g. Endorsed by Team Leader for manager sign-off..."
+                    <label class="block text-[10px] font-bold text-indigo-900 uppercase mb-1">Endorsement Note / Justification (Mandatory):</label>
+                    <input type="text" x-model="escalateComment" placeholder="Explain reason for escalating to superior..."
                            class="tma-input w-full text-xs p-2.5 rounded-xl border border-indigo-300 focus:outline-none bg-white text-slate-900 font-medium"
                            style="color: #0f172a !important; -webkit-text-fill-color: #0f172a !important; background-color: #ffffff !important;">
                 </div>
 
                 <div class="flex justify-end space-x-2 pt-1">
                     <button @click="showEscalatePrompt = false" class="text-xs px-2.5 py-1 text-slate-600 font-semibold active:scale-95 transition-all duration-150" x-text="t('cancel_action')">Cancel</button>
-                    <button @click="submitEscalate()" :disabled="actioningApproval" class="text-xs px-3 py-1 bg-indigo-600 active:bg-indigo-700 active:scale-95 text-white font-bold rounded-md transition-all duration-150">Confirm & Escalate</button>
+                    <button @click="submitEscalate()" :disabled="actioningApproval || !escalateComment || !escalateComment.trim()" class="text-xs px-3 py-1 bg-indigo-600 active:bg-indigo-700 active:scale-95 text-white font-bold rounded-md transition-all duration-150 disabled:opacity-50 disabled:pointer-events-none">Confirm & Escalate</button>
                 </div>
             </div>
 
@@ -214,10 +214,17 @@
                 </div>
 
                 <div>
-                    <label class="block text-[10px] font-bold text-sky-900 uppercase mb-1">Handover Note (Optional):</label>
-                    <input type="text" x-model="forwardComment" placeholder="e.g. Delegating to peer for coverage while away..."
+                    <label class="block text-[10px] font-bold text-sky-900 uppercase mb-1">Handover Note (Mandatory):</label>
+                    <input type="text" x-model="forwardComment" placeholder="Explain reason for delegating to colleague..."
                            class="tma-input w-full text-xs p-2.5 rounded-xl border border-sky-300 focus:outline-none bg-white text-slate-900 font-medium"
                            style="color: #0f172a !important; -webkit-text-fill-color: #0f172a !important; background-color: #ffffff !important;">
+                </div>
+
+                <div class="flex justify-end space-x-2 pt-1">
+                    <button @click="showForwardPrompt = false" class="text-xs px-2.5 py-1 text-slate-600 font-semibold active:scale-95 transition-all duration-150" x-text="t('cancel_action')">Cancel</button>
+                    <button @click="submitForward()" :disabled="actioningApproval || !forwardTargetUserId || !forwardComment || !forwardComment.trim()" class="text-xs px-3 py-1 bg-sky-600 active:bg-sky-700 active:scale-95 text-white font-bold rounded-md transition-all duration-150 disabled:opacity-50 disabled:pointer-events-none">Confirm Delegation</button>
+                </div>
+            </div>
                 </div>
 
                 <div class="flex justify-end space-x-2 pt-1">

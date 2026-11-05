@@ -738,8 +738,10 @@ class PortalTicketController extends Controller
      */
     public function approveStep(Request $request, Ticket $ticket, \App\Models\TicketApproval $approval, \App\Services\TicketApprovalService $approvalService): RedirectResponse
     {
-        $comment = $request->input('comments');
-        $success = $approvalService->approve($approval, Auth::user(), $comment);
+        $validated = $request->validate([
+            'comments' => 'required|string|min:3|max:500',
+        ]);
+        $success = $approvalService->approve($approval, Auth::user(), $validated['comments']);
 
         if (!$success) {
             return back()->withErrors(['error' => 'Unauthorized or invalid approval step.']);
@@ -753,8 +755,10 @@ class PortalTicketController extends Controller
      */
     public function rejectStep(Request $request, Ticket $ticket, \App\Models\TicketApproval $approval, \App\Services\TicketApprovalService $approvalService): RedirectResponse
     {
-        $request->validate(['reason' => 'required|string|min:3']);
-        $success = $approvalService->reject($approval, Auth::user(), $request->input('reason'));
+        $validated = $request->validate([
+            'reason' => 'required|string|min:3|max:500',
+        ]);
+        $success = $approvalService->reject($approval, Auth::user(), $validated['reason']);
 
         if (!$success) {
             return back()->withErrors(['error' => 'Unauthorized or invalid approval step.']);
@@ -768,9 +772,13 @@ class PortalTicketController extends Controller
      */
     public function escalateStep(Request $request, Ticket $ticket, \App\Models\TicketApproval $approval, \App\Services\TicketApprovalService $approvalService): RedirectResponse
     {
-        $comment = $request->input('comments');
-        $targetUserId = $request->input('target_user_id') ? (int) $request->input('target_user_id') : null;
-        $success = $approvalService->escalate($approval, Auth::user(), $comment, $targetUserId);
+        $validated = $request->validate([
+            'comments' => 'required|string|min:3|max:500',
+            'target_user_id' => 'nullable|integer',
+        ]);
+
+        $targetUserId = !empty($validated['target_user_id']) ? (int) $validated['target_user_id'] : null;
+        $success = $approvalService->escalate($approval, Auth::user(), $validated['comments'], $targetUserId);
 
         if (!$success) {
             return back()->withErrors(['error' => 'Unauthorized or invalid approval step for escalation.']);
@@ -784,9 +792,13 @@ class PortalTicketController extends Controller
      */
     public function forwardStep(Request $request, Ticket $ticket, \App\Models\TicketApproval $approval, \App\Services\TicketApprovalService $approvalService): RedirectResponse
     {
-        $request->validate(['target_user_id' => 'required|exists:users,id']);
-        $targetUser = \App\Models\User::findOrFail($request->input('target_user_id'));
-        $success = $approvalService->forward($approval, Auth::user(), $targetUser, $request->input('comments'));
+        $validated = $request->validate([
+            'target_user_id' => 'required|exists:users,id',
+            'comments' => 'required|string|min:3|max:500',
+        ]);
+
+        $targetUser = \App\Models\User::findOrFail($validated['target_user_id']);
+        $success = $approvalService->forward($approval, Auth::user(), $targetUser, $validated['comments']);
 
         if (!$success) {
             return back()->withErrors(['error' => 'Unauthorized or invalid approval step for forwarding.']);

@@ -474,12 +474,15 @@ class TmaTicketController extends Controller
      */
     public function approveStep(Request $request, \App\Models\TicketApproval $approval, \App\Services\TicketApprovalService $approvalService): JsonResponse
     {
-        $comment = $request->input('comments');
+        $validated = $request->validate([
+            'comments' => 'required|string|min:3|max:500',
+        ]);
+
         $approver = $this->getTmaUser();
         if (!$approver) {
             return response()->json(['error' => 'Unauthenticated.'], 401);
         }
-        $success = $approvalService->approve($approval, $approver, $comment);
+        $success = $approvalService->approve($approval, $approver, $validated['comments']);
 
         if (!$success) {
             return response()->json(['error' => 'Unauthorized or invalid approval step.'], 403);
@@ -497,7 +500,7 @@ class TmaTicketController extends Controller
     public function rejectStep(Request $request, \App\Models\TicketApproval $approval, \App\Services\TicketApprovalService $approvalService): JsonResponse
     {
         $validated = $request->validate([
-            'reason' => 'required|string|min:3',
+            'reason' => 'required|string|min:3|max:500',
         ]);
 
         $approver = $this->getTmaUser();
@@ -521,13 +524,18 @@ class TmaTicketController extends Controller
      */
     public function escalateStep(Request $request, \App\Models\TicketApproval $approval, \App\Services\TicketApprovalService $approvalService): JsonResponse
     {
-        $comment = $request->input('comments');
-        $targetUserId = $request->input('target_user_id') ? (int) $request->input('target_user_id') : null;
+        $validated = $request->validate([
+            'comments' => 'required|string|min:3|max:500',
+            'target_user_id' => 'nullable|integer',
+        ]);
+
         $approver = $this->getTmaUser();
         if (!$approver) {
             return response()->json(['error' => 'Unauthenticated.'], 401);
         }
-        $success = $approvalService->escalate($approval, $approver, $comment, $targetUserId);
+
+        $targetUserId = !empty($validated['target_user_id']) ? (int) $validated['target_user_id'] : null;
+        $success = $approvalService->escalate($approval, $approver, $validated['comments'], $targetUserId);
 
         if (!$success) {
             return response()->json(['error' => 'Unauthorized or invalid approval step for escalation.'], 403);
@@ -546,7 +554,7 @@ class TmaTicketController extends Controller
     {
         $validated = $request->validate([
             'target_user_id' => 'required|exists:users,id',
-            'comments' => 'nullable|string|max:500',
+            'comments' => 'required|string|min:3|max:500',
         ]);
 
         $approver = $this->getTmaUser();
@@ -555,7 +563,7 @@ class TmaTicketController extends Controller
         }
 
         $targetUser = \App\Models\User::findOrFail($validated['target_user_id']);
-        $success = $approvalService->forward($approval, $approver, $targetUser, $validated['comments'] ?? null);
+        $success = $approvalService->forward($approval, $approver, $targetUser, $validated['comments']);
 
         if (!$success) {
             return response()->json(['error' => 'Unauthorized or invalid approval step for forwarding.'], 403);

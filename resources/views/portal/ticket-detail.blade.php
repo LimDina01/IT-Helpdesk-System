@@ -1413,8 +1413,8 @@
                 <form method="POST" action="{{ route('portal.tickets.approvals.approve', [$ticket->id, $currentApproval->id]) }}" class="space-y-4">
                     @csrf
                     <div>
-                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Approval Notes / Comments (Optional)</label>
-                        <textarea name="comments" rows="3" placeholder="e.g. Approved, proceed with standard specs..." class="w-full text-xs p-3 rounded-xl border border-slate-300"></textarea>
+                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Approval Notes / Comments (Mandatory)</label>
+                        <textarea name="comments" required minlength="3" rows="3" placeholder="e.g. Approved, proceed with standard specs..." class="w-full text-xs p-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"></textarea>
                     </div>
                     <div class="flex justify-end space-x-2">
                         <button type="button" @click="approveModal = false" class="px-3 py-1.5 text-xs text-slate-600">Cancel</button>
@@ -1440,8 +1440,8 @@
                 <form method="POST" action="{{ route('portal.tickets.approvals.escalate', [$ticket->id, $currentApproval->id]) }}" class="space-y-4">
                     @csrf
                     <div>
-                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Endorsement Note / Justification (Optional)</label>
-                        <textarea name="comments" rows="3" placeholder="e.g. Endorsed by Team Leader: Requires supervisor approval for special software license..." class="w-full text-xs p-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Endorsement Note / Justification (Mandatory)</label>
+                        <textarea name="comments" required minlength="3" rows="3" placeholder="e.g. Endorsed by Team Leader: Requires supervisor approval for special software license..." class="w-full text-xs p-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
                     </div>
 
                     <div>
@@ -1492,8 +1492,8 @@
                     </div>
 
                     <div>
-                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Handover Note</label>
-                        <textarea name="comments" rows="2" placeholder="e.g. Delegating this review to colleague for second opinion or coverage..." class="w-full text-xs p-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500"></textarea>
+                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Handover Note / Reason for Delegation (Mandatory)</label>
+                        <textarea name="comments" required minlength="3" rows="2" placeholder="e.g. Delegating this review to colleague for second opinion or coverage..." class="w-full text-xs p-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500"></textarea>
                     </div>
 
                     <div class="flex justify-end space-x-2 pt-2 border-t border-slate-100">
