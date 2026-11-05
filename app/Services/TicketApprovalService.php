@@ -38,51 +38,206 @@ class TicketApprovalService
         $isItDept = ($department && $department->isItDepartment()) || ($deptCode === 'IT' || str_starts_with($deptCode ?? '', 'IT') || $deptId == 2);
 
         // Check if requester's branch & department has a designated HOD, Line Manager, or Approvers (excluding IT Department / IT HOD)
-        $lineManagerId = $ticket->requester->employee?->line_manager_user_id;
-        $hasLineManager = !empty($lineManagerId);
+        $requester = $ticket->requester;
+        $requesterLevel = $this->getUserApproverLevel($requester, $deptId, $branchId);
 
-        $hasBranchApprover = false;
-        $designatedCardApproverId = null;
-        $cardTitle = null;
-        $cardLevel = null;
-
-        if (!$isItDept && $department) {
-            // Find lowest level approver card for (branch_id + department_id), falling back to (null branch_id + department_id)
-            $branchCard = null;
-            if ($branchId) {
-                $branchCard = \App\Models\DepartmentApprover::where('department_id', $deptId)
-                    ->where('branch_id', $branchId)
-                    ->where('is_active', true)
-                    ->orderBy('level')
-                    ->first();
-            }
-
-            $globalCard = \App\Models\DepartmentApprover::where('department_id', $deptId)
-                ->whereNull('branch_id')
-                ->where('is_active', true)
-                ->orderBy('level')
-                ->first();
-
-            $matchedCard = $branchCard ?: $globalCard;
-            if ($matchedCard) {
-                $hasBranchApprover = true;
-                $designatedCardApproverId = $matchedCard->user_id;
-                $cardTitle = $matchedCard->title;
-                $cardLevel = (int) $matchedCard->level;
-            }
-        }
-
+        $step1ApproverId = null;
+        $step1Name = 'Department HOD Approval';
+        $step1Role = 'department_hod';
         $hasDeptHod = false;
+
         if (!$isItDept && $department) {
-            $hasDeptHod = $hasLineManager
-                || $hasBranchApprover
-                || !empty($department->head_user_id);
+            // 1. Check Option B: Direct Line Manager (must be at least same level or higher)
+            $lineManagerId = $requester->employee?->line_manager_user_id;
+            if ($lineManagerId && $lineManagerId !== $requester->id) {
+                $lineManager = User::find($lineManagerId);
+                if ($lineManager && $lineManager->is_active) {
+                    $lmLevel = $this->getUserApproverLevel($lineManager, $deptId, $branchId);
+                    if ($lmLevel >= $requesterLevel) {
+                        $step1ApproverId = $lineManagerId;
+                        $step1Name = match (true) {
+                            $lmLevel >= 3 => 'Department Manager Approval',
+                            $lmLevel === 2 => 'Supervisor Approval',
+                            default => 'Team Leader Approval',
+                        };
+                        $step1Role = $lmLevel >= 2 ? 'department_supervisor' : 'department_hod';
+                        $hasDeptHod = true;
+                    }
+                }
+            }
+
+            // 2. If no valid Line Manager, route hierarchically based on requester's level
+            if (!$hasDeptHod) {
+                if ($requesterLevel === 0) {
+                    // Regular Staff (Level 0): Lowest level card first (Level 1 Team Leader, then 2, 3...)
+                    $branchCard = null;
+                    if ($branchId) {
+                        $branchCard = \App\Models\DepartmentApprover::where('department_id', $deptId)
+                            ->where('branch_id', $branchId)
+                            ->where('is_active', true)
+                            ->orderBy('level')
+                            ->first();
+                    }
+
+                    $globalCard = \App\Models\DepartmentApprover::where('department_id', $deptId)
+                        ->whereNull('branch_id')
+                        ->where('is_active', true)
+                        ->orderBy('level')
+                        ->first();
+
+                    $matchedCard = $branchCard ?: $globalCard;
+                    if ($matchedCard) {
+                        $step1ApproverId = $matchedCard->user_id;
+                        $step1Name = $matchedCard->title ?: match ((int) $matchedCard->level) {
+                            1 => 'Team Leader Approval',
+                            2 => 'Supervisor Approval',
+                            3 => 'Department Manager Approval',
+                            default => 'Department Approver Approval',
+                        };
+                        $step1Role = $matchedCard->level >= 2 ? 'department_supervisor' : 'department_hod';
+                        $hasDeptHod = true;
+                    } elseif ($department->head_user_id) {
+                        $step1ApproverId = $department->head_user_id;
+                        $step1Name = 'Department HOD Approval';
+                        $step1Role = 'department_hod';
+                        $hasDeptHod = true;
+                    }
+                } elseif ($requesterLevel === 1) {
+                    // Level 1 Team Leader: Find Level 2+ superior card (user != requester)
+                    $branchCard = null;
+                    if ($branchId) {
+                        $branchCard = \App\Models\DepartmentApprover::where('department_id', $deptId)
+                            ->where('branch_id', $branchId)
+                            ->where('level', '>=', 2)
+                            ->where('user_id', '!=', $requester->id)
+                            ->where('is_active', true)
+                            ->orderBy('level')
+                            ->first();
+                    }
+
+                    $globalCard = \App\Models\DepartmentApprover::where('department_id', $deptId)
+                        ->whereNull('branch_id')
+                        ->where('level', '>=', 2)
+                        ->where('user_id', '!=', $requester->id)
+                        ->where('is_active', true)
+                        ->orderBy('level')
+                        ->first();
+
+                    $matchedCard = $branchCard ?: $globalCard;
+                    if ($matchedCard) {
+                        $step1ApproverId = $matchedCard->user_id;
+                        $step1Name = $matchedCard->title ?: match ((int) $matchedCard->level) {
+                            2 => 'Supervisor Approval',
+                            3 => 'Department Manager Approval',
+                            default => 'Department Approver Approval',
+                        };
+                        $step1Role = 'department_supervisor';
+                        $hasDeptHod = true;
+                    } elseif ($department->head_user_id && $department->head_user_id !== $requester->id) {
+                        $step1ApproverId = $department->head_user_id;
+                        $step1Name = 'Department HOD Approval';
+                        $step1Role = 'department_hod';
+                        $hasDeptHod = true;
+                    } else {
+                        // Fallback: Level 1 Team Leader self-approves Step 1 (IT Manager approves Step 2)
+                        $step1ApproverId = $requester->id;
+                        $step1Name = 'Team Leader Approval (Self-Endorsement)';
+                        $step1Role = 'department_hod';
+                        $hasDeptHod = true;
+                    }
+                } elseif ($requesterLevel === 2) {
+                    // Level 2 Supervisor: Level 1 is STRICTLY EXCLUDED!
+                    // Look for same-level peer (Level 2) or superior (Level 3+)
+                    // Prioritize Level 3+ superiors first, then Level 2 peers
+                    $branchCard = null;
+                    if ($branchId) {
+                        $branchCard = \App\Models\DepartmentApprover::where('department_id', $deptId)
+                            ->where('branch_id', $branchId)
+                            ->where('level', '>=', 2)
+                            ->where('user_id', '!=', $requester->id)
+                            ->where('is_active', true)
+                            ->orderByRaw('CASE WHEN level >= 3 THEN 0 ELSE 1 END, level ASC')
+                            ->first();
+                    }
+
+                    $globalCard = \App\Models\DepartmentApprover::where('department_id', $deptId)
+                        ->whereNull('branch_id')
+                        ->where('level', '>=', 2)
+                        ->where('user_id', '!=', $requester->id)
+                        ->where('is_active', true)
+                        ->orderByRaw('CASE WHEN level >= 3 THEN 0 ELSE 1 END, level ASC')
+                        ->first();
+
+                    $matchedCard = $branchCard ?: $globalCard;
+                    if ($matchedCard) {
+                        $step1ApproverId = $matchedCard->user_id;
+                        $step1Name = $matchedCard->title ?: match ((int) $matchedCard->level) {
+                            2 => 'Supervisor Approval',
+                            3 => 'Department Manager Approval',
+                            default => 'Department Approver Approval',
+                        };
+                        $step1Role = 'department_supervisor';
+                        $hasDeptHod = true;
+                    } elseif ($department->head_user_id && $department->head_user_id !== $requester->id) {
+                        $step1ApproverId = $department->head_user_id;
+                        $step1Name = 'Department HOD Approval';
+                        $step1Role = 'department_hod';
+                        $hasDeptHod = true;
+                    } else {
+                        // Fallback: Level 2 Supervisor self-approves Step 1 (IT Manager approves Step 2)
+                        $step1ApproverId = $requester->id;
+                        $step1Name = 'Supervisor Approval (Self-Endorsement)';
+                        $step1Role = 'department_supervisor';
+                        $hasDeptHod = true;
+                    }
+                } else {
+                    // Level 3+ / HOD: Level 1 and 2 are STRICTLY EXCLUDED!
+                    $branchCard = null;
+                    if ($branchId) {
+                        $branchCard = \App\Models\DepartmentApprover::where('department_id', $deptId)
+                            ->where('branch_id', $branchId)
+                            ->where('level', '>=', 3)
+                            ->where('user_id', '!=', $requester->id)
+                            ->where('is_active', true)
+                            ->orderBy('level')
+                            ->first();
+                    }
+
+                    $globalCard = \App\Models\DepartmentApprover::where('department_id', $deptId)
+                        ->whereNull('branch_id')
+                        ->where('level', '>=', 3)
+                        ->where('user_id', '!=', $requester->id)
+                        ->where('is_active', true)
+                        ->orderBy('level')
+                        ->first();
+
+                    $matchedCard = $branchCard ?: $globalCard;
+                    if ($matchedCard) {
+                        $step1ApproverId = $matchedCard->user_id;
+                        $step1Name = $matchedCard->title ?: 'Department Manager Approval';
+                        $step1Role = 'department_hod';
+                        $hasDeptHod = true;
+                    } elseif ($department->head_user_id && $department->head_user_id !== $requester->id) {
+                        $step1ApproverId = $department->head_user_id;
+                        $step1Name = 'Department HOD Approval';
+                        $step1Role = 'department_hod';
+                        $hasDeptHod = true;
+                    } else {
+                        // Fallback: Level 3+ self-approves Step 1 (IT Manager approves Step 2)
+                        $step1ApproverId = $requester->id;
+                        $step1Name = 'Department Head Approval (Self-Endorsement)';
+                        $step1Role = 'department_hod';
+                        $hasDeptHod = true;
+                    }
+                }
+            }
         }
 
         if (!$hasDeptHod && !$isItDept && $deptId && $branchId) {
             $hasDeptHod = User::whereHas('roles', fn($q) => $q->where('name', 'hod'))
                 ->whereNotNull('employee_id')
                 ->where('email', '!=', 'admin@cbvh.com.kh')
+                ->where('id', '!=', $requester->id)
                 ->whereHas('employee', fn($q) => $q->where('department_id', $deptId)->where('branch_id', $branchId))
                 ->exists();
         }
@@ -91,27 +246,12 @@ class TicketApprovalService
         $itStepName = $itDivision === 'prd' ? 'IT Production Manager Approval' : 'IT Operations Manager Approval';
 
         if ($hasDeptHod) {
-            // Normal 2-Stage Approval: Step 1 is Branch Department Approver (Team Leader / Line Manager or HOD)
-            $step1ApproverId = $lineManagerId ?: ($designatedCardApproverId ?: $department->head_user_id);
-
-            if ($lineManagerId) {
-                $step1Name = 'Team Leader Approval';
-            } elseif ($hasBranchApprover) {
-                $step1Name = $cardTitle ?: match ($cardLevel) {
-                    1 => 'Team Leader Approval',
-                    2 => 'Supervisor Approval',
-                    3 => 'Department Manager Approval',
-                    default => 'Department Approver Approval',
-                };
-            } else {
-                $step1Name = 'Department HOD Approval';
-            }
-
+            // Step 1: Branch / Department Approver (or Self-Endorsement fallback)
             $step1 = TicketApproval::create([
                 'ticket_id' => $ticket->id,
                 'step_number' => 1,
                 'step_name' => $step1Name,
-                'role_name' => 'department_hod',
+                'role_name' => $step1Role,
                 'department_id' => $deptId,
                 'branch_id' => $branchId,
                 'approver_id' => $step1ApproverId,
@@ -128,7 +268,18 @@ class TicketApprovalService
                 'status' => 'pending',
             ]);
 
-            // Notify Step 1 approvers (Branch Department HOD)
+            // If Step 1 was assigned to requester for self-endorsement, post system transparency message
+            if ($step1ApproverId && $step1ApproverId === $requester->id) {
+                TicketMessage::create([
+                    'ticket_id' => $ticket->id,
+                    'sender_id' => $requester->id,
+                    'visibility' => 'system_event',
+                    'message_type' => 'status_change',
+                    'body' => "ℹ️ Requester holds approver authority ({$step1Name}). Step 1 is assigned for self-endorsement. Central IT Manager will review in Step 2.",
+                ]);
+            }
+
+            // Notify Step 1 approvers (Branch Department HOD / Team Leader / Supervisor)
             $this->notifyStepApprover($step1, $ticket);
         } else {
             // If IT department or branch department has NO designated HOD -> Auto-pass Step 1 and route directly to Central IT HOD (Step 2)
@@ -219,6 +370,19 @@ class TicketApprovalService
             return false;
         }
 
+        // Self-approval policy:
+        // A requester can ONLY approve Step 1 if:
+        // 1. They hold at least Level 1 authority (Team Leader, Supervisor, HOD)
+        // 2. AND they were explicitly designated as the fallback approver ($approval->approver_id === $user->id).
+        // Regular staff (Level 0) can NEVER approve any step on their own ticket!
+        if ($approval->step_number === 1 && $ticket->requester_id === $user->id) {
+            $requesterLevel = $this->getUserApproverLevel($user, $approval->department_id, $approval->branch_id);
+            if ($requesterLevel < 1 || $approval->approver_id !== $user->id) {
+                return false;
+            }
+            return true;
+        }
+
         if ($approval->approver_id && $approval->approver_id === $user->id) {
             return true;
         }
@@ -235,8 +399,18 @@ class TicketApprovalService
         // ========================================================
         if (in_array($approval->role_name, ['department_hod', 'department_supervisor']) || ($approval->step_number === 1 && empty($approval->role_name))) {
             $targetDeptId = $approval->department_id ?? $ticket->requester->employee?->department_id;
+            $targetBranchId = $approval->branch_id ?? $ticket->branch_id ?? $ticket->requester->employee?->branch_id;
             $targetDept = $targetDeptId ? \App\Models\Department::find($targetDeptId) : null;
             $targetDeptCode = $targetDept?->code ?? $ticket->requester->employee?->department?->code;
+
+            // Subordinate check: Lower level can NEVER approve higher level!
+            // e.g. If requester is Level 2 (Supervisor), a Level 1 (Team Leader) cannot approve!
+            $requesterLevel = $this->getUserApproverLevel($ticket->requester, $targetDeptId, $targetBranchId);
+            $userLevel = $this->getUserApproverLevel($user, $targetDeptId, $targetBranchId);
+
+            if ($userLevel < $requesterLevel) {
+                return false;
+            }
 
             // IT HOD cannot approve Step 1 for business departments (Operations, Finance, Sales, HR, etc.)
             if ($isItHod && !in_array($targetDeptCode, ['IT', 'IT-OPR', 'IT-PRD']) && $targetDeptId != 2) {
@@ -644,6 +818,70 @@ class TicketApprovalService
         }
 
         return 1;
+    }
+
+    /**
+     * Determine the user's approver level in a specific department and branch.
+     * Returns:
+     * 0 = Regular Staff
+     * 1 = Team Leader / Line Manager
+     * 2 = Supervisor
+     * 3 = Department Manager / HOD
+     * 4 = General Manager / Director
+     */
+    public function getUserApproverLevel(User $user, ?int $departmentId = null, ?int $branchId = null): int
+    {
+        if ($user->isItHod()) {
+            return 3;
+        }
+
+        $maxLevel = 0;
+
+        // 1. Check Department Approver cards
+        $cardsQuery = \App\Models\DepartmentApprover::where('user_id', $user->id)
+            ->where('is_active', true);
+
+        if ($departmentId) {
+            $cardsQuery->where(function ($q) use ($departmentId) {
+                $q->where('department_id', $departmentId)
+                  ->orWhereNull('department_id');
+            });
+        }
+
+        if ($branchId) {
+            $cardsQuery->where(function ($q) use ($branchId) {
+                $q->where('branch_id', $branchId)
+                  ->orWhereNull('branch_id');
+            });
+        }
+
+        $highestCard = $cardsQuery->orderBy('level', 'desc')->first();
+        if ($highestCard) {
+            $maxLevel = max($maxLevel, (int) $highestCard->level);
+        }
+
+        // 2. Check if user is Department Head (HOD)
+        if ($departmentId) {
+            $dept = \App\Models\Department::find($departmentId);
+            if ($dept && $dept->head_user_id === $user->id) {
+                $maxLevel = max($maxLevel, 3);
+            }
+        }
+
+        // 3. Check roles
+        if ($user->hasRole('hod')) {
+            $maxLevel = max($maxLevel, 3);
+        }
+
+        // 4. Check if user is a Direct Line Manager to active employees
+        if ($maxLevel === 0) {
+            $isLineManager = \App\Models\Employee::where('line_manager_user_id', $user->id)->exists();
+            if ($isLineManager) {
+                $maxLevel = max($maxLevel, 1);
+            }
+        }
+
+        return $maxLevel;
     }
 
     /**

@@ -650,5 +650,185 @@ class MultiLevelDepartmentApprovalTest extends TestCase
         $this->assertEquals($deptMgr->id, $escalatedStep->approver_id);
         $this->assertStringContainsString('Department Manager Approval (Escalated)', $escalatedStep->step_name);
     }
+
+    public function test_supervisor_request_never_routes_to_team_leader_and_routes_to_peer_or_superior(): void
+    {
+        $dept = Department::where('code', 'OPS')->firstOrFail();
+        $branch = Branch::where('code', 'HQ-PP')->firstOrFail();
+
+        // 1. Level 1 Team Leader
+        $teamLeader = User::factory()->create([
+            'name' => 'Team Leader Sokha',
+            'email' => 'tl.sokha@cbvh.com.kh',
+            'is_active' => true,
+        ]);
+        DepartmentApprover::create([
+            'department_id' => $dept->id,
+            'branch_id' => $branch->id,
+            'user_id' => $teamLeader->id,
+            'level' => 1,
+            'title' => 'Operations Team Leader',
+            'is_active' => true,
+        ]);
+
+        // 2. Level 2 Supervisor A (Requester)
+        $supervisorA = User::factory()->create([
+            'name' => 'Supervisor Dara (Requester)',
+            'email' => 'sup.dara@cbvh.com.kh',
+            'is_active' => true,
+        ]);
+        $empA = Employee::create([
+            'employee_code' => 'OPS-SUP-01',
+            'full_name' => 'Supervisor Dara',
+            'email' => 'sup.dara@cbvh.com.kh',
+            'department_id' => $dept->id,
+            'branch_id' => $branch->id,
+            'is_active' => true,
+        ]);
+        $supervisorA->update(['employee_id' => $empA->id]);
+        DepartmentApprover::create([
+            'department_id' => $dept->id,
+            'branch_id' => $branch->id,
+            'user_id' => $supervisorA->id,
+            'level' => 2,
+            'title' => 'Operations Shift Supervisor',
+            'is_active' => true,
+        ]);
+
+        // 3. Level 2 Supervisor B (Peer)
+        $supervisorB = User::factory()->create([
+            'name' => 'Supervisor Vanna (Peer)',
+            'email' => 'sup.vanna@cbvh.com.kh',
+            'is_active' => true,
+        ]);
+        DepartmentApprover::create([
+            'department_id' => $dept->id,
+            'branch_id' => $branch->id,
+            'user_id' => $supervisorB->id,
+            'level' => 2,
+            'title' => 'Operations Logistics Supervisor',
+            'is_active' => true,
+        ]);
+
+        // Supervisor A submits request
+        $category = TicketCategory::where('requires_approval', true)->firstOrFail();
+        $ticket = Ticket::create([
+            'ticket_code' => 'SR-OPS-2026-SUP1',
+            'subject' => 'Need additional warehouse terminal access',
+            'description' => 'Shift handover terminal setup',
+            'ticket_type' => 'service_request',
+            'category_id' => $category->id,
+            'requester_id' => $supervisorA->id,
+            'branch_id' => $branch->id,
+            'priority' => 'medium',
+            'status' => 'submitted',
+        ]);
+
+        $this->approvalService->createApprovalChain($ticket);
+        $ticket->refresh();
+
+        $step1 = $ticket->approvals()->where('step_number', 1)->firstOrFail();
+        $this->assertEquals('pending', $step1->status);
+
+        // Step 1 MUST NOT be assigned to Level 1 Team Leader!
+        $this->assertNotEquals($teamLeader->id, $step1->approver_id);
+        // Step 1 MUST be assigned to Level 2 Peer Supervisor B!
+        $this->assertEquals($supervisorB->id, $step1->approver_id);
+
+        // Subordinate rule check:
+        // Level 1 Team Leader MUST NOT be allowed to approve Supervisor's request!
+        $this->assertFalse($this->approvalService->canUserApprove($teamLeader, $step1));
+
+        // Same-level Peer Supervisor B CAN approve!
+        $this->assertTrue($this->approvalService->canUserApprove($supervisorB, $step1));
+    }
+
+    public function test_supervisor_request_with_no_superior_or_peer_routes_to_self_endorsement_with_it_safeguard(): void
+    {
+        $dept = Department::where('code', 'SALES')->firstOrFail();
+        $branch = Branch::where('code', 'BTB-01')->firstOrFail();
+
+        // 1. Level 1 Team Leader exists at this branch
+        $teamLeader = User::factory()->create([
+            'name' => 'Battambang Team Leader',
+            'email' => 'tl.btb@cbvh.com.kh',
+            'is_active' => true,
+        ]);
+        DepartmentApprover::create([
+            'department_id' => $dept->id,
+            'branch_id' => $branch->id,
+            'user_id' => $teamLeader->id,
+            'level' => 1,
+            'title' => 'Floor Team Leader',
+            'is_active' => true,
+        ]);
+
+        // 2. Sole Supervisor at this branch (Requester)
+        $supervisor = User::factory()->create([
+            'name' => 'Battambang Sole Supervisor',
+            'email' => 'sup.btb.sole@cbvh.com.kh',
+            'is_active' => true,
+        ]);
+        $emp = Employee::create([
+            'employee_code' => 'SALES-BTB-SUP',
+            'full_name' => 'Battambang Sole Supervisor',
+            'email' => 'sup.btb.sole@cbvh.com.kh',
+            'department_id' => $dept->id,
+            'branch_id' => $branch->id,
+            'is_active' => true,
+        ]);
+        $supervisor->update(['employee_id' => $emp->id]);
+        DepartmentApprover::create([
+            'department_id' => $dept->id,
+            'branch_id' => $branch->id,
+            'user_id' => $supervisor->id,
+            'level' => 2,
+            'title' => 'Store Supervisor',
+            'is_active' => true,
+        ]);
+
+        // Supervisor submits request
+        $category = TicketCategory::where('requires_approval', true)->firstOrFail();
+        $ticket = Ticket::create([
+            'ticket_code' => 'SR-SALES-2026-BTB01',
+            'subject' => 'Request barcode scanner repair kit',
+            'description' => 'Store maintenance required',
+            'ticket_type' => 'service_request',
+            'category_id' => $category->id,
+            'requester_id' => $supervisor->id,
+            'branch_id' => $branch->id,
+            'priority' => 'low',
+            'status' => 'submitted',
+        ]);
+
+        $this->approvalService->createApprovalChain($ticket);
+        $ticket->refresh();
+
+        $step1 = $ticket->approvals()->where('step_number', 1)->firstOrFail();
+        $step2 = $ticket->approvals()->where('step_number', 2)->firstOrFail();
+
+        // 1. Subordinate Level 1 must NEVER be assigned as approver!
+        $this->assertNotEquals($teamLeader->id, $step1->approver_id);
+
+        // 2. Step 1 is assigned to the Supervisor for self-endorsement:
+        $this->assertEquals($supervisor->id, $step1->approver_id);
+        $this->assertStringContainsString('Self-Endorsement', $step1->step_name);
+
+        // 3. Level 1 Team Leader CANNOT approve:
+        $this->assertFalse($this->approvalService->canUserApprove($teamLeader, $step1));
+
+        // 4. Supervisor CAN approve Step 1 (self-endorsement):
+        $this->assertTrue($this->approvalService->canUserApprove($supervisor, $step1));
+
+        // 5. Supervisor approves Step 1:
+        $this->approvalService->approve($step1, $supervisor, 'Supervisor self-endorsement confirmed.');
+        $step1->refresh();
+        $this->assertEquals('approved', $step1->status);
+
+        // 6. Step 2 (Central IT Manager) is now activated and awaiting Central IT sign-off:
+        $step2->refresh();
+        $this->assertEquals('pending', $step2->status);
+        $this->assertEquals('IT Manager Approval', $step2->step_name);
+    }
 }
 
