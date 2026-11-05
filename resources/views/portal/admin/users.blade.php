@@ -12,6 +12,21 @@
     targetUser: {},
     userRoles: [],
     isTargetStaff: false,
+    candidates: {{ $candidatesJson->toJson() }},
+    
+    // Edit Modal Line Manager Picker State
+    editManagerSearch: '',
+    editManagerDropdownOpen: false,
+    editManagerScope: 'same',
+
+    // Create Modal Line Manager Picker State
+    createDeptId: '',
+    createBranchId: '',
+    createManagerId: '',
+    createManagerSearch: '',
+    createManagerDropdownOpen: false,
+    createManagerScope: 'same',
+
     editForm: {
         id: '',
         name: '',
@@ -19,6 +34,7 @@
         employee_code: '',
         department_id: '',
         branch_id: '',
+        line_manager_user_id: '',
         phone: '',
         telegram_username: '',
         telegram_id: '',
@@ -28,11 +44,59 @@
         tma_role: ''
     },
     editApproverBadges: [],
+
+    getFilteredManagers(search, deptId, branchId, scopeMode, excludeUserId = null) {
+        let q = (search || '').toLowerCase().trim();
+        let list = this.candidates.filter(c => !excludeUserId || c.id !== excludeUserId);
+
+        if (scopeMode === 'same' && (deptId || branchId)) {
+            list = list.filter(c => 
+                (deptId && c.dept_id == deptId) || 
+                (branchId && c.branch_id == branchId)
+            );
+        }
+
+        if (q) {
+            list = list.filter(c => 
+                (c.name && c.name.toLowerCase().includes(q)) ||
+                (c.email && c.email.toLowerCase().includes(q)) ||
+                (c.employee_code && c.employee_code.toLowerCase().includes(q)) ||
+                (c.dept_name && c.dept_name.toLowerCase().includes(q)) ||
+                (c.dept_code && c.dept_code.toLowerCase().includes(q)) ||
+                (c.branch_name && c.branch_name.toLowerCase().includes(q)) ||
+                (c.roles && c.roles.toLowerCase().includes(q))
+            );
+        }
+
+        return [...list].sort((a, b) => {
+            let scoreA = (branchId && a.branch_id == branchId ? 3 : 0) + (deptId && a.dept_id == deptId ? 2 : 0);
+            let scoreB = (branchId && b.branch_id == branchId ? 3 : 0) + (deptId && b.dept_id == deptId ? 2 : 0);
+            if (scoreB !== scoreA) return scoreB - scoreA;
+            return a.name.localeCompare(b.name);
+        });
+    },
+
+    getSameCount(deptId, branchId, excludeUserId = null) {
+        if (!deptId && !branchId) return 0;
+        return this.candidates.filter(c => 
+            (!excludeUserId || c.id !== excludeUserId) && 
+            ((deptId && c.dept_id == deptId) || (branchId && c.branch_id == branchId))
+        ).length;
+    },
+
+    getSelectedManager(managerId) {
+        if (!managerId) return null;
+        return this.candidates.find(c => c.id == managerId) || null;
+    },
+
     openEditModal(u, isStaff, approverBadges = []) {
         this.targetUser = u;
         this.isTargetStaff = isStaff;
         this.editApproverBadges = Array.isArray(approverBadges) ? approverBadges : (approverBadges ? [approverBadges] : []);
         const reqRole = u.roles ? u.roles.find(r => r.name === 'requester') : null;
+        this.editManagerSearch = '';
+        this.editManagerDropdownOpen = false;
+        this.editManagerScope = 'same';
         this.editForm = {
             id: u.id,
             name: u.name,
@@ -50,6 +114,16 @@
             tma_role: reqRole ? reqRole.id : ''
         };
         this.editUserModal = true;
+    },
+
+    openCreateTmaModal() {
+        this.createDeptId = '{{ $departments->first()?->id ?? "" }}';
+        this.createBranchId = '{{ $branches->first()?->id ?? "" }}';
+        this.createManagerId = '';
+        this.createManagerSearch = '';
+        this.createManagerDropdownOpen = false;
+        this.createManagerScope = 'same';
+        this.createTmaModal = true;
     }
 }" class="space-y-6">
 
@@ -67,7 +141,7 @@
                 <span>🛠️</span>
                 <span>Add IT Staff User</span>
             </button>
-            <button type="button" @click="createTmaModal = true" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-3.5 py-2.5 rounded-xl shadow-xs transition flex items-center space-x-1.5">
+            <button type="button" @click="openCreateTmaModal()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-3.5 py-2.5 rounded-xl shadow-xs transition flex items-center space-x-1.5 cursor-pointer">
                 <span>📱</span>
                 <span>Add TMA Employee</span>
             </button>
@@ -440,7 +514,7 @@
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
                         <div>
                             <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Department</label>
-                            <select name="department_id" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                            <select name="department_id" x-model="createDeptId" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
                                 @foreach($departments as $dept)
                                     <option value="{{ $dept->id }}">{{ $dept->name }} ({{ $dept->code }})</option>
                                 @endforeach
@@ -449,7 +523,7 @@
                         </div>
                         <div>
                             <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Branch / Location</label>
-                            <select name="branch_id" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                            <select name="branch_id" x-model="createBranchId" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
                                 @foreach($branches as $branch)
                                     <option value="{{ $branch->id }}">{{ $branch->name }} ({{ $branch->code }})</option>
                                 @endforeach
@@ -459,15 +533,149 @@
                     </div>
 
                     <!-- Direct Line Manager / Team Leader (Option B) -->
-                    <div>
-                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Direct Line Manager / Team Leader (Level 1 Approver)</label>
-                        <select name="line_manager_user_id" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                            <option value="">-- Auto (Department Approver Card Fallback) --</option>
-                            @foreach($lineManagerCandidates as $mgr)
-                                <option value="{{ $mgr->id }}">{{ $mgr->name }} ({{ $mgr->email }})</option>
-                            @endforeach
-                        </select>
-                        <p class="text-[10px] text-slate-400 mt-0.5">Option B: Service requests from this employee route directly to this Team Leader for Level 1 review.</p>
+                    <div class="space-y-1.5">
+                        <div class="flex items-center justify-between">
+                            <label class="block text-[11px] font-bold text-slate-600 uppercase">Direct Line Manager / Team Leader (Level 1 Approver)</label>
+                            
+                            <!-- Smart Scope Toggle -->
+                            <div class="flex items-center space-x-1 text-[10px] font-bold">
+                                <span class="text-slate-400">Show:</span>
+                                <button type="button" 
+                                        @click="createManagerScope = 'same'"
+                                        :class="createManagerScope === 'same' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
+                                        class="px-2 py-0.5 rounded-lg transition cursor-pointer">
+                                    🎯 Same Dept &amp; Branch (<span x-text="getSameCount(createDeptId, createBranchId)"></span>)
+                                </button>
+                                <button type="button" 
+                                        @click="createManagerScope = 'all'"
+                                        :class="createManagerScope === 'all' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
+                                        class="px-2 py-0.5 rounded-lg transition cursor-pointer">
+                                    🌐 All Company (<span x-text="candidates.length"></span>)
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Hidden input bound to form submission -->
+                        <input type="hidden" name="line_manager_user_id" :value="createManagerId">
+
+                        <!-- Selected State Card -->
+                        <template x-if="createManagerId && getSelectedManager(createManagerId)">
+                            <div class="p-2.5 bg-blue-50/70 border border-blue-200 rounded-2xl flex items-center justify-between">
+                                <div class="flex items-center space-x-2.5 truncate">
+                                    <div class="w-8 h-8 rounded-full bg-blue-600 text-white font-bold text-xs flex items-center justify-center shrink-0" 
+                                         x-text="getSelectedManager(createManagerId)?.initials"></div>
+                                    <div class="truncate">
+                                        <div class="flex items-center space-x-1.5">
+                                            <span class="text-xs font-bold text-slate-900 truncate" x-text="getSelectedManager(createManagerId)?.name"></span>
+                                            <span class="text-[9px] font-mono px-1.5 py-0.2 rounded bg-blue-100 text-blue-700 font-bold" 
+                                                  x-text="getSelectedManager(createManagerId)?.dept_code || 'STAFF'"></span>
+                                            <span class="text-[9px] px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold" 
+                                                  x-text="getSelectedManager(createManagerId)?.branch_code || 'HQ'"></span>
+                                        </div>
+                                        <div class="text-[10px] text-slate-500 truncate" x-text="getSelectedManager(createManagerId)?.email"></div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center space-x-1 shrink-0">
+                                    <button type="button" 
+                                            @click="createManagerDropdownOpen = !createManagerDropdownOpen"
+                                            class="text-xs text-blue-600 hover:text-blue-800 font-bold px-2 py-1 rounded-lg hover:bg-blue-100 transition cursor-pointer">
+                                        Change
+                                    </button>
+                                    <button type="button" 
+                                            @click="createManagerId = ''; createManagerSearch = ''"
+                                            class="text-xs text-rose-500 hover:text-rose-700 font-bold px-2 py-1 rounded-lg hover:bg-rose-50 transition cursor-pointer" title="Reset to Auto Fallback">
+                                        ✕ Clear
+                                    </button>
+                                </div>
+                            </div>
+                        </template>
+
+                        <!-- Unselected / Auto Fallback State -->
+                        <template x-if="!createManagerId">
+                            <div class="relative">
+                                <div @click="createManagerDropdownOpen = true" 
+                                     class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white hover:border-blue-400 cursor-pointer flex items-center justify-between shadow-2xs">
+                                    <div class="flex items-center space-x-2 text-slate-500 font-medium truncate">
+                                        <span class="text-amber-500 font-bold">⚡</span>
+                                        <span class="truncate">Auto (Department Approver Card Fallback)</span>
+                                    </div>
+                                    <span class="text-xs text-slate-400">🔍 Select Manager ▾</span>
+                                </div>
+                            </div>
+                        </template>
+
+                        <!-- Searchable Dropdown Combobox -->
+                        <div x-show="createManagerDropdownOpen" 
+                             @click.away="createManagerDropdownOpen = false" 
+                             class="relative z-50 mt-1.5 bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden" 
+                             x-cloak>
+                            
+                            <!-- Live Search Box inside Combobox -->
+                            <div class="p-2 border-b border-slate-100 bg-slate-50/50 flex items-center space-x-2">
+                                <div class="relative w-full">
+                                    <span class="absolute left-2.5 top-2 text-slate-400 text-xs">🔍</span>
+                                    <input type="text"
+                                           x-model="createManagerSearch"
+                                           placeholder="Type name, email, or code to filter..."
+                                           class="w-full text-xs pl-7 pr-7 py-1.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <button type="button" x-show="createManagerSearch" @click="createManagerSearch = ''" class="absolute right-2 top-1.5 text-xs text-slate-400 hover:text-slate-600">✕</button>
+                                </div>
+                            </div>
+
+                            <!-- Options List -->
+                            <div class="max-h-56 overflow-y-auto divide-y divide-slate-100 p-1">
+                                <!-- Option 0: Auto Fallback Option -->
+                                <div @click="createManagerId = ''; createManagerDropdownOpen = false; createManagerSearch = ''"
+                                     class="p-2 hover:bg-amber-50/80 rounded-xl cursor-pointer flex items-center justify-between transition"
+                                     :class="!createManagerId ? 'bg-amber-50/60 font-bold' : ''">
+                                    <div class="flex items-center space-x-2 truncate">
+                                        <span class="text-amber-500">⚡</span>
+                                        <div>
+                                            <div class="text-xs font-bold text-slate-800">-- Auto (Department Approver Card Fallback) --</div>
+                                            <div class="text-[10px] text-slate-400">Routes to department's configured Team Leader / HOD</div>
+                                        </div>
+                                    </div>
+                                    <template x-if="!createManagerId">
+                                        <span class="text-amber-600 font-bold text-xs">✓ Active</span>
+                                    </template>
+                                </div>
+
+                                <!-- List of Filtered Candidates -->
+                                <template x-for="candidate in getFilteredManagers(createManagerSearch, createDeptId, createBranchId, createManagerScope)" :key="candidate.id">
+                                    <div @click="createManagerId = candidate.id; createManagerDropdownOpen = false; createManagerSearch = ''"
+                                         class="p-2 hover:bg-blue-50/80 rounded-xl cursor-pointer flex items-center justify-between transition"
+                                         :class="createManagerId == candidate.id ? 'bg-blue-50 font-bold' : ''">
+                                        <div class="flex items-center space-x-2.5 truncate">
+                                            <div class="w-7 h-7 rounded-full bg-slate-800 text-white font-bold text-[10px] flex items-center justify-center shrink-0" 
+                                                 x-text="candidate.initials"></div>
+                                            <div class="truncate">
+                                                <div class="flex items-center space-x-1.5">
+                                                    <span class="text-xs font-bold text-slate-900 truncate" x-text="candidate.name"></span>
+                                                    <span class="text-[9px] font-mono px-1 py-0.2 rounded bg-blue-50 text-blue-700 border border-blue-200" 
+                                                          x-text="candidate.dept_code || 'STAFF'"></span>
+                                                    <span class="text-[9px] px-1 py-0.2 rounded bg-emerald-50 text-emerald-700 border border-emerald-200" 
+                                                          x-text="candidate.branch_code || 'HQ'"></span>
+                                                </div>
+                                                <div class="text-[10px] text-slate-400 truncate" x-text="candidate.employee_code ? (candidate.employee_code + (candidate.roles ? ' • ' + candidate.roles : '')) : (candidate.roles || '')"></div>
+                                            </div>
+                                        </div>
+                                        <template x-if="createManagerId == candidate.id">
+                                            <span class="text-blue-600 font-bold text-xs shrink-0">✓ Selected</span>
+                                        </template>
+                                    </div>
+                                </template>
+
+                                <!-- Empty State inside Combobox -->
+                                <div x-show="getFilteredManagers(createManagerSearch, createDeptId, createBranchId, createManagerScope).length === 0" 
+                                     class="py-4 text-center text-xs text-slate-400 space-y-1">
+                                    <div>No candidates found in this scope.</div>
+                                    <button type="button" @click="createManagerScope = 'all'; createManagerSearch = ''" class="text-blue-600 font-bold hover:underline text-[11px]">
+                                        🌐 Switch to All Company candidates
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <p class="text-[10px] text-slate-400">Option B: Service requests from this employee route directly to this Team Leader for Level 1 review.</p>
                     </div>
                 </div>
 
@@ -609,15 +817,149 @@
                 </div>
 
                 <!-- Direct Line Manager / Team Leader (Option B) -->
-                <div>
-                    <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Direct Line Manager / Team Leader (Level 1 Approver)</label>
-                    <select name="line_manager_user_id" x-model="editForm.line_manager_user_id" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
-                        <option value="">-- Auto (Department Approver Card Fallback) --</option>
-                        @foreach($lineManagerCandidates as $mgr)
-                            <option value="{{ $mgr->id }}">{{ $mgr->name }} [{{ $mgr->employee?->department?->code ?? 'STAFF' }}]</option>
-                        @endforeach
-                    </select>
-                    <p class="text-[10px] text-slate-400 mt-0.5">Option B: Service requests from this employee route directly to this Team Leader for Level 1 review.</p>
+                <div class="space-y-1.5">
+                    <div class="flex items-center justify-between">
+                        <label class="block text-[11px] font-bold text-slate-600 uppercase">Direct Line Manager / Team Leader (Level 1 Approver)</label>
+                        
+                        <!-- Smart Scope Toggle -->
+                        <div class="flex items-center space-x-1 text-[10px] font-bold">
+                            <span class="text-slate-400">Show:</span>
+                            <button type="button" 
+                                    @click="editManagerScope = 'same'"
+                                    :class="editManagerScope === 'same' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
+                                    class="px-2 py-0.5 rounded-lg transition cursor-pointer">
+                                🎯 Same Dept &amp; Branch (<span x-text="getSameCount(editForm.department_id, editForm.branch_id, editForm.id)"></span>)
+                            </button>
+                            <button type="button" 
+                                    @click="editManagerScope = 'all'"
+                                    :class="editManagerScope === 'all' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
+                                    class="px-2 py-0.5 rounded-lg transition cursor-pointer">
+                                🌐 All Company (<span x-text="candidates.filter(c => c.id != editForm.id).length"></span>)
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Hidden input bound to form submission -->
+                    <input type="hidden" name="line_manager_user_id" :value="editForm.line_manager_user_id">
+
+                    <!-- Selected State Card -->
+                    <template x-if="editForm.line_manager_user_id && getSelectedManager(editForm.line_manager_user_id)">
+                        <div class="p-2.5 bg-indigo-50/60 border border-indigo-200 rounded-2xl flex items-center justify-between">
+                            <div class="flex items-center space-x-2.5 truncate">
+                                <div class="w-8 h-8 rounded-full bg-indigo-600 text-white font-bold text-xs flex items-center justify-center shrink-0" 
+                                     x-text="getSelectedManager(editForm.line_manager_user_id)?.initials"></div>
+                                <div class="truncate">
+                                    <div class="flex items-center space-x-1.5">
+                                        <span class="text-xs font-bold text-slate-900 truncate" x-text="getSelectedManager(editForm.line_manager_user_id)?.name"></span>
+                                        <span class="text-[9px] font-mono px-1.5 py-0.2 rounded bg-indigo-100 text-indigo-700 font-bold" 
+                                              x-text="getSelectedManager(editForm.line_manager_user_id)?.dept_code || 'STAFF'"></span>
+                                        <span class="text-[9px] px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold" 
+                                              x-text="getSelectedManager(editForm.line_manager_user_id)?.branch_code || 'HQ'"></span>
+                                    </div>
+                                    <div class="text-[10px] text-slate-500 truncate" x-text="getSelectedManager(editForm.line_manager_user_id)?.email"></div>
+                                </div>
+                            </div>
+                            <div class="flex items-center space-x-1 shrink-0">
+                                <button type="button" 
+                                        @click="editManagerDropdownOpen = !editManagerDropdownOpen"
+                                        class="text-xs text-indigo-600 hover:text-indigo-800 font-bold px-2 py-1 rounded-lg hover:bg-indigo-100 transition cursor-pointer">
+                                    Change
+                                </button>
+                                <button type="button" 
+                                        @click="editForm.line_manager_user_id = ''; editManagerSearch = ''"
+                                        class="text-xs text-rose-500 hover:text-rose-700 font-bold px-2 py-1 rounded-lg hover:bg-rose-50 transition cursor-pointer" title="Reset to Auto Fallback">
+                                    ✕ Clear
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- Unselected / Auto Fallback State -->
+                    <template x-if="!editForm.line_manager_user_id">
+                        <div class="relative">
+                            <div @click="editManagerDropdownOpen = true" 
+                                 class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white hover:border-indigo-400 cursor-pointer flex items-center justify-between shadow-2xs">
+                                <div class="flex items-center space-x-2 text-slate-500 font-medium truncate">
+                                    <span class="text-amber-500 font-bold">⚡</span>
+                                    <span class="truncate">Auto (Department Approver Card Fallback)</span>
+                                </div>
+                                <span class="text-xs text-slate-400">🔍 Select Manager ▾</span>
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- Searchable Dropdown Combobox -->
+                    <div x-show="editManagerDropdownOpen" 
+                         @click.away="editManagerDropdownOpen = false" 
+                         class="relative z-50 mt-1.5 bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden" 
+                         x-cloak>
+                        
+                        <!-- Live Search Box inside Combobox -->
+                        <div class="p-2 border-b border-slate-100 bg-slate-50/50 flex items-center space-x-2">
+                            <div class="relative w-full">
+                                <span class="absolute left-2.5 top-2 text-slate-400 text-xs">🔍</span>
+                                <input type="text"
+                                       x-model="editManagerSearch"
+                                       placeholder="Type name, email, or code to filter..."
+                                       class="w-full text-xs pl-7 pr-7 py-1.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                <button type="button" x-show="editManagerSearch" @click="editManagerSearch = ''" class="absolute right-2 top-1.5 text-xs text-slate-400 hover:text-slate-600">✕</button>
+                            </div>
+                        </div>
+
+                        <!-- Options List -->
+                        <div class="max-h-56 overflow-y-auto divide-y divide-slate-100 p-1">
+                            <!-- Option 0: Auto Fallback Option -->
+                            <div @click="editForm.line_manager_user_id = ''; editManagerDropdownOpen = false; editManagerSearch = ''"
+                                 class="p-2 hover:bg-amber-50/80 rounded-xl cursor-pointer flex items-center justify-between transition"
+                                 :class="!editForm.line_manager_user_id ? 'bg-amber-50/60 font-bold' : ''">
+                                <div class="flex items-center space-x-2 truncate">
+                                    <span class="text-amber-500">⚡</span>
+                                    <div>
+                                        <div class="text-xs font-bold text-slate-800">-- Auto (Department Approver Card Fallback) --</div>
+                                        <div class="text-[10px] text-slate-400">Routes to department's configured Team Leader / HOD</div>
+                                    </div>
+                                </div>
+                                <template x-if="!editForm.line_manager_user_id">
+                                    <span class="text-amber-600 font-bold text-xs">✓ Active</span>
+                                </template>
+                            </div>
+
+                            <!-- List of Filtered Candidates -->
+                            <template x-for="candidate in getFilteredManagers(editManagerSearch, editForm.department_id, editForm.branch_id, editManagerScope, editForm.id)" :key="candidate.id">
+                                <div @click="editForm.line_manager_user_id = candidate.id; editManagerDropdownOpen = false; editManagerSearch = ''"
+                                     class="p-2 hover:bg-indigo-50/80 rounded-xl cursor-pointer flex items-center justify-between transition"
+                                     :class="editForm.line_manager_user_id == candidate.id ? 'bg-indigo-50 font-bold' : ''">
+                                    <div class="flex items-center space-x-2.5 truncate">
+                                        <div class="w-7 h-7 rounded-full bg-slate-800 text-white font-bold text-[10px] flex items-center justify-center shrink-0" 
+                                             x-text="candidate.initials"></div>
+                                        <div class="truncate">
+                                            <div class="flex items-center space-x-1.5">
+                                                <span class="text-xs font-bold text-slate-900 truncate" x-text="candidate.name"></span>
+                                                <span class="text-[9px] font-mono px-1 py-0.2 rounded bg-indigo-50 text-indigo-700 border border-indigo-200" 
+                                                      x-text="candidate.dept_code || 'STAFF'"></span>
+                                                <span class="text-[9px] px-1 py-0.2 rounded bg-emerald-50 text-emerald-700 border border-emerald-200" 
+                                                      x-text="candidate.branch_code || 'HQ'"></span>
+                                            </div>
+                                            <div class="text-[10px] text-slate-400 truncate" x-text="candidate.employee_code ? (candidate.employee_code + (candidate.roles ? ' • ' + candidate.roles : '')) : (candidate.roles || '')"></div>
+                                        </div>
+                                    </div>
+                                    <template x-if="editForm.line_manager_user_id == candidate.id">
+                                        <span class="text-indigo-600 font-bold text-xs shrink-0">✓ Selected</span>
+                                    </template>
+                                </div>
+                            </template>
+
+                            <!-- Empty State inside Combobox -->
+                            <div x-show="getFilteredManagers(editManagerSearch, editForm.department_id, editForm.branch_id, editManagerScope, editForm.id).length === 0" 
+                                 class="py-4 text-center text-xs text-slate-400 space-y-1">
+                                <div>No candidates found in this scope.</div>
+                                <button type="button" @click="editManagerScope = 'all'; editManagerSearch = ''" class="text-indigo-600 font-bold hover:underline text-[11px]">
+                                    🌐 Switch to All Company candidates
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="text-[10px] text-slate-400">Option B: Service requests from this employee route directly to this Team Leader for Level 1 review.</p>
                 </div>
 
                 <!-- Row 4: Telegram & Password Reset -->

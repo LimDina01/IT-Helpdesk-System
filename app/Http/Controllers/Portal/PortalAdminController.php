@@ -355,12 +355,27 @@ class PortalAdminController extends Controller
         $allRoles = Role::orderBy('id')->get();
         $departments = Department::where('is_active', true)->orderBy('name')->get();
         $branches = Branch::where('is_active', true)->orderBy('name')->get();
-        $lineManagerCandidates = $filter === 'portal'
-            ? collect()
-            : User::where('is_active', true)
-                ->whereHas('roles', fn($r) => $r->whereIn('name', ['hod', 'requester', 'system_admin']))
-                ->orderBy('name')
-                ->get();
+        $lineManagerCandidates = User::where('is_active', true)
+            ->whereHas('roles', fn($r) => $r->whereIn('name', ['hod', 'requester', 'system_admin']))
+            ->with(['employee.department', 'employee.branch', 'roles'])
+            ->orderBy('name')
+            ->get();
+
+        $candidatesJson = $lineManagerCandidates->map(function ($u) {
+            return [
+                'id' => $u->id,
+                'name' => $u->name,
+                'employee_code' => $u->employee?->employee_code,
+                'initials' => strtoupper(substr($u->name, 0, 2)),
+                'dept_id' => $u->employee?->department_id,
+                'dept_name' => $u->employee?->department?->name,
+                'dept_code' => $u->employee?->department?->code,
+                'branch_id' => $u->employee?->branch_id,
+                'branch_name' => $u->employee?->branch?->name,
+                'branch_code' => $u->employee?->branch?->code,
+                'roles' => $u->roles->pluck('name')->join(', '),
+            ];
+        })->values();
 
         return view('portal.admin.users', compact(
             'users',
@@ -369,6 +384,7 @@ class PortalAdminController extends Controller
             'departments',
             'branches',
             'lineManagerCandidates',
+            'candidatesJson',
             'totalCount',
             'staffCount',
             'tmaCount',
