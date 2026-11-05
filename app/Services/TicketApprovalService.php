@@ -42,31 +42,33 @@ class TicketApprovalService
         $hasLineManager = !empty($lineManagerId);
 
         $hasBranchApprover = false;
-        $designatedL1ApproverId = null;
+        $designatedCardApproverId = null;
+        $cardTitle = null;
+        $cardLevel = null;
 
         if (!$isItDept && $department) {
-            // Find Level 1 approver card for (branch_id + department_id), falling back to (null branch_id + department_id)
-            $branchL1Card = null;
+            // Find lowest level approver card for (branch_id + department_id), falling back to (null branch_id + department_id)
+            $branchCard = null;
             if ($branchId) {
-                $branchL1Card = \App\Models\DepartmentApprover::where('department_id', $deptId)
+                $branchCard = \App\Models\DepartmentApprover::where('department_id', $deptId)
                     ->where('branch_id', $branchId)
                     ->where('is_active', true)
                     ->orderBy('level')
                     ->first();
             }
 
-            $globalL1Card = \App\Models\DepartmentApprover::where('department_id', $deptId)
+            $globalCard = \App\Models\DepartmentApprover::where('department_id', $deptId)
                 ->whereNull('branch_id')
                 ->where('is_active', true)
                 ->orderBy('level')
                 ->first();
 
-            $matchedCard = $branchL1Card ?: $globalL1Card;
+            $matchedCard = $branchCard ?: $globalCard;
             if ($matchedCard) {
                 $hasBranchApprover = true;
-                if ($matchedCard->level === 1) {
-                    $designatedL1ApproverId = $matchedCard->user_id;
-                }
+                $designatedCardApproverId = $matchedCard->user_id;
+                $cardTitle = $matchedCard->title;
+                $cardLevel = (int) $matchedCard->level;
             }
         }
 
@@ -90,8 +92,21 @@ class TicketApprovalService
 
         if ($hasDeptHod) {
             // Normal 2-Stage Approval: Step 1 is Branch Department Approver (Team Leader / Line Manager or HOD)
-            $step1ApproverId = $lineManagerId ?: $designatedL1ApproverId;
-            $step1Name = ($hasLineManager || $hasBranchApprover) ? 'Team Leader Approval' : 'Department HOD Approval';
+            $step1ApproverId = $lineManagerId ?: ($designatedCardApproverId ?: $department->head_user_id);
+
+            if ($lineManagerId) {
+                $step1Name = 'Team Leader Approval';
+            } elseif ($hasBranchApprover) {
+                $step1Name = $cardTitle ?: match ($cardLevel) {
+                    1 => 'Team Leader Approval',
+                    2 => 'Supervisor Approval',
+                    3 => 'Department Manager Approval',
+                    default => 'Department Approver Approval',
+                };
+            } else {
+                $step1Name = 'Department HOD Approval';
+            }
+
             $step1 = TicketApproval::create([
                 'ticket_id' => $ticket->id,
                 'step_number' => 1,
@@ -494,8 +509,14 @@ class TicketApprovalService
                 "Approved at {$approval->step_name}. Now awaiting {$nextStep->step_name}."
             );
         } else {
-            // All steps approved! Move to submitted for IT triage
-            $ticket->update(['status' => 'submitted']);
+            // All steps approved! Calculate working minutes spent waiting for approvals and freeze it into paused_minutes
+            $businessService = app(\App\Services\BusinessHoursService::class);
+            $approvalWaitMinutes = $businessService->getWorkingMinutesBetween($ticket->created_at, now());
+
+            $ticket->update([
+                'status' => 'submitted',
+                'paused_minutes' => (int) ($ticket->paused_minutes ?? 0) + $approvalWaitMinutes,
+            ]);
 
             TicketAuditLog::create([
                 'ticket_id' => $ticket->id,

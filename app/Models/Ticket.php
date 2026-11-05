@@ -216,10 +216,14 @@ class Ticket extends Model
     public function getPausedMinutes(): int
     {
         $minutes = (int) ($this->paused_minutes ?? 0);
+        $businessService = app(\App\Services\BusinessHoursService::class);
+
         if ($this->status === 'blocked' && $this->blocked_at) {
-            $businessService = app(\App\Services\BusinessHoursService::class);
             $minutes += $businessService->getWorkingMinutesBetween($this->blocked_at, now());
+        } elseif ($this->status === 'pending_approval' && $this->created_at) {
+            $minutes += $businessService->getWorkingMinutesBetween($this->created_at, now());
         }
+
         return $minutes;
     }
 
@@ -296,11 +300,11 @@ class Ticket extends Model
     }
 
     /**
-     * Check if the SLA clock is currently paused on manual hold.
+     * Check if the SLA clock is currently paused on manual hold or waiting for approval.
      */
     public function isSlaPaused(): bool
     {
-        return $this->status === 'blocked';
+        return $this->status === 'blocked' || $this->status === 'pending_approval';
     }
 
     /**

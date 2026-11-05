@@ -847,19 +847,26 @@ class PortalTicketController extends Controller
             } elseif ($typeChanged && $newType === 'incident') {
                 // Switching Service Request -> Incident
                 // 1. Cancel pending approvals
-                $ticket->approvals()->where('status', 'pending')->update(['status' => 'cancelled']);
+                $ticket->approvals()->where('status', 'pending')->update([
+                    'status' => 'cancelled',
+                    'comments' => 'Cancelled automatically due to ticket reclassification to Incident.',
+                    'actioned_at' => now(),
+                ]);
 
                 // 2. Return to submitted (ready for assignment) or assigned if already has technician
                 if ($ticket->status === 'pending_approval') {
+                    $businessService = app(\App\Services\BusinessHoursService::class);
+                    $approvalWaitMinutes = $businessService->getWorkingMinutesBetween($ticket->created_at, now());
+                    $ticket->paused_minutes = (int) ($ticket->paused_minutes ?? 0) + $approvalWaitMinutes;
                     $ticket->status = $ticket->current_technician_id ? 'assigned' : 'submitted';
                 }
                 $ticket->save();
             } else {
                 // Same type, but category or priority updated
                 if ($newType === 'service_request' && $newCategory->requires_approval && $ticket->approvals()->where('status', 'pending')->doesntExist() && !in_array($ticket->status, ['resolved_confirmed', 'resolved_auto_closed', 'cancelled'])) {
+                    $ticket->approvals()->delete();
                     $ticket->status = 'pending_approval';
                     $ticket->save();
-                    $ticket->approvals()->delete();
                     $approvalService->createApprovalChain($ticket);
                 } else {
                     $ticket->save();

@@ -312,4 +312,67 @@ class DepartmentApproverAssignmentTest extends TestCase
         $response->assertSee('IT Solutions Office');
         $response->assertSee('Part of Information Technology');
     }
+
+    public function test_approval_chain_assigns_lowest_level_card_and_pauses_sla(): void
+    {
+        $requester = $this->requesterUser; // Sokha Chan (dept OPS, branch HQ-PP)
+        $dept = $requester->employee->department;
+        $branch = $requester->employee->branch;
+
+        // Create a dedicated Supervisor (Level 2) card only - no Level 1 card exists
+        $supervisorUser = User::factory()->create([
+            'name' => 'Operations Supervisor User',
+            'email' => 'ops.supervisor@cbvh.com.kh',
+            'is_active' => true,
+        ]);
+
+        \App\Models\DepartmentApprover::create([
+            'department_id' => $dept->id,
+            'branch_id' => $branch->id,
+            'user_id' => $supervisorUser->id,
+            'level' => 2,
+            'title' => 'Shift Supervisor',
+            'is_active' => true,
+        ]);
+
+        $category = TicketCategory::where('requires_approval', true)->firstOrFail();
+
+        $ticket = Ticket::create([
+            'ticket_code' => 'TICK-SR-LEVEL-FALLBACK',
+            'ticket_type' => 'service_request',
+            'requester_id' => $requester->id,
+            'branch_id' => $branch->id,
+            'category_id' => $category->id,
+            'subject' => 'Need additional logistics trolley',
+            'description' => 'Replacing broken trolley',
+            'status' => 'submitted',
+            'priority' => 'high',
+        ]);
+
+        $this->approvalService->createApprovalChain($ticket);
+        $ticket->refresh();
+
+        // 1. Verify Step 1 is assigned to the Level 2 supervisor rather than being left null
+        $step1 = $ticket->approvals()->where('step_number', 1)->firstOrFail();
+        $this->assertEquals($supervisorUser->id, $step1->approver_id);
+        $this->assertEquals('Shift Supervisor', $step1->step_name);
+
+        // 2. Verify SLA is paused during pending_approval
+        $this->assertEquals('pending_approval', $ticket->status);
+        $this->assertTrue($ticket->isSlaPaused());
+        $this->assertFalse($ticket->isSlaOverdue());
+
+        // 3. Supervisor approves step 1
+        $this->approvalService->approve($step1, $supervisorUser, 'Supervisor approved');
+        $step2 = $ticket->approvals()->where('step_number', 2)->firstOrFail();
+        $this->assertEquals('pending', $step2->status);
+
+        // 4. IT manager approves step 2 (final approval)
+        $this->approvalService->approve($step2, $this->adminUser, 'IT signoff complete');
+        $ticket->refresh();
+
+        // 5. Verify ticket moves to submitted and SLA clock is unpaused
+        $this->assertEquals('submitted', $ticket->status);
+        $this->assertFalse($ticket->isSlaPaused());
+    }
 }

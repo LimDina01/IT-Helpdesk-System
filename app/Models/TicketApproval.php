@@ -65,4 +65,9 @@ class TicketApproval extends Model
     {
         return $this->status === 'rejected';
     }
+
+    public function isCancelled(): bool
+    {
+        return $this->status === 'cancelled';
+    }
 }
