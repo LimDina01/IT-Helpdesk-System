@@ -209,35 +209,61 @@
         </div>
     </div>
 
-    <!-- Filter Bar & Search Controls -->
-    <div class="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs space-y-4">
-        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-            <!-- Location Filter Pills -->
-            <div class="flex items-center gap-1.5 flex-wrap">
-                <span class="text-[11px] font-bold text-slate-400 uppercase mr-1">Location:</span>
-                <a href="{{ route('portal.admin.approvers', array_merge(request()->except('branch_id'), ['branch_id' => ''])) }}" 
-                   class="text-xs px-3 py-1.5 rounded-xl transition font-semibold {{ empty($selectedBranchId) ? 'bg-indigo-600 text-white shadow-xs' : 'bg-slate-100 text-slate-600 hover:bg-slate-200' }}">
-                    All Locations
-                </a>
-                <a href="{{ route('portal.admin.approvers', array_merge(request()->except('branch_id'), ['branch_id' => 'hq'])) }}" 
-                   class="text-xs px-3 py-1.5 rounded-xl transition font-semibold {{ $selectedBranchId === 'hq' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-slate-100 text-slate-600 hover:bg-slate-200' }}">
-                    🌐 Company-wide / HQ
-                </a>
-                @foreach($branches as $b)
-                    <a href="{{ route('portal.admin.approvers', array_merge(request()->except('branch_id'), ['branch_id' => $b->id])) }}" 
-                       class="text-xs px-3 py-1.5 rounded-xl transition font-semibold {{ $selectedBranchId == $b->id ? 'bg-emerald-600 text-white shadow-xs' : 'bg-emerald-50 text-emerald-700 border border-emerald-200/70 hover:bg-emerald-100' }}">
-                        📍 {{ $b->name }}
+    <!-- Clean Filter Bar & Search Controls (Single Compact Row) -->
+    <div class="bg-white rounded-3xl p-4 border border-slate-200/80 shadow-xs">
+        <form method="GET" action="{{ route('portal.admin.approvers') }}" class="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+            @if(isset($perPage) && $perPage != 10)
+                <input type="hidden" name="per_page" value="{{ $perPage }}">
+            @endif
+
+            <!-- Dropdown Selectors Group -->
+            <div class="flex items-center gap-2.5 flex-wrap">
+                <!-- Location Dropdown -->
+                <div class="flex items-center space-x-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 focus-within:ring-2 focus-within:ring-indigo-500 focus-within:bg-white transition">
+                    <span class="text-xs">📍</span>
+                    <select name="branch_id" onchange="this.form.submit()" class="text-xs font-semibold bg-transparent text-slate-700 focus:outline-none cursor-pointer pr-1">
+                        <option value="">All Locations &amp; HQ</option>
+                        <option value="hq" {{ $selectedBranchId === 'hq' ? 'selected' : '' }}>🌐 Company-wide / Head Office (HQ)</option>
+                        @foreach($branches as $b)
+                            <option value="{{ $b->id }}" {{ $selectedBranchId == $b->id ? 'selected' : '' }}>📍 {{ $b->name }} ({{ $b->code }})</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <!-- Department Dropdown -->
+                <div class="flex items-center space-x-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 focus-within:ring-2 focus-within:ring-indigo-500 focus-within:bg-white transition">
+                    <span class="text-xs">🏛️</span>
+                    <select name="department_id" onchange="this.form.submit()" class="text-xs font-semibold bg-transparent text-slate-700 focus:outline-none cursor-pointer pr-1 max-w-[220px] truncate">
+                        <option value="">All Departments ({{ $departments->count() }})</option>
+                        @foreach($departments as $dept)
+                            <option value="{{ $dept->id }}" {{ $selectedDeptId == $dept->id ? 'selected' : '' }}>{{ $dept->name }} ({{ $dept->code }})</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <!-- Level Dropdown -->
+                <div class="flex items-center space-x-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 focus-within:ring-2 focus-within:ring-indigo-500 focus-within:bg-white transition">
+                    <span class="text-xs">🎚️</span>
+                    <select name="level" onchange="this.form.submit()" class="text-xs font-semibold bg-transparent text-slate-700 focus:outline-none cursor-pointer pr-1">
+                        <option value="">All Approval Levels</option>
+                        <option value="1" {{ ($selectedLevel ?? '') == '1' ? 'selected' : '' }}>Level 1 (e.g. Team Leader)</option>
+                        <option value="2" {{ ($selectedLevel ?? '') == '2' ? 'selected' : '' }}>Level 2 (e.g. Supervisor / HOD)</option>
+                        <option value="3" {{ ($selectedLevel ?? '') == '3' ? 'selected' : '' }}>Level 3 (e.g. Manager)</option>
+                        <option value="4" {{ ($selectedLevel ?? '') == '4' ? 'selected' : '' }}>Level 4 (e.g. GM / Director)</option>
+                    </select>
+                </div>
+
+                @if(!empty($selectedBranchId) || !empty($selectedDeptId) || !empty($selectedLevel) || !empty($search))
+                    <a href="{{ route('portal.admin.approvers', array_filter(['per_page' => (isset($perPage) && $perPage != 10) ? $perPage : null])) }}" 
+                       class="text-xs font-bold text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-2.5 py-1.5 rounded-xl transition flex items-center space-x-1 cursor-pointer" title="Reset all filters">
+                        <span>✕</span>
+                        <span>Reset</span>
                     </a>
-                @endforeach
+                @endif
             </div>
 
-            <!-- Server Search Filter -->
-            <form method="GET" action="{{ route('portal.admin.approvers') }}" class="flex items-center space-x-2 w-full lg:w-auto">
-                @if(!empty($selectedBranchId))<input type="hidden" name="branch_id" value="{{ $selectedBranchId }}">@endif
-                @if(!empty($selectedDeptId))<input type="hidden" name="department_id" value="{{ $selectedDeptId }}">@endif
-                @if(!empty($selectedLevel))<input type="hidden" name="level" value="{{ $selectedLevel }}">@endif
-                @if(isset($perPage) && $perPage != 10)<input type="hidden" name="per_page" value="{{ $perPage }}">@endif
-                
+            <!-- Search Input with Search Button -->
+            <div class="flex items-center space-x-2 w-full lg:w-auto">
                 <div class="relative w-full lg:w-72">
                     <input type="text"
                            name="search"
@@ -250,34 +276,17 @@
                            class="absolute right-2.5 top-2 text-xs text-slate-400 hover:text-slate-600 font-bold" title="Clear search">✕</a>
                     @endif
                 </div>
-                <button type="submit" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs px-3 py-2 rounded-xl border border-indigo-200 transition cursor-pointer shrink-0">
+                <button type="submit" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs px-3.5 py-2 rounded-xl border border-indigo-200 transition cursor-pointer shrink-0">
                     Search
                 </button>
-            </form>
-        </div>
-
-        <!-- Secondary Filters: Department & Level -->
-        <div class="flex items-center gap-3 pt-2 border-t border-slate-100 flex-wrap">
-            <span class="text-[11px] font-bold text-slate-400 uppercase">Department:</span>
-            <div class="flex items-center gap-1.5 flex-wrap">
-                <a href="{{ route('portal.admin.approvers', array_merge(request()->except('department_id'), ['department_id' => ''])) }}" 
-                   class="text-[11px] px-2.5 py-1 rounded-lg font-medium {{ empty($selectedDeptId) ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200' }}">
-                    All Depts
-                </a>
-                @foreach($departments as $dept)
-                    <a href="{{ route('portal.admin.approvers', array_merge(request()->except('department_id'), ['department_id' => $dept->id])) }}" 
-                       class="text-[11px] px-2.5 py-1 rounded-lg font-medium {{ $selectedDeptId == $dept->id ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200' }}">
-                        {{ $dept->name }} ({{ $dept->code }})
-                    </a>
-                @endforeach
             </div>
-        </div>
+        </form>
     </div>
 
     <!-- Approver Cards Matrix Grid (Grouped by Location & Department) -->
     @php
         $groupedCards = $approverCards->groupBy(function($card) {
-            $loc = $card->branch ? $card->branch->name : '🌐 Company-Wide / Head Office (HQ)';
+            $loc = $card->branch ? $card->branch->name : 'Company-Wide / Head Office (HQ)';
             $dept = $card->department ? $card->department->name : 'General';
             return $loc . ' — ' . $dept;
         });
@@ -298,7 +307,7 @@
                         <div>
                             <div class="flex items-center space-x-2">
                                 <h3 class="text-sm font-bold text-slate-900">{{ $groupTitle }}</h3>
-                                @if($groupDept)
+                                @if($groupDept && !str_contains($groupDept->name, $groupDept->code))
                                     <span class="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200">
                                         {{ $groupDept->code }}
                                     </span>
