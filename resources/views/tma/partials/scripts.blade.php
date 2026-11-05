@@ -271,8 +271,14 @@ function tmaApp() {
         // Approval Actions
         showApprovePrompt: false,
         showRejectPrompt: false,
+        showEscalatePrompt: false,
+        showForwardPrompt: false,
         approvalComment: '',
         rejectionReason: '',
+        escalateComment: '',
+        escalateTargetUserId: '',
+        forwardComment: '',
+        forwardTargetUserId: '',
         actioningApproval: false,
 
         get filteredParentCategories() {
@@ -888,8 +894,14 @@ function tmaApp() {
                 this.messages = data.messages || [];
                 this.showApprovePrompt = false;
                 this.showRejectPrompt = false;
+                this.showEscalatePrompt = false;
+                this.showForwardPrompt = false;
                 this.approvalComment = '';
                 this.rejectionReason = '';
+                this.escalateComment = '';
+                this.escalateTargetUserId = '';
+                this.forwardComment = '';
+                this.forwardTargetUserId = '';
                 this.showFullStepper = false;
                 this.showTicketInfo = false;
                 this.activeTicketModal = true;
@@ -964,6 +976,8 @@ function tmaApp() {
             this.showReopenPrompt = false;
             this.showApprovePrompt = false;
             this.showRejectPrompt = false;
+            this.showEscalatePrompt = false;
+            this.showForwardPrompt = false;
 
             // Immediately clear server presence so Telegram alert triggers if IT sends a message
             if (ticketId) {
@@ -1194,6 +1208,80 @@ function tmaApp() {
                     window.Telegram.WebApp.showAlert('Rejection submission failed. Please try again.');
                 } else {
                     alert('Rejection submission failed. Please try again.');
+                }
+            });
+        },
+
+        submitEscalate() {
+            if (!this.selectedTicket || !this.selectedTicket.current_approval_step) return;
+            this.actioningApproval = true;
+            fetch(`/tma/api/approvals/${this.selectedTicket.current_approval_step.id}/escalate`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    comments: this.escalateComment,
+                    target_user_id: this.escalateTargetUserId || null
+                })
+            })
+            .then(res => {
+                if (!res.ok) throw new Error('Escalate failed');
+                return res.json();
+            })
+            .then(() => {
+                this.actioningApproval = false;
+                this.showEscalatePrompt = false;
+                this.escalateComment = '';
+                this.escalateTargetUserId = '';
+                this.loadTickets(true);
+                this.openTicketDetail(this.selectedTicket.id);
+            })
+            .catch(() => {
+                this.actioningApproval = false;
+                if (window.Telegram?.WebApp?.showAlert) {
+                    window.Telegram.WebApp.showAlert('Escalation failed. Please try again.');
+                } else {
+                    alert('Escalation failed. Please try again.');
+                }
+            });
+        },
+
+        submitForward() {
+            if (!this.selectedTicket || !this.selectedTicket.current_approval_step || !this.forwardTargetUserId) return;
+            this.actioningApproval = true;
+            fetch(`/tma/api/approvals/${this.selectedTicket.current_approval_step.id}/forward`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    target_user_id: this.forwardTargetUserId,
+                    comments: this.forwardComment
+                })
+            })
+            .then(res => {
+                if (!res.ok) throw new Error('Forward failed');
+                return res.json();
+            })
+            .then(() => {
+                this.actioningApproval = false;
+                this.showForwardPrompt = false;
+                this.forwardComment = '';
+                this.forwardTargetUserId = '';
+                this.loadTickets(true);
+                this.openTicketDetail(this.selectedTicket.id);
+            })
+            .catch(() => {
+                this.actioningApproval = false;
+                if (window.Telegram?.WebApp?.showAlert) {
+                    window.Telegram.WebApp.showAlert('Delegation failed. Please select an eligible approver.');
+                } else {
+                    alert('Delegation failed. Please select an eligible approver.');
                 }
             });
         },
@@ -2020,10 +2108,12 @@ function tmaApp() {
                 this.updateBackButton();
                 return;
             }
-            // 4. If approval/rejection/reopen prompt is open, close prompt
-            if (this.showApprovePrompt || this.showRejectPrompt || this.showReopenPrompt) {
+            // 4. If approval/rejection/escalate/forward/reopen prompt is open, close prompt
+            if (this.showApprovePrompt || this.showRejectPrompt || this.showEscalatePrompt || this.showForwardPrompt || this.showReopenPrompt) {
                 this.showApprovePrompt = false;
                 this.showRejectPrompt = false;
+                this.showEscalatePrompt = false;
+                this.showForwardPrompt = false;
                 this.showReopenPrompt = false;
                 return;
             }

@@ -17,7 +17,11 @@ class TicketPolicy
             return true;
         }
 
-        return $ticket->requester_id === $user->id;
+        if ($ticket->requester_id === $user->id) {
+            return true;
+        }
+
+        return $ticket->approvals()->where('approver_id', $user->id)->exists();
     }
 
     /**

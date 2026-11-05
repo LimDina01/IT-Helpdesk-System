@@ -552,6 +552,69 @@ class TmaRequesterPortalTest extends TestCase
         $ticketsResponse->assertOk();
         $this->assertEquals(0, $ticketsResponse->json('pending_approvals_count'));
     }
+
+    public function test_tma_show_returns_technician_assignment_status_and_eligible_approval_targets(): void
+    {
+        $requester = User::where('email', 'sokha.chan@cbvh.com.kh')->firstOrFail();
+        $dept = $requester->employee->department;
+        $branch = Branch::where('code', 'HQ-PP')->firstOrFail();
+
+        $approver = User::factory()->create([
+            'name' => 'OPS Team Leader',
+            'email' => 'ops.tl@cbvh.com.kh',
+            'is_active' => true,
+        ]);
+        $approver->roles()->attach(\App\Models\Role::where('name', 'hod')->firstOrFail());
+
+        \App\Models\DepartmentApprover::create([
+            'department_id' => $dept->id,
+            'branch_id' => $branch->id,
+            'user_id' => $approver->id,
+            'level' => 1,
+            'title' => 'Ops Team Leader',
+            'is_active' => true,
+        ]);
+
+        $category = TicketCategory::where('requires_approval', true)->firstOrFail();
+
+        $ticket = Ticket::create([
+            'ticket_code' => 'TMA-TEST-SR-01',
+            'ticket_type' => 'service_request',
+            'subject' => 'TMA Approval Escalation Test',
+            'description' => 'Testing TMA forward and escalate',
+            'requester_id' => $requester->id,
+            'branch_id' => $branch->id,
+            'category_id' => $category->id,
+            'status' => 'submitted',
+            'priority' => 'medium',
+        ]);
+
+        $approvalService = app(\App\Services\TicketApprovalService::class);
+        $approvalService->createApprovalChain($ticket);
+        $step1 = $ticket->approvals()->where('step_number', 1)->firstOrFail();
+
+        $this->actingAs($approver, 'tma');
+
+        $response = $this->getJson("/tma/api/tickets/{$ticket->id}");
+        $response->assertOk();
+        $this->assertFalse($response->json('ticket.has_technician'));
+        $this->assertNull($response->json('ticket.technician_name'));
+        $this->assertTrue($response->json('ticket.can_approve_current_step'));
+        $this->assertIsArray($response->json('ticket.eligible_forward_users'));
+        $this->assertIsArray($response->json('ticket.eligible_escalate_users'));
+
+        // Test Escalate via TMA
+        $escalateRes = $this->postJson("/tma/api/approvals/{$step1->id}/escalate", [
+            'comments' => 'Escalated from TMA test',
+        ]);
+        $escalateRes->assertOk();
+        $this->assertEquals('success', $escalateRes->json('status'));
+
+        $ticket->refresh();
+        $this->assertEquals(3, $ticket->approvals()->count());
+        $step2 = $ticket->approvals()->where('step_number', 2)->firstOrFail();
+        $this->assertStringContainsString('Escalated', $step2->step_name);
+    }
 }
 
 

@@ -27,13 +27,29 @@
                     <!-- Avatar & Header Click Target (Opens Ticket Details Page) -->
                     <div class="flex items-center space-x-2.5 min-w-0 flex-1 cursor-pointer" @click="showTicketInfo = true" title="View Ticket Details & Workflow">
                         <div class="relative shrink-0">
-                            <div class="w-9 h-9 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-bold text-xs shadow-2xs"
-                                 x-text="(selectedTicket?.technician_name || selectedTicket?.category_name || 'IT').charAt(0).toUpperCase()">
-                            </div>
-                            <span class="absolute -bottom-0.5 -right-0.5 flex h-2.5 w-2.5">
-                                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                                <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 border-2 border-white"></span>
-                            </span>
+                            <template x-if="selectedTicket?.has_technician && selectedTicket?.technician_name">
+                                <div class="w-9 h-9 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-bold text-xs shadow-2xs"
+                                     x-text="selectedTicket.technician_name.charAt(0).toUpperCase()">
+                                </div>
+                            </template>
+                            <template x-if="!selectedTicket?.has_technician || !selectedTicket?.technician_name">
+                                <div class="w-9 h-9 rounded-full bg-slate-100 text-slate-600 border border-slate-200 flex items-center justify-center text-sm shadow-2xs">
+                                    🎫
+                                </div>
+                            </template>
+                            
+                            <template x-if="selectedTicket?.has_technician && selectedTicket?.technician_name">
+                                <span class="absolute -bottom-0.5 -right-0.5 flex h-2.5 w-2.5">
+                                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                    <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 border-2 border-white"></span>
+                                </span>
+                            </template>
+                            <template x-if="!selectedTicket?.has_technician || !selectedTicket?.technician_name">
+                                <span class="absolute -bottom-0.5 -right-0.5 flex h-2.5 w-2.5">
+                                    <span class="relative inline-flex rounded-full h-2.5 w-2.5 border-2 border-white"
+                                          :class="selectedTicket?.is_pending_approval ? 'bg-amber-400' : 'bg-slate-400'"></span>
+                                </span>
+                            </template>
                         </div>
 
                         <!-- Subject (Bold & Truncated) and Subtitle (Code • Status) -->
@@ -74,14 +90,24 @@
                     <span x-text="locale === 'km' ? 'អ្នកស្នើ' : 'Requester'"></span> <span class="font-bold" x-text="selectedTicket?.requester_name"></span> (<span x-text="selectedTicket?.requester_dept"></span>) <span x-text="locale === 'km' ? 'បានដាក់ស្នើសុំសេវាកម្មនេះដើម្បីឱ្យមានការអនុម័ត។' : 'has submitted this service request for company approval.'">has submitted this service request for company approval.</span>
                 </p>
 
-                <div class="flex items-center space-x-2 pt-1">
-                    <button @click="showApprovePrompt = true" :disabled="actioningApproval"
-                            class="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-xl font-bold text-xs shadow-xs text-center transition-all duration-150">
-                        ✅ <span x-text="t('approve')">Approve Request</span>
+                <div class="grid grid-cols-2 gap-2 pt-1">
+                    <button @click="showApprovePrompt = true; showRejectPrompt = false; showEscalatePrompt = false; showForwardPrompt = false" :disabled="actioningApproval"
+                            class="py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-xl font-bold text-xs shadow-xs text-center transition-all duration-150">
+                        ✅ <span x-text="t('approve')">Approve</span>
                     </button>
-                    <button @click="showRejectPrompt = true" :disabled="actioningApproval"
-                            class="flex-1 py-2 bg-rose-600 hover:bg-rose-700 active:scale-95 text-white rounded-xl font-bold text-xs shadow-xs text-center transition-all duration-150">
-                        ❌ <span x-text="t('reject')">Reject Request</span>
+                    <button @click="showRejectPrompt = true; showApprovePrompt = false; showEscalatePrompt = false; showForwardPrompt = false" :disabled="actioningApproval"
+                            class="py-2 bg-rose-600 hover:bg-rose-700 active:scale-95 text-white rounded-xl font-bold text-xs shadow-xs text-center transition-all duration-150">
+                        ❌ <span x-text="t('reject')">Reject</span>
+                    </button>
+                    <button @click="showEscalatePrompt = true; showApprovePrompt = false; showRejectPrompt = false; showForwardPrompt = false" :disabled="actioningApproval"
+                            class="py-2 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white rounded-xl font-bold text-xs shadow-xs text-center transition-all duration-150"
+                            title="Escalate to Department Manager or Superior">
+                        ⬆️ <span>Escalate</span>
+                    </button>
+                    <button @click="showForwardPrompt = true; showApprovePrompt = false; showRejectPrompt = false; showEscalatePrompt = false" :disabled="actioningApproval"
+                            class="py-2 bg-sky-600 hover:bg-sky-700 active:scale-95 text-white rounded-xl font-bold text-xs shadow-xs text-center transition-all duration-150"
+                            title="Delegate to Peer Approver">
+                        🔄 <span>Forward</span>
                     </button>
                 </div>
             </div>
@@ -121,6 +147,82 @@
                 <div class="flex justify-end space-x-2">
                     <button @click="showRejectPrompt = false" class="text-xs px-2.5 py-1 text-slate-600 font-semibold active:scale-95 transition-all duration-150" x-text="t('cancel_action')">Cancel</button>
                     <button @click="submitReject()" :disabled="actioningApproval || !rejectionReason" class="text-xs px-3 py-1 bg-rose-600 active:bg-rose-700 active:scale-95 text-white font-bold rounded-md transition-all duration-150" x-text="t('confirm_reject')">Confirm Rejection</button>
+                </div>
+            </div>
+
+            <!-- Escalate Prompt Overlay -->
+            <div x-show="showEscalatePrompt"
+                 x-transition:enter="transition ease-out duration-150"
+                 x-transition:enter-start="opacity-0 -translate-y-2"
+                 x-transition:enter-end="opacity-100 translate-y-0"
+                 x-transition:leave="transition ease-in duration-100"
+                 x-transition:leave-start="opacity-100 translate-y-0"
+                 x-transition:leave-end="opacity-0 -translate-y-2"
+                 class="bg-indigo-50 p-3 border-b border-indigo-300 space-y-2.5">
+                <div class="flex items-center space-x-1.5 text-indigo-900 font-bold text-xs">
+                    <span>⬆️</span>
+                    <span>Escalate to Superior / Department Manager</span>
+                </div>
+                
+                <div>
+                    <label class="block text-[10px] font-bold text-indigo-900 uppercase mb-1">Designated Superior (Optional):</label>
+                    <select x-model="escalateTargetUserId"
+                            class="tma-input w-full text-xs p-2 rounded-xl border border-indigo-300 focus:outline-none bg-white text-slate-900 font-medium">
+                        <option value="">-- Auto: Next Level Supervisor / Dept Manager --</option>
+                        <template x-for="sup in (selectedTicket?.eligible_escalate_users || [])" :key="sup.id">
+                            <option :value="sup.id" x-text="`${sup.name} (${sup.email})`"></option>
+                        </template>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-bold text-indigo-900 uppercase mb-1">Endorsement Note / Justification (Optional):</label>
+                    <input type="text" x-model="escalateComment" placeholder="e.g. Endorsed by Team Leader for manager sign-off..."
+                           class="tma-input w-full text-xs p-2.5 rounded-xl border border-indigo-300 focus:outline-none bg-white text-slate-900 font-medium"
+                           style="color: #0f172a !important; -webkit-text-fill-color: #0f172a !important; background-color: #ffffff !important;">
+                </div>
+
+                <div class="flex justify-end space-x-2 pt-1">
+                    <button @click="showEscalatePrompt = false" class="text-xs px-2.5 py-1 text-slate-600 font-semibold active:scale-95 transition-all duration-150" x-text="t('cancel_action')">Cancel</button>
+                    <button @click="submitEscalate()" :disabled="actioningApproval" class="text-xs px-3 py-1 bg-indigo-600 active:bg-indigo-700 active:scale-95 text-white font-bold rounded-md transition-all duration-150">Confirm & Escalate</button>
+                </div>
+            </div>
+
+            <!-- Forward / Delegate Prompt Overlay -->
+            <div x-show="showForwardPrompt"
+                 x-transition:enter="transition ease-out duration-150"
+                 x-transition:enter-start="opacity-0 -translate-y-2"
+                 x-transition:enter-end="opacity-100 translate-y-0"
+                 x-transition:leave="transition ease-in duration-100"
+                 x-transition:leave-start="opacity-100 translate-y-0"
+                 x-transition:leave-end="opacity-0 -translate-y-2"
+                 class="bg-sky-50 p-3 border-b border-sky-300 space-y-2.5">
+                <div class="flex items-center space-x-1.5 text-sky-900 font-bold text-xs">
+                    <span>🔄</span>
+                    <span>Forward / Delegate Review</span>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-bold text-sky-900 uppercase mb-1">Delegate To (Required):</label>
+                    <select x-model="forwardTargetUserId"
+                            class="tma-input w-full text-xs p-2 rounded-xl border border-sky-300 focus:outline-none bg-white text-slate-900 font-medium">
+                        <option value="">-- Select Eligible Approver --</option>
+                        <template x-for="colleague in (selectedTicket?.eligible_forward_users || [])" :key="colleague.id">
+                            <option :value="colleague.id" x-text="`${colleague.name} (${colleague.email})`"></option>
+                        </template>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-bold text-sky-900 uppercase mb-1">Handover Note (Optional):</label>
+                    <input type="text" x-model="forwardComment" placeholder="e.g. Delegating to peer for coverage while away..."
+                           class="tma-input w-full text-xs p-2.5 rounded-xl border border-sky-300 focus:outline-none bg-white text-slate-900 font-medium"
+                           style="color: #0f172a !important; -webkit-text-fill-color: #0f172a !important; background-color: #ffffff !important;">
+                </div>
+
+                <div class="flex justify-end space-x-2 pt-1">
+                    <button @click="showForwardPrompt = false" class="text-xs px-2.5 py-1 text-slate-600 font-semibold active:scale-95 transition-all duration-150" x-text="t('cancel_action')">Cancel</button>
+                    <button @click="submitForward()" :disabled="actioningApproval || !forwardTargetUserId" class="text-xs px-3 py-1 bg-sky-600 active:bg-sky-700 active:scale-95 text-white font-bold rounded-md transition-all duration-150">Confirm Delegation</button>
                 </div>
             </div>
 
@@ -309,7 +411,12 @@
                                             <!-- Sender Name & Staff Badge -->
                                             <div class="flex items-center space-x-1.5 text-[11px] font-bold text-slate-700 select-none pb-0.5 pl-1">
                                                 <span class="truncate" x-text="m.sender_name"></span>
-                                                <span class="bg-blue-50 border border-blue-200/80 text-blue-700 text-[9px] px-1.5 py-0.2 rounded font-semibold uppercase tracking-wider">IT Staff</span>
+                                                <template x-if="m.is_staff">
+                                                    <span class="bg-blue-50 border border-blue-200/80 text-blue-700 text-[9px] px-1.5 py-0.2 rounded font-semibold uppercase tracking-wider">IT Staff</span>
+                                                </template>
+                                                <template x-if="!m.is_staff">
+                                                    <span class="bg-slate-100 border border-slate-200 text-slate-600 text-[9px] px-1.5 py-0.2 rounded font-semibold uppercase tracking-wider">Requester</span>
+                                                </template>
                                             </div>
 
                                             <!-- 1. Standalone Photo Card(s) with Generous Aspect & HD Badge -->

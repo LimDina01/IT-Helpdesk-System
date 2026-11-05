@@ -56,18 +56,40 @@
                 <!-- Assigned Specialist Profile Card -->
                 <div class="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-2xs space-y-3">
                     <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400" x-text="t('specialist')">Assigned IT Specialist</h3>
-                    <div class="flex items-center space-x-3">
-                        <div class="w-12 h-12 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-bold text-base shadow-xs shrink-0"
-                             x-text="(selectedTicket?.technician_name || 'IT').charAt(0).toUpperCase()"></div>
-                        <div class="min-w-0 flex-1">
-                            <div class="text-sm font-bold text-slate-900 truncate" x-text="selectedTicket?.technician_name || (locale === 'km' ? 'ក្រុមការងារ IT Help Desk' : 'IT Support Desk')"></div>
-                            <div class="text-xs text-slate-500 truncate" x-text="selectedTicket?.technician_title || (locale === 'km' ? 'អ្នកឯកទេស IT Help Desk' : 'IT Technician Specialist')"></div>
-                            <div class="flex items-center space-x-1.5 mt-1 text-[11px] text-emerald-600 font-semibold">
-                                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                                <span x-text="locale === 'km' ? 'កំពុងទទួលបន្ទុកដោះស្រាយ' : 'Active & Handling Ticket'">Active & Handling Ticket</span>
+                    
+                    <!-- When technician IS assigned -->
+                    <template x-if="selectedTicket?.has_technician && selectedTicket?.technician_name">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-12 h-12 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-bold text-base shadow-xs shrink-0"
+                                 x-text="selectedTicket.technician_name.charAt(0).toUpperCase()"></div>
+                            <div class="min-w-0 flex-1">
+                                <div class="text-sm font-bold text-slate-900 truncate" x-text="selectedTicket.technician_name"></div>
+                                <div class="text-xs text-slate-500 truncate" x-text="selectedTicket.technician_title || (locale === 'km' ? 'អ្នកឯកទេស IT Help Desk' : 'IT Technician Specialist')"></div>
+                                <div class="flex items-center space-x-1.5 mt-1 text-[11px] text-emerald-600 font-semibold">
+                                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                    <span x-text="locale === 'km' ? 'កំពុងទទួលបន្ទុកដោះស្រាយ' : 'Active & Handling Ticket'">Active & Handling Ticket</span>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    </template>
+
+                    <!-- When technician is NOT assigned yet -->
+                    <template x-if="!selectedTicket?.has_technician || !selectedTicket?.technician_name">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-12 h-12 rounded-full bg-slate-100 text-slate-500 border border-slate-200 flex items-center justify-center font-bold text-xl shadow-2xs shrink-0">
+                                🛠
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <div class="text-sm font-bold text-slate-700 truncate" x-text="selectedTicket?.is_pending_approval ? (locale === 'km' ? 'រង់ចាំការអនុម័ត' : 'Awaiting Approval') : (locale === 'km' ? 'រង់ចាំចាត់តាំងបច្ចេកទេស' : 'Awaiting Assignment')"></div>
+                                <div class="text-xs text-slate-500 truncate" x-text="selectedTicket?.is_pending_approval ? (selectedTicket?.current_approval_step?.step_name || 'Approval in progress') : 'IT Helpdesk Queue'"></div>
+                                <div class="flex items-center space-x-1.5 mt-1 text-[11px] font-semibold"
+                                     :class="selectedTicket?.is_pending_approval ? 'text-amber-600' : 'text-sky-600'">
+                                    <span class="w-2 h-2 rounded-full" :class="selectedTicket?.is_pending_approval ? 'bg-amber-400' : 'bg-sky-400'"></span>
+                                    <span x-text="selectedTicket?.is_pending_approval ? (locale === 'km' ? 'រង់ចាំការអនុម័តមុននឹងចាត់តាំង IT' : 'Awaiting Approval Before IT Assignment') : (locale === 'km' ? 'ក្នុងជួររង់ចាំចាត់តាំងអ្នកបច្ចេកទេស' : 'Queued for Technician Assignment')"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
                 </div>
 
                 <!-- Visual Workflow Progression Card ("Peace of Mind") -->

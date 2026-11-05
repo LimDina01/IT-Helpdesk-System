@@ -151,7 +151,8 @@ class TmaTicketController extends Controller
             'category_name_km' => $t->category->name_km ?? null,
             'parent_category_name' => $t->category->parent->name ?? null,
             'parent_category_name_km' => $t->category->parent->name_km ?? null,
-            'technician_name' => $t->technician->name ?? 'Awaiting Assignment',
+            'has_technician' => !empty($t->current_technician_id),
+            'technician_name' => $t->technician?->name ?? null,
             'requester_name' => $t->requester->name ?? 'N/A',
             'requester_dept' => $t->requester->employee?->department?->name ?? 'N/A',
             'created_at' => $t->created_at->format('d-M-Y H:i'),
@@ -265,10 +266,46 @@ class TmaTicketController extends Controller
             ];
         });
 
+        $tmaUser = $this->getTmaUser();
         $currentApproval = $ticket->currentApproval();
         $canApprove = false;
-        if ($currentApproval && $this->getTmaUser()) {
-            $canApprove = app(\App\Services\TicketApprovalService::class)->canUserApprove($this->getTmaUser(), $currentApproval);
+        $eligibleForwardUsers = [];
+        $eligibleEscalateUsers = [];
+
+        if ($currentApproval && $tmaUser) {
+            $approvalService = app(\App\Services\TicketApprovalService::class);
+            $canApprove = $approvalService->canUserApprove($tmaUser, $currentApproval);
+
+            if ($canApprove) {
+                $eligibleForwardUsers = $approvalService->getEligibleForwardUsers($currentApproval, $tmaUser)->map(fn($u) => [
+                    'id' => $u->id,
+                    'name' => $u->name,
+                    'email' => $u->email,
+                ])->values();
+
+                $deptId = $currentApproval->department_id ?? $ticket->requester->employee?->department_id;
+                $approverUserIds = \App\Models\DepartmentApprover::where('department_id', $deptId)
+                    ->where('level', '>=', 2)
+                    ->where('is_active', true)
+                    ->pluck('user_id');
+
+                $eligibleEscalateUsers = \App\Models\User::where('is_active', true)
+                    ->where('id', '!=', $tmaUser->id)
+                    ->where('id', '!=', $ticket->requester_id)
+                    ->where(function ($q) use ($approverUserIds, $deptId) {
+                        $q->whereHas('roles', fn($r) => $r->where('name', 'system_admin'))
+                          ->orWhereIn('id', $approverUserIds)
+                          ->orWhere(fn($sub) => $sub->whereHas('roles', fn($r) => $r->where('name', 'hod'))->whereHas('employee', fn($e) => $e->where('department_id', $deptId)));
+                    })
+                    ->orderBy('name')
+                    ->get()
+                    ->map(fn($u) => [
+                        'id' => $u->id,
+                        'name' => $u->name,
+                        'email' => $u->email,
+                    ])
+                    ->values();
+            }
         }
 
         return response()->json([
@@ -286,7 +323,8 @@ class TmaTicketController extends Controller
                 'parent_category_name' => $ticket->category->parent->name ?? null,
                 'parent_category_name_km' => $ticket->category->parent->name_km ?? null,
                 'category_type' => $ticket->category->type ?? 'incident_issue',
-                'technician_name' => $ticket->technician->name ?? 'Not Assigned Yet',
+                'has_technician' => !empty($ticket->current_technician_id),
+                'technician_name' => $ticket->technician?->name ?? null,
                 'helpdesk_name' => $ticket->helpdesk->name ?? null,
                 'requester_name' => $ticket->requester->name,
                 'requester_dept' => $ticket->requester->employee?->department?->name ?? 'N/A',
@@ -304,6 +342,8 @@ class TmaTicketController extends Controller
                 'is_closed' => $ticket->isClosed(),
                 'approvals' => $approvals,
                 'can_approve_current_step' => $canApprove,
+                'eligible_forward_users' => $eligibleForwardUsers,
+                'eligible_escalate_users' => $eligibleEscalateUsers,
                 'current_approval_step' => $currentApproval ? [
                     'id' => $currentApproval->id,
                     'step_number' => $currentApproval->step_number,
