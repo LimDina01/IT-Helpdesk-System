@@ -3,7 +3,7 @@ param (
     [int]$Port = 2026,
     [string]$User = "cbvh",
     [string]$Branch = "main",
-    [string]$AppPath = "/var/www/it-helpdesk"
+    [string]$AppPath = "/var/www/it-helpdesk-system"
 )
 
 $ErrorActionPreference = "Stop"
