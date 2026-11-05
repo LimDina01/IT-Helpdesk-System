@@ -94,7 +94,7 @@ class User extends Authenticatable
 
         if ($this->hasRole('hod')) {
             // Standalone accounts with NO employee profile are IT Staff Portal HODs
-            if (empty($this->employee_id) || $this->email === 'admin@cbvh.com.kh') {
+            if (empty($this->employee_id)) {
                 return true;
             }
         }
@@ -104,11 +104,11 @@ class User extends Authenticatable
 
     public function isItHod(): bool
     {
-        if ($this->email === 'admin@cbvh.com.kh' || $this->id === 1) {
+        if ($this->hasRole('system_admin')) {
             return true;
         }
 
-        if ($this->hasAnyRole(['hod', 'system_admin'])) {
+        if ($this->hasRole('hod')) {
             if ($this->isItStaff()) {
                 return true;
             }

@@ -333,7 +333,7 @@ class TicketApprovalService
         // Process 3: IT Department HOD Approval (Final Slot / IT Manager)
         // Centralized at HQ for all bank branches, split dynamically by IT Unit/Division
         // ========================================================
-        if ($approval->role_name === 'it_manager' || $approval->step_number === 2 || $approval->step_number === 3) {
+        if ($approval->role_name === 'it_manager' || (empty($approval->role_name) && in_array($approval->step_number, [2, 3]))) {
             if ($user->hasRole('system_admin')) {
                 return true;
             }
@@ -703,11 +703,144 @@ class TicketApprovalService
     }
 
     /**
+     * Check if a target user is eligible to receive a delegated/forwarded approval step.
+     */
+    public function canForwardTo(User $targetUser, TicketApproval $approval, User $actor): bool
+    {
+        // 1. Cannot delegate to oneself
+        if ($targetUser->id === $actor->id) {
+            return false;
+        }
+
+        // 2. Cannot delegate to the ticket requester (prevents self-approval bypass)
+        $ticket = $approval->ticket;
+        if ($targetUser->id === $ticket->requester_id) {
+            return false;
+        }
+
+        // 3. Target user must be active
+        if (!$targetUser->is_active) {
+            return false;
+        }
+
+        // 4. System Administrators can receive any forwarded approval
+        if ($targetUser->hasRole('system_admin')) {
+            return true;
+        }
+
+        // 5. IT Manager steps: Target must be IT Staff, IT HOD, or System Admin
+        if ($approval->role_name === 'it_manager') {
+            return $targetUser->isItHod() || $targetUser->isItStaff();
+        }
+
+        // 6. Branch Manager steps: Target must be branch manager or branch staff with HOD role
+        if (in_array($approval->role_name, ['branch_manager', 'division_head', 'intermediate_approver'])) {
+            $branchId = $approval->branch_id ?? $ticket->branch_id ?? $ticket->requester->employee?->branch_id;
+            $branch = $branchId ? \App\Models\Branch::find($branchId) : null;
+            if ($branch && $branch->manager_user_id === $targetUser->id) {
+                return true;
+            }
+            return $targetUser->hasRole('hod') && $targetUser->employee?->branch_id === $branchId;
+        }
+
+        // 7. Departmental steps (department_hod, department_supervisor):
+        $deptId = $approval->department_id ?? $ticket->requester->employee?->department_id;
+        $branchId = $approval->branch_id ?? $ticket->branch_id ?? $ticket->requester->employee?->branch_id;
+        $department = $deptId ? \App\Models\Department::find($deptId) : null;
+
+        // Explicit Department Head
+        if ($department && $department->head_user_id === $targetUser->id) {
+            return true;
+        }
+
+        // Configured Approver card holder in department
+        $isApproverCardHolder = \App\Models\DepartmentApprover::where('department_id', $deptId)
+            ->where('user_id', $targetUser->id)
+            ->where('is_active', true)
+            ->when($branchId, fn($q) => $q->where(fn($sub) => $sub->where('branch_id', $branchId)->orWhereNull('branch_id')))
+            ->exists();
+        if ($isApproverCardHolder) {
+            return true;
+        }
+
+        // User with HOD role (same department or company-wide / stand-alone HOD)
+        if ($targetUser->hasRole('hod')) {
+            if (!$targetUser->employee || $targetUser->employee->department_id === $deptId) {
+                return true;
+            }
+        }
+
+        // Line manager who manages staff in this department
+        $isLineManagerInDept = \App\Models\Employee::where('department_id', $deptId)
+            ->where('line_manager_user_id', $targetUser->id)
+            ->exists();
+        if ($isLineManagerInDept) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Get all users eligible to receive this approval step upon delegation/forwarding.
+     */
+    public function getEligibleForwardUsers(TicketApproval $approval, User $currentUser): \Illuminate\Support\Collection
+    {
+        $ticket = $approval->ticket;
+        $requesterId = $ticket->requester_id;
+        $deptId = $approval->department_id ?? $ticket->requester->employee?->department_id;
+        $branchId = $approval->branch_id ?? $ticket->branch_id ?? $ticket->requester->employee?->branch_id;
+
+        $query = User::where('is_active', true)
+            ->where('id', '!=', $currentUser->id)
+            ->where('id', '!=', $requesterId);
+
+        if ($approval->role_name === 'it_manager') {
+            return $query->where(function ($q) {
+                $q->whereHas('roles', fn($r) => $r->whereIn('name', ['system_admin', 'technician', 'helpdesk']))
+                  ->orWhereHas('roles', fn($r) => $r->where('name', 'hod'));
+            })->get()->filter(fn($u) => $u->isItHod() || $u->isItStaff() || $u->hasRole('system_admin'))->values();
+        }
+
+        if (in_array($approval->role_name, ['branch_manager', 'division_head', 'intermediate_approver'])) {
+            return $query->where(function ($q) use ($branchId) {
+                $q->whereHas('roles', fn($r) => $r->where('name', 'system_admin'))
+                  ->orWhereHas('employee', fn($e) => $e->where('branch_id', $branchId)->whereHas('user.roles', fn($r) => $r->where('name', 'hod')));
+            })->get();
+        }
+
+        // Departmental steps:
+        $approverUserIds = \App\Models\DepartmentApprover::where('department_id', $deptId)
+            ->where('is_active', true)
+            ->pluck('user_id');
+
+        $deptHeadId = $deptId ? \App\Models\Department::where('id', $deptId)->value('head_user_id') : null;
+        $lineManagerIds = \App\Models\Employee::where('department_id', $deptId)
+            ->whereNotNull('line_manager_user_id')
+            ->pluck('line_manager_user_id');
+
+        return $query->where(function ($q) use ($approverUserIds, $deptHeadId, $lineManagerIds, $deptId) {
+            $q->whereHas('roles', fn($r) => $r->where('name', 'system_admin'))
+              ->orWhereIn('id', $approverUserIds)
+              ->when($deptHeadId, fn($sub) => $sub->orWhere('id', $deptHeadId))
+              ->orWhereIn('id', $lineManagerIds)
+              ->orWhere(function ($sub) use ($deptId) {
+                  $sub->whereHas('roles', fn($r) => $r->where('name', 'hod'))
+                      ->whereHas('employee', fn($e) => $e->where('department_id', $deptId));
+              });
+        })->orderBy('name')->get();
+    }
+
+    /**
      * Forward / Delegate a pending step to another approver (e.g. peer Team Leader).
      */
     public function forward(TicketApproval $approval, User $actor, User $targetUser, ?string $comment = null): bool
     {
         if (!$this->canUserApprove($actor, $approval)) {
+            return false;
+        }
+
+        if (!$this->canForwardTo($targetUser, $approval, $actor)) {
             return false;
         }
 
@@ -758,24 +891,41 @@ class TicketApprovalService
         if (in_array($step->role_name, ['department_hod', 'department_supervisor'])) {
             $deptId = $step->department_id ?? $ticket->requester->employee?->department_id;
             $department = $deptId ? \App\Models\Department::with(['head', 'activeApprovers.user'])->find($deptId) : null;
+            $branchId = $step->branch_id ?? $ticket->branch_id ?? $ticket->requester->employee?->branch_id;
 
             // Check department_approvers
             $level = $step->role_name === 'department_supervisor' ? 2 : 1;
-            $approverUsers = $department?->activeApprovers()
-                ->where('level', $level)
-                ->with('user')
-                ->get()
-                ->pluck('user')
-                ->filter(fn($u) => !empty($u->telegram_id));
+            $approverUsers = collect();
+
+            if ($department) {
+                if ($branchId) {
+                    $branchCards = $department->activeApprovers()
+                        ->where('level', $level)
+                        ->where('branch_id', $branchId)
+                        ->with('user')
+                        ->get();
+                    if ($branchCards->isNotEmpty()) {
+                        $approverUsers = $branchCards->pluck('user')->filter(fn($u) => !empty($u->telegram_id));
+                    }
+                }
+
+                if ($approverUsers->isEmpty()) {
+                    $hqCards = $department->activeApprovers()
+                        ->where('level', $level)
+                        ->whereNull('branch_id')
+                        ->with('user')
+                        ->get();
+                    $approverUsers = $hqCards->pluck('user')->filter(fn($u) => !empty($u->telegram_id));
+                }
+            }
 
             if ($approverUsers && $approverUsers->isNotEmpty()) {
                 $approvers = $approverUsers;
             } elseif ($department && $department->head && $department->head->telegram_id) {
                 $approvers = collect([$department->head]);
             } else {
-                $branchId = $step->branch_id ?? $ticket->branch_id ?? $ticket->requester->employee?->branch_id;
                 $approvers = User::whereHas('roles', fn($q) => $q->where('name', 'hod'))
-                    ->whereHas('employee', fn($q) => $q->where('department_id', $deptId)->where('branch_id', $branchId))
+                    ->whereHas('employee', fn($q) => $q->where('department_id', $deptId)->when($branchId, fn($q2) => $q2->where('branch_id', $branchId)))
                     ->whereNotNull('telegram_id')
                     ->get();
             }

@@ -1481,8 +1481,11 @@
                     <div>
                         <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Delegate To</label>
                         <select name="target_user_id" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white">
-                            <option value="">-- Select Colleague / Approver --</option>
-                            @foreach(\App\Models\User::where('is_active', true)->whereHas('roles', fn($r) => $r->whereIn('name', ['hod', 'requester', 'system_admin']))->where('id', '!=', Auth::id())->orderBy('name')->get() as $colleague)
+                            <option value="">-- Select Eligible Approver --</option>
+                            @php
+                                $eligibleForwardUsers = $currentApproval ? app(\App\Services\TicketApprovalService::class)->getEligibleForwardUsers($currentApproval, Auth::user()) : collect();
+                            @endphp
+                            @foreach($eligibleForwardUsers as $colleague)
                                 <option value="{{ $colleague->id }}">{{ $colleague->name }} ({{ $colleague->email }})</option>
                             @endforeach
                         </select>

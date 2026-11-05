@@ -351,7 +351,18 @@ class MultiLevelDepartmentApprovalTest extends TestCase
         $this->approvalService->createApprovalChain($ticket);
         $step1 = $ticket->approvals()->where('step_number', 1)->firstOrFail();
 
-        // TL1 forwards to peer TL2
+        // 1. Cannot forward to requester (prevents self-approval loophole)
+        $this->assertFalse($this->approvalService->forward($step1, $tl1, $requester, 'Attempting self-forward'));
+
+        // 2. Cannot forward to oneself
+        $this->assertFalse($this->approvalService->forward($step1, $tl1, $tl1, 'Attempting self-delegate'));
+
+        // 3. Cannot forward to an arbitrary requester from another department
+        $randomUser = User::factory()->create(['is_active' => true]);
+        $randomUser->roles()->attach(Role::where('name', 'requester')->firstOrFail());
+        $this->assertFalse($this->approvalService->forward($step1, $tl1, $randomUser, 'Attempting unauthorized forward'));
+
+        // 4. TL1 forwards to authorized peer TL2
         $forwardSuccess = $this->approvalService->forward($step1, $tl1, $tl2, 'Forwarding to TL2 while out of office');
         $this->assertTrue($forwardSuccess);
 
