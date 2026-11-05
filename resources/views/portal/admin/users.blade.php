@@ -8,7 +8,7 @@
     createUserModal: false,
     createTmaModal: false,
     editUserModal: false,
-    search: '',
+    search: '{{ addslashes($search ?? '') }}',
     targetUser: {},
     userRoles: [],
     isTargetStaff: false,
@@ -120,15 +120,26 @@
                 </a>
             </div>
 
-            <!-- Live Instant Search Filter -->
-            <div class="relative w-full sm:w-72">
+            <!-- Instant & Server Search Filter -->
+            <form method="GET" action="{{ route('portal.admin.users') }}" class="relative w-full sm:w-80">
+                @if($filter !== 'all')
+                    <input type="hidden" name="filter" value="{{ $filter }}">
+                @endif
+                @if(isset($perPage) && $perPage != 25)
+                    <input type="hidden" name="per_page" value="{{ $perPage }}">
+                @endif
                 <input type="text"
+                       name="search"
                        x-model="search"
-                       placeholder="Filter by name, email, code, dept..."
-                       class="w-full text-xs pl-9 pr-3 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-2xs">
+                       placeholder="Filter or press Enter to search..."
+                       class="w-full text-xs pl-9 pr-8 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-2xs">
                 <span class="absolute left-3 top-2.5 text-slate-400 text-xs">🔍</span>
-                <button x-show="search" @click="search = ''" class="absolute right-3 top-2 text-slate-400 hover:text-slate-600 text-xs">✕</button>
-            </div>
+                @if(!empty($search))
+                    <a href="{{ route('portal.admin.users', array_filter(['filter' => $filter !== 'all' ? $filter : null, 'per_page' => (isset($perPage) && $perPage != 25) ? $perPage : null])) }}" class="absolute right-3 top-2 text-slate-400 hover:text-slate-600 text-xs" title="Clear server filter">✕</a>
+                @else
+                    <button type="button" x-show="search" @click="search = ''" class="absolute right-3 top-2 text-slate-400 hover:text-slate-600 text-xs">✕</button>
+                @endif
+            </form>
         </div>
     </div>
 
@@ -262,11 +273,36 @@
             </table>
         </div>
 
-        @if($users->hasPages())
-            <div class="p-4 border-t border-slate-200">
-                {{ $users->links() }}
+        <!-- Pagination & Results Summary Footer -->
+        <div class="px-6 py-4 border-t border-slate-100 bg-slate-50/60 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div class="text-xs text-slate-500 font-medium flex items-center space-x-1.5">
+                <span>Showing</span>
+                <span class="font-bold text-slate-700">{{ $users->firstItem() ?? 0 }}</span>
+                <span>to</span>
+                <span class="font-bold text-slate-700">{{ $users->lastItem() ?? 0 }}</span>
+                <span>of</span>
+                <span class="font-bold text-slate-700">{{ $users->total() }}</span>
+                <span>users & staff</span>
             </div>
-        @endif
+
+            <div class="flex items-center space-x-4">
+                <div class="flex items-center space-x-1.5 text-xs text-slate-500">
+                    <span class="text-[11px] text-slate-400 font-semibold">Per page:</span>
+                    @foreach([10, 25, 50, 100] as $size)
+                        <a href="{{ request()->fullUrlWithQuery(['per_page' => $size, 'page' => 1]) }}"
+                           class="px-2 py-0.5 rounded-md text-[11px] font-bold transition {{ ($perPage ?? 25) == $size ? 'bg-indigo-600 text-white' : 'bg-slate-200/70 hover:bg-slate-200 text-slate-600' }}">
+                            {{ $size }}
+                        </a>
+                    @endforeach
+                </div>
+
+                @if($users->hasPages())
+                    <div class="shrink-0">
+                        {{ $users->links() }}
+                    </div>
+                @endif
+            </div>
+        </div>
     </div>
 
     <!-- ========================================== -->

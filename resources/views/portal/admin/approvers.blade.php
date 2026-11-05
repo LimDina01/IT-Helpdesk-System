@@ -367,11 +367,36 @@
             </div>
         @endforelse
 
-        @if($approverCards->hasPages())
-            <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-2xs">
-                {{ $approverCards->links() }}
+        <!-- Pagination & Results Summary Footer -->
+        <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-2xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div class="text-xs text-slate-500 font-medium flex items-center space-x-1.5">
+                <span>Showing</span>
+                <span class="font-bold text-slate-700">{{ $approverCards->firstItem() ?? 0 }}</span>
+                <span>to</span>
+                <span class="font-bold text-slate-700">{{ $approverCards->lastItem() ?? 0 }}</span>
+                <span>of</span>
+                <span class="font-bold text-slate-700">{{ $approverCards->total() }}</span>
+                <span>approver cards</span>
             </div>
-        @endif
+
+            <div class="flex items-center space-x-4">
+                <div class="flex items-center space-x-1.5 text-xs text-slate-500">
+                    <span class="text-[11px] text-slate-400 font-semibold">Per page:</span>
+                    @foreach([10, 15, 25, 50] as $size)
+                        <a href="{{ request()->fullUrlWithQuery(['per_page' => $size, 'page' => 1]) }}"
+                           class="px-2 py-0.5 rounded-md text-[11px] font-bold transition {{ ($perPage ?? 10) == $size ? 'bg-indigo-600 text-white' : 'bg-slate-200/70 hover:bg-slate-200 text-slate-600' }}">
+                            {{ $size }}
+                        </a>
+                    @endforeach
+                </div>
+
+                @if($approverCards->hasPages())
+                    <div class="shrink-0">
+                        {{ $approverCards->links() }}
+                    </div>
+                @endif
+            </div>
+        </div>
     </div>
 
     <!-- ======================================================= -->

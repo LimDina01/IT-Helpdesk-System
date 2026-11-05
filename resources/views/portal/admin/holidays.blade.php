@@ -109,11 +109,24 @@
             </table>
         </div>
 
-        @if($holidays->hasPages())
-            <div class="px-6 py-4 border-t border-slate-100 bg-slate-50/50">
-                {{ $holidays->links() }}
+        <!-- Pagination & Results Summary Footer -->
+        <div class="px-6 py-4 border-t border-slate-100 bg-slate-50/60 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div class="text-xs text-slate-500 font-medium flex items-center space-x-1.5">
+                <span>Showing</span>
+                <span class="font-bold text-slate-700">{{ $holidays->firstItem() ?? 0 }}</span>
+                <span>to</span>
+                <span class="font-bold text-slate-700">{{ $holidays->lastItem() ?? 0 }}</span>
+                <span>of</span>
+                <span class="font-bold text-slate-700">{{ $holidays->total() }}</span>
+                <span>company holidays</span>
             </div>
-        @endif
+
+            @if($holidays->hasPages())
+                <div class="shrink-0">
+                    {{ $holidays->links() }}
+                </div>
+            @endif
+        </div>
     </div>
 
     <!-- CREATE HOLIDAY MODAL -->

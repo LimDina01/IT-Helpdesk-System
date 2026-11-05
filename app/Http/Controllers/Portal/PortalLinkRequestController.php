@@ -23,10 +23,15 @@ class PortalLinkRequestController extends Controller
     {
         $status = $request->input('status', 'pending');
 
+        $perPage = (int) $request->input('per_page', 15);
+        if (!in_array($perPage, [10, 15, 25, 50], true)) {
+            $perPage = 15;
+        }
+
         $requests = TelegramLinkRequest::with(['employee.branch', 'employee.department', 'reviewer'])
             ->where('status', $status)
             ->orderByDesc('created_at')
-            ->paginate(15)
+            ->paginate($perPage)
             ->withQueryString();
 
         $pendingCount = TelegramLinkRequest::where('status', 'pending')->count();
@@ -38,7 +43,8 @@ class PortalLinkRequestController extends Controller
             'status',
             'pendingCount',
             'approvedCount',
-            'rejectedCount'
+            'rejectedCount',
+            'perPage'
         ));
     }
 

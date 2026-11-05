@@ -298,6 +298,11 @@ class PortalAdminController extends Controller
         abort_unless(Auth::user()->hasRole(['system_admin', 'hod']), 403);
 
         $filter = $request->input('filter', 'all');
+        $search = trim((string) $request->input('search', ''));
+        $perPage = (int) $request->input('per_page', 25);
+        if (!in_array($perPage, [10, 25, 50, 100], true)) {
+            $perPage = 25;
+        }
 
         $query = User::with([
             'roles',
@@ -307,6 +312,20 @@ class PortalAdminController extends Controller
             'departmentApproverRoles.department',
             'departmentApproverRoles.branch',
         ])->orderBy('name');
+
+        if ($search !== '') {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%")
+                  ->orWhere('telegram_username', 'like', "%{$search}%")
+                  ->orWhereHas('employee', function ($eq) use ($search) {
+                      $eq->where('employee_code', 'like', "%{$search}%")
+                         ->orWhere('job_title', 'like', "%{$search}%")
+                         ->orWhereHas('department', fn($dq) => $dq->where('name', 'like', "%{$search}%"))
+                         ->orWhereHas('branch', fn($bq) => $bq->where('name', 'like', "%{$search}%"));
+                  });
+            });
+        }
 
         $staffFilterClosure = function ($q) {
             $q->whereNull('employee_id')
@@ -323,7 +342,7 @@ class PortalAdminController extends Controller
             $query->where($tmaFilterClosure);
         }
 
-        $users = $query->paginate(25)->withQueryString();
+        $users = $query->paginate($perPage)->withQueryString();
 
         $totalCount = User::count();
         $staffCount = User::where($staffFilterClosure)->count();
@@ -352,7 +371,9 @@ class PortalAdminController extends Controller
             'totalCount',
             'staffCount',
             'tmaCount',
-            'filter'
+            'filter',
+            'perPage',
+            'search'
         ));
     }
 
@@ -745,20 +766,30 @@ class PortalAdminController extends Controller
     /**
      * Organization: Departments & Branches Management overview.
      */
-    public function organization(): View
+    public function organization(Request $request): View
     {
         abort_unless(Auth::user()->hasRole(['system_admin', 'hod']), 403);
+
+        $deptPerPage = (int) $request->input('dept_per_page', 10);
+        if (!in_array($deptPerPage, [10, 25, 50], true)) {
+            $deptPerPage = 10;
+        }
+
+        $branchPerPage = (int) $request->input('branch_per_page', 10);
+        if (!in_array($branchPerPage, [10, 25, 50], true)) {
+            $branchPerPage = 10;
+        }
 
         $departments = Department::with(['head', 'employees', 'parent', 'children.head'])
             ->withCount('employees')
             ->orderByRaw("CASE WHEN parent_id IS NULL THEN 0 ELSE 1 END, name ASC")
-            ->paginate(15, ['*'], 'depts_page')
+            ->paginate($deptPerPage, ['*'], 'depts_page')
             ->withQueryString();
 
         $branches = Branch::with(['manager', 'employees'])
             ->withCount(['employees', 'tickets'])
             ->orderBy('name')
-            ->paginate(10, ['*'], 'branches_page')
+            ->paginate($branchPerPage, ['*'], 'branches_page')
             ->withQueryString();
 
         // Potential parent departments (top-level only)
@@ -799,7 +830,9 @@ class PortalAdminController extends Controller
             'itParent', 
             'itUnits', 
             'approverCandidates',
-            'candidatesJson'
+            'candidatesJson',
+            'deptPerPage',
+            'branchPerPage'
         ));
     }
 
@@ -1156,7 +1189,12 @@ class PortalAdminController extends Controller
             $approversQuery->where('level', (int) $selectedLevel);
         }
 
-        $approverCards = $approversQuery->paginate(15)->withQueryString();
+        $perPage = (int) $request->input('per_page', 10);
+        if (!in_array($perPage, [10, 15, 25, 50], true)) {
+            $perPage = 10;
+        }
+
+        $approverCards = $approversQuery->paginate($perPage)->withQueryString();
 
         $departments = Department::where('is_active', true)
             ->where(function ($q) {
@@ -1207,7 +1245,8 @@ class PortalAdminController extends Controller
             'selectedLevel',
             'totalCardsCount',
             'hqCardsCount',
-            'branchCardsCount'
+            'branchCardsCount',
+            'perPage'
         ));
     }
 

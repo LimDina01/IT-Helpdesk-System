@@ -337,11 +337,36 @@
                 </table>
             </div>
 
-            @if($departments->hasPages())
-                <div class="px-5 py-3 border-t border-slate-100 bg-slate-50/50">
-                    {{ $departments->appends(['tab' => 'departments'])->links() }}
+            <!-- Pagination & Results Summary Footer -->
+            <div class="px-5 py-3.5 border-t border-slate-100 bg-slate-50/60 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div class="text-xs text-slate-500 font-medium flex items-center space-x-1.5">
+                    <span>Showing</span>
+                    <span class="font-bold text-slate-700">{{ $departments->firstItem() ?? 0 }}</span>
+                    <span>to</span>
+                    <span class="font-bold text-slate-700">{{ $departments->lastItem() ?? 0 }}</span>
+                    <span>of</span>
+                    <span class="font-bold text-slate-700">{{ $departments->total() }}</span>
+                    <span>departments</span>
                 </div>
-            @endif
+
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center space-x-1.5 text-xs text-slate-500">
+                        <span class="text-[11px] text-slate-400 font-semibold">Per page:</span>
+                        @foreach([10, 25, 50] as $size)
+                            <a href="{{ request()->fullUrlWithQuery(['dept_per_page' => $size, 'depts_page' => 1, 'tab' => 'departments']) }}"
+                               class="px-2 py-0.5 rounded-md text-[11px] font-bold transition {{ ($deptPerPage ?? 10) == $size ? 'bg-indigo-600 text-white' : 'bg-slate-200/70 hover:bg-slate-200 text-slate-600' }}">
+                                {{ $size }}
+                            </a>
+                        @endforeach
+                    </div>
+
+                    @if($departments->hasPages())
+                        <div class="shrink-0">
+                            {{ $departments->appends(['tab' => 'departments', 'dept_per_page' => $deptPerPage ?? 10])->links() }}
+                        </div>
+                    @endif
+                </div>
+            </div>
         </div>
     </div>
 
@@ -463,11 +488,36 @@
                 </table>
             </div>
 
-            @if($branches->hasPages())
-                <div class="px-5 py-3 border-t border-slate-100 bg-slate-50/50">
-                    {{ $branches->appends(['tab' => 'branches'])->links() }}
+            <!-- Pagination & Results Summary Footer -->
+            <div class="px-5 py-3.5 border-t border-slate-100 bg-slate-50/60 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div class="text-xs text-slate-500 font-medium flex items-center space-x-1.5">
+                    <span>Showing</span>
+                    <span class="font-bold text-slate-700">{{ $branches->firstItem() ?? 0 }}</span>
+                    <span>to</span>
+                    <span class="font-bold text-slate-700">{{ $branches->lastItem() ?? 0 }}</span>
+                    <span>of</span>
+                    <span class="font-bold text-slate-700">{{ $branches->total() }}</span>
+                    <span>branch locations</span>
                 </div>
-            @endif
+
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center space-x-1.5 text-xs text-slate-500">
+                        <span class="text-[11px] text-slate-400 font-semibold">Per page:</span>
+                        @foreach([10, 25, 50] as $size)
+                            <a href="{{ request()->fullUrlWithQuery(['branch_per_page' => $size, 'branches_page' => 1, 'tab' => 'branches']) }}"
+                               class="px-2 py-0.5 rounded-md text-[11px] font-bold transition {{ ($branchPerPage ?? 10) == $size ? 'bg-emerald-600 text-white' : 'bg-slate-200/70 hover:bg-slate-200 text-slate-600' }}">
+                                {{ $size }}
+                            </a>
+                        @endforeach
+                    </div>
+
+                    @if($branches->hasPages())
+                        <div class="shrink-0">
+                            {{ $branches->appends(['tab' => 'branches', 'branch_per_page' => $branchPerPage ?? 10])->links() }}
+                        </div>
+                    @endif
+                </div>
+            </div>
         </div>
     </div>
 

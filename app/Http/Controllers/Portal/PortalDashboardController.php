@@ -158,7 +158,12 @@ class PortalDashboardController extends Controller
                 break;
         }
 
-        $tickets = $query->paginate(15)->withQueryString();
+        $perPage = (int) $request->input('per_page', 15);
+        if (!in_array($perPage, [10, 15, 25, 50], true)) {
+            $perPage = 15;
+        }
+
+        $tickets = $query->paginate($perPage)->withQueryString();
 
         // 3. Technicians available for assignment
         $technicians = User::whereHas('roles', fn($q) => $q->where('name', 'technician'))
@@ -193,6 +198,7 @@ class PortalDashboardController extends Controller
             'branchFilter',
             'priorityFilter',
             'divisionFilter',
+            'perPage',
             'searchQuery'
         ));
     }
