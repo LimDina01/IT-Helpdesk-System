@@ -13,7 +13,10 @@
     targetDept: {}, 
     targetBranch: {},
     targetParentId: '',
-    showWorkflowInfo: false
+    showWorkflowInfo: false,
+    orgTab: new URLSearchParams(window.location.search).get('tab') || 'departments',
+    deptSearch: '',
+    branchSearch: ''
 }" class="space-y-6">
 
     <!-- Top Admin Header -->
@@ -142,325 +145,422 @@
     </div>
 
     <!-- ======================================================== -->
-    <!-- DYNAMIC IT DIVISIONS & SPECIALIZED OFFICES SPOTLIGHT     -->
+    <!-- SEGMENTED TABS: FULL-WIDTH ORGANIZATIONAL VIEWS          -->
     <!-- ======================================================== -->
-    <div class="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs space-y-4">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
-            <div>
-                <div class="flex items-center space-x-2">
-                    <span class="text-lg">🛡️</span>
-                    <h2 class="text-sm font-bold text-slate-900">Information Technology — Divisions & Specialized Offices</h2>
-                    <span class="text-[10px] font-extrabold bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full border border-indigo-200/60">{{ $itUnits->count() }} Units</span>
-                </div>
-                <p class="text-[11px] text-slate-400 mt-0.5">Specialized sub-offices under Information Technology. Tickets requiring IT HOD approval (Slot 3) route dynamically to the designated head of that specific office.</p>
-            </div>
-            <div class="flex items-center space-x-2">
-                <button type="button" 
-                        @click="targetParentId = '{{ $itParent?->id }}'; createDeptModal = true"
-                        class="text-xs font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-xl transition flex items-center space-x-1">
+    <div class="bg-white p-2.5 rounded-3xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div class="flex items-center space-x-2 overflow-x-auto pb-1 sm:pb-0">
+            <button type="button" 
+                    @click="orgTab = 'departments'"
+                    :class="orgTab === 'departments' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'"
+                    class="px-4 py-2.5 rounded-2xl text-xs font-bold transition flex items-center space-x-2 shrink-0 cursor-pointer">
+                <span>🏛️</span>
+                <span>Company Departments</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full font-black" :class="orgTab === 'departments' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'">
+                    {{ $departments->total() }}
+                </span>
+            </button>
+
+            <button type="button" 
+                    @click="orgTab = 'branches'"
+                    :class="orgTab === 'branches' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'"
+                    class="px-4 py-2.5 rounded-2xl text-xs font-bold transition flex items-center space-x-2 shrink-0 cursor-pointer">
+                <span>📍</span>
+                <span>Branches & Offices</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full font-black" :class="orgTab === 'branches' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'">
+                    {{ $branches->total() }}
+                </span>
+            </button>
+
+            <button type="button" 
+                    @click="orgTab = 'it_units'"
+                    :class="orgTab === 'it_units' ? 'bg-indigo-950 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'"
+                    class="px-4 py-2.5 rounded-2xl text-xs font-bold transition flex items-center space-x-2 shrink-0 cursor-pointer">
+                <span>🛡️</span>
+                <span>IT Divisions &amp; Specialized Offices</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full font-black" :class="orgTab === 'it_units' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'">
+                    {{ $itUnits->count() }}
+                </span>
+            </button>
+        </div>
+
+        <div class="flex items-center space-x-2 self-end sm:self-auto shrink-0">
+            <template x-if="orgTab === 'departments'">
+                <button type="button" @click="targetParentId = ''; createDeptModal = true" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow-xs transition flex items-center space-x-1.5 cursor-pointer">
                     <span>➕</span>
-                    <span>Add IT Division / Office</span>
+                    <span>Add Department</span>
                 </button>
-            </div>
+            </template>
+            <template x-if="orgTab === 'branches'">
+                <button type="button" @click="createBranchModal = true" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow-xs transition flex items-center space-x-1.5 cursor-pointer">
+                    <span>➕</span>
+                    <span>Add Branch</span>
+                </button>
+            </template>
+            <template x-if="orgTab === 'it_units'">
+                <button type="button" @click="targetParentId = '{{ $itParent?->id }}'; createDeptModal = true" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow-xs transition flex items-center space-x-1.5 cursor-pointer">
+                    <span>➕</span>
+                    <span>Add IT Division</span>
+                </button>
+            </template>
         </div>
+    </div>
 
-        <!-- Dynamic Grid of All IT Units (IT-OPR, IT-PRD, IT-SOL, etc.) -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            @forelse($itUnits as $unit)
-                <div class="p-4 rounded-2xl border {{ $unit->head ? 'border-indigo-200 bg-indigo-50/20' : 'border-amber-200 bg-amber-50/20' }} flex flex-col justify-between space-y-3">
-                    <div>
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center space-x-2">
-                                <span class="px-2 py-0.5 rounded-md text-[10px] font-black font-mono bg-indigo-100 text-indigo-800 border border-indigo-200">{{ $unit->code }}</span>
-                                <span class="text-xs font-bold text-slate-900 truncate" title="{{ $unit->name }}">{{ $unit->name }}</span>
-                            </div>
-                            <span class="text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded-full {{ $unit->is_active ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800' }}">
-                                {{ $unit->is_active ? 'Active' : 'Inactive' }}
-                            </span>
-                        </div>
-
-                        <div class="mt-3 p-3 bg-white rounded-xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
-                            <div class="flex items-center space-x-3 truncate">
-                                <div class="w-8 h-8 rounded-full bg-indigo-600 text-white font-bold text-xs flex items-center justify-center shrink-0">
-                                    {{ $unit->head ? strtoupper(substr($unit->head->name, 0, 2)) : '??' }}
-                                </div>
-                                <div class="truncate">
-                                    <div class="text-xs font-bold text-slate-900 truncate">
-                                        {{ $unit->head ? $unit->head->name : 'No Designated Approver' }}
-                                    </div>
-                                    <div class="text-[11px] text-slate-400 truncate">
-                                        {{ $unit->head ? $unit->head->email : 'Fallback to parent IT manager' }}
-                                    </div>
-                                </div>
-                            </div>
-                            @if($unit->head && $unit->head->telegram_id)
-                                <span class="text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full flex items-center space-x-1 shrink-0">
-                                    <span>📱</span>
-                                </span>
-                            @endif
-                        </div>
+    <!-- TAB 1: COMPANY DEPARTMENTS (100% FULL-WIDTH) -->
+    <div x-show="orgTab === 'departments'" class="space-y-4">
+        <div class="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
+            <div class="p-5 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <div class="flex items-center space-x-2">
+                        <span class="text-lg">🏛️</span>
+                        <h2 class="text-base font-bold text-slate-900">Company Departments</h2>
+                        <span class="text-[10px] font-extrabold bg-indigo-50 text-indigo-700 px-2.5 py-0.5 rounded-full border border-indigo-200/60">{{ $departments->total() }} Total</span>
                     </div>
-
-                    <div class="pt-2 border-t border-slate-100 flex items-center justify-between">
-                        <span class="text-[10px] text-slate-400 font-semibold">{{ $unit->categories()->count() }} Categories mapped</span>
-                        <button type="button" 
-                                @click="targetDept = {{ json_encode($unit) }}; assignDeptApproverModal = true"
-                                class="text-xs font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-3 py-1 rounded-xl transition flex items-center space-x-1">
-                            <span>👤</span>
-                            <span>Change Head</span>
-                        </button>
-                    </div>
+                    <p class="text-[11px] text-slate-400 mt-0.5">Top-level operational departments and specialized sub-units across the company.</p>
                 </div>
-            @empty
-                <div class="col-span-full py-4 text-center text-slate-400 text-xs">No IT divisions configured.</div>
-            @endforelse
-        </div>
-    </div>
-
-    <!-- Dedicated Approvers Tab Banner -->
-    <div class="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200/80 rounded-3xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xs">
-        <div class="flex items-center space-x-3.5">
-            <div class="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center text-xl shrink-0 shadow-xs">
-                🗂️
-            </div>
-            <div>
-                <h4 class="text-xs font-bold text-slate-900 uppercase tracking-wider">Multi-Level Approver Hierarchy & Levels (Dedicated Screen)</h4>
-                <p class="text-[11px] text-slate-500 mt-0.5">Manage Team Leaders (L1), Supervisors (L2), custom levels, and branch-specific approver matrices in the new dedicated tab.</p>
-            </div>
-        </div>
-        <a href="{{ route('portal.admin.approvers') }}" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center space-x-1.5 self-start sm:self-auto shrink-0">
-            <span>Open Approvers Tab</span>
-            <span>➔</span>
-        </a>
-    </div>
-
-    <!-- ========================================== -->
-    <!-- TWO-COLUMN LAYOUT: DEPARTMENTS VS BRANCHES  -->
-    <!-- ========================================== -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-        <!-- ========================================== -->
-        <!-- 1. DEPARTMENTS CARD                        -->
-        <!-- ========================================== -->
-        <div class="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden flex flex-col justify-between">
-            <div>
-                <div class="p-5 border-b border-slate-100 flex items-center justify-between">
-                    <div>
-                        <div class="flex items-center space-x-2">
-                            <span class="text-lg">🏛️</span>
-                            <h2 class="text-sm font-bold text-slate-900">Company Departments</h2>
-                            <span class="text-[10px] font-extrabold bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full border border-indigo-200/60">{{ $departments->total() }}</span>
-                        </div>
-                        <p class="text-[11px] text-slate-400 mt-0.5">Top-level departments and specialized sub-offices.</p>
+                
+                <div class="flex items-center space-x-3 w-full md:w-auto">
+                    <div class="relative w-full md:w-72">
+                        <input type="text" 
+                               x-model="deptSearch" 
+                               placeholder="🔍 Search department name or code..." 
+                               class="w-full text-xs pl-3.5 pr-8 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50 focus:bg-white transition">
+                        <button type="button" x-show="deptSearch" @click="deptSearch = ''" class="absolute right-2.5 top-2 text-xs text-slate-400 hover:text-slate-600">✕</button>
                     </div>
-                    <button type="button" @click="targetParentId = ''; createDeptModal = true" class="text-xs text-indigo-600 hover:text-indigo-800 font-bold flex items-center space-x-1 cursor-pointer">
+                    <button type="button" @click="targetParentId = ''; createDeptModal = true" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow-xs transition flex items-center space-x-1.5 shrink-0 cursor-pointer">
                         <span>➕ Add</span>
                     </button>
                 </div>
+            </div>
 
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left text-xs">
-                        <thead class="bg-slate-50 text-slate-500 font-bold uppercase tracking-wider text-[10px] border-b border-slate-200">
-                            <tr>
-                                <th class="py-3 px-4">Department & Code</th>
-                                <th class="py-3 px-3 text-center">Staff Count</th>
-                                <th class="py-3 px-3">Status</th>
-                                <th class="py-3 px-4 text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-100">
-                            @forelse($departments as $dept)
-                                <tr class="hover:bg-slate-50/70 transition {{ $dept->parent_id ? 'bg-slate-50/40' : '' }}">
-                                    <td class="py-3.5 px-4 whitespace-nowrap">
-                                        <div class="flex items-center space-x-1.5">
-                                            @if($dept->parent_id)
-                                                <span class="text-slate-400 font-bold ml-2">↳</span>
-                                                <span class="font-bold text-slate-800">{{ $dept->name }}</span>
-                                            @else
-                                                <span class="font-black text-slate-900">{{ $dept->name }}</span>
-                                            @endif
-                                        </div>
-                                        <div class="flex items-center space-x-1.5 mt-0.5">
-                                            <span class="font-mono text-indigo-700 font-bold text-[10px] bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 rounded">
-                                                {{ $dept->code }}
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                    <thead class="bg-slate-50 text-slate-500 font-bold uppercase tracking-wider text-[10px] border-b border-slate-200">
+                        <tr>
+                            <th class="py-3 px-5">Department &amp; Code</th>
+                            <th class="py-3 px-4">Designated Head / Approver</th>
+                            <th class="py-3 px-4 text-center">Staff Count</th>
+                            <th class="py-3 px-4">Status</th>
+                            <th class="py-3 px-5 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        @forelse($departments as $dept)
+                            <tr class="hover:bg-slate-50/70 transition {{ $dept->parent_id ? 'bg-slate-50/30' : '' }}"
+                                x-show="!deptSearch || ('{{ strtolower($dept->name . ' ' . $dept->code) }}').includes(deptSearch.toLowerCase())">
+                                <td class="py-3.5 px-5 whitespace-nowrap">
+                                    <div class="flex items-center space-x-2">
+                                        @if($dept->parent_id)
+                                            <span class="text-slate-400 font-bold ml-3 text-sm">↳</span>
+                                            <span class="font-bold text-slate-800">{{ $dept->name }}</span>
+                                        @else
+                                            <span class="font-black text-slate-900 text-sm">{{ $dept->name }}</span>
+                                        @endif
+                                    </div>
+                                    <div class="flex items-center space-x-1.5 mt-1 {{ $dept->parent_id ? 'ml-6' : '' }}">
+                                        <span class="font-mono text-indigo-700 font-bold text-[10px] bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded">
+                                            {{ $dept->code }}
+                                        </span>
+                                        @if($dept->parent)
+                                            <span class="text-[10px] text-slate-500 bg-slate-100 px-2 py-0.5 rounded border border-slate-200/60 font-medium">
+                                                Part of {{ $dept->parent->name }}
                                             </span>
-                                            @if($dept->parent)
-                                                <span class="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
-                                                    Part of {{ $dept->parent->name }}
-                                                </span>
-                                            @endif
+                                        @endif
+                                    </div>
+                                </td>
+
+                                <td class="py-3.5 px-4 whitespace-nowrap">
+                                    @if($dept->head)
+                                        <div class="flex items-center space-x-2.5">
+                                            <div class="w-7 h-7 rounded-full bg-indigo-600 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
+                                                {{ strtoupper(substr($dept->head->name, 0, 2)) }}
+                                            </div>
+                                            <div>
+                                                <div class="font-bold text-slate-800 text-xs">{{ $dept->head->name }}</div>
+                                                <div class="text-[10px] text-slate-400">{{ $dept->head->email }}</div>
+                                            </div>
                                         </div>
-                                    </td>
-
-                                    <td class="py-3.5 px-3 text-center whitespace-nowrap">
-                                        <span class="text-slate-600 font-semibold bg-slate-100 px-2.5 py-1 rounded-full text-[11px]">
-                                            {{ $dept->employees_count }} staff
-                                        </span>
-                                    </td>
-
-                                    <td class="py-3.5 px-3 whitespace-nowrap">
-                                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full border {{ $dept->is_active ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200' }}">
-                                            {{ $dept->is_active ? 'Active' : 'Suspended' }}
-                                        </span>
-                                    </td>
-
-                                    <td class="py-3.5 px-4 text-right whitespace-nowrap space-x-1.5">
+                                    @else
                                         <button type="button" 
-                                                @click="targetDept = {{ json_encode($dept) }}; editDeptModal = true"
-                                                class="text-xs text-indigo-600 hover:text-indigo-800 font-semibold bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-lg transition cursor-pointer">
-                                            Edit
+                                                @click="targetDept = {{ json_encode($dept) }}; assignDeptApproverModal = true"
+                                                class="inline-flex items-center space-x-1 text-[11px] font-semibold text-slate-500 bg-slate-100 hover:bg-slate-200 border border-slate-200 px-2.5 py-1 rounded-full transition cursor-pointer">
+                                            <span>➕ Assign Head</span>
                                         </button>
-                                        <form method="POST" action="{{ route('portal.admin.departments.toggle', $dept->id) }}" class="inline-block">
+                                    @endif
+                                </td>
+
+                                <td class="py-3.5 px-4 text-center whitespace-nowrap">
+                                    <span class="text-slate-700 font-semibold bg-slate-100 border border-slate-200/80 px-3 py-1 rounded-full text-[11px]">
+                                        {{ $dept->employees_count }} staff
+                                    </span>
+                                </td>
+
+                                <td class="py-3.5 px-4 whitespace-nowrap">
+                                    <span class="text-[10px] font-bold px-2.5 py-0.5 rounded-full border {{ $dept->is_active ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200' }}">
+                                        {{ $dept->is_active ? 'Active' : 'Suspended' }}
+                                    </span>
+                                </td>
+
+                                <td class="py-3.5 px-5 text-right whitespace-nowrap space-x-1.5">
+                                    <button type="button" 
+                                            @click="targetDept = {{ json_encode($dept) }}; assignDeptApproverModal = true"
+                                            class="text-xs text-indigo-600 hover:text-indigo-800 font-bold bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-lg transition cursor-pointer">
+                                        Head
+                                    </button>
+                                    <button type="button" 
+                                            @click="targetDept = {{ json_encode($dept) }}; editDeptModal = true"
+                                            class="text-xs text-slate-600 hover:text-slate-800 font-bold bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded-lg transition cursor-pointer">
+                                        Edit
+                                    </button>
+                                    <form method="POST" action="{{ route('portal.admin.departments.toggle', $dept->id) }}" class="inline-block">
+                                        @csrf
+                                        <button type="submit" class="text-xs {{ $dept->is_active ? 'text-amber-600 hover:text-amber-800' : 'text-emerald-600 hover:text-emerald-800' }} font-bold px-2 py-1 transition cursor-pointer">
+                                            {{ $dept->is_active ? 'Suspend' : 'Activate' }}
+                                        </button>
+                                    </form>
+                                    @if($dept->employees_count === 0 && $dept->children()->count() === 0)
+                                        <form method="POST" action="{{ route('portal.admin.departments.destroy', $dept->id) }}" class="inline-block" onsubmit="return confirm('Delete department {{ $dept->name }}?')">
                                             @csrf
-                                            <button type="submit" class="text-xs {{ $dept->is_active ? 'text-amber-600 hover:text-amber-800' : 'text-emerald-600 hover:text-emerald-800' }} font-semibold px-2 py-1 transition cursor-pointer">
-                                                {{ $dept->is_active ? 'Suspend' : 'Activate' }}
+                                            @method('DELETE')
+                                            <button type="submit" class="text-xs text-rose-600 hover:text-rose-800 font-bold bg-rose-50 hover:bg-rose-100 px-2.5 py-1 rounded-lg transition cursor-pointer">
+                                                Delete
                                             </button>
                                         </form>
-                                        @if($dept->employees_count === 0 && $dept->children()->count() === 0)
-                                            <form method="POST" action="{{ route('portal.admin.departments.destroy', $dept->id) }}" class="inline-block" onsubmit="return confirm('Delete department {{ $dept->name }}?')">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="submit" class="text-xs text-rose-600 hover:text-rose-800 font-semibold px-2 py-1 transition cursor-pointer">
-                                                    Delete
-                                                </button>
-                                            </form>
-                                        @endif
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="4" class="py-6 text-center text-slate-400 text-xs">No departments found.</td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-
-                @if($departments->hasPages())
-                    <div class="px-4 py-3 border-t border-slate-100 bg-slate-50/50">
-                        {{ $departments->links() }}
-                    </div>
-                @endif
+                                    @endif
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="5" class="py-8 text-center text-slate-400 text-xs">No departments found.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
             </div>
-        </div>
 
-        <!-- ========================================== -->
-        <!-- 2. BRANCHES CARD                           -->
-        <!-- ========================================== -->
-        <div class="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden flex flex-col justify-between">
-            <div>
-                <div class="p-5 border-b border-slate-100 flex items-center justify-between">
-                    <div>
-                        <div class="flex items-center space-x-2">
-                            <span class="text-lg">📍</span>
-                            <h2 class="text-sm font-bold text-slate-900">Branches & Offices</h2>
-                            <span class="text-[10px] font-extrabold bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full border border-emerald-200/60">{{ $branches->total() }}</span>
-                        </div>
-                        <p class="text-[11px] text-slate-400 mt-0.5">Physical retail stores and workshop locations.</p>
+            @if($departments->hasPages())
+                <div class="px-5 py-3 border-t border-slate-100 bg-slate-50/50">
+                    {{ $departments->appends(['tab' => 'departments'])->links() }}
+                </div>
+            @endif
+        </div>
+    </div>
+
+    <!-- TAB 2: BRANCHES & STORE LOCATIONS (100% FULL-WIDTH) -->
+    <div x-show="orgTab === 'branches'" class="space-y-4">
+        <div class="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
+            <div class="p-5 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <div class="flex items-center space-x-2">
+                        <span class="text-lg">📍</span>
+                        <h2 class="text-base font-bold text-slate-900">Branches & Offices</h2>
+                        <span class="text-[10px] font-extrabold bg-emerald-50 text-emerald-700 px-2.5 py-0.5 rounded-full border border-emerald-200/60">{{ $branches->total() }} Locations</span>
                     </div>
-                    <button type="button" @click="createBranchModal = true" class="text-xs text-emerald-600 hover:text-emerald-800 font-bold flex items-center space-x-1 cursor-pointer">
-                        <span>➕ Add</span>
+                    <p class="text-[11px] text-slate-400 mt-0.5">Physical luxury retail boutiques, corporate head offices, and jewelry workshops.</p>
+                </div>
+                
+                <div class="flex items-center space-x-3 w-full md:w-auto">
+                    <div class="relative w-full md:w-72">
+                        <input type="text" 
+                               x-model="branchSearch" 
+                               placeholder="🔍 Search branch name or code..." 
+                               class="w-full text-xs pl-3.5 pr-8 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 focus:bg-white transition">
+                        <button type="button" x-show="branchSearch" @click="branchSearch = ''" class="absolute right-2.5 top-2 text-xs text-slate-400 hover:text-slate-600">✕</button>
+                    </div>
+                    <button type="button" @click="createBranchModal = true" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow-xs transition flex items-center space-x-1.5 shrink-0 cursor-pointer">
+                        <span>➕ Add Branch</span>
                     </button>
                 </div>
+            </div>
 
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left text-xs">
-                        <thead class="bg-slate-50 text-slate-500 font-bold uppercase tracking-wider text-[10px] border-b border-slate-200">
-                            <tr>
-                                <th class="py-3 px-4">Branch & Code</th>
-                                <th class="py-3 px-3">Branch Manager</th>
-                                <th class="py-3 px-3 text-center">Staff & Tickets</th>
-                                <th class="py-3 px-3">Status</th>
-                                <th class="py-3 px-4 text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-100">
-                            @forelse($branches as $branch)
-                                <tr class="hover:bg-slate-50/70 transition">
-                                    <td class="py-3.5 px-4 whitespace-nowrap">
-                                        <div class="font-bold text-slate-900">{{ $branch->name }}</div>
-                                        <span class="inline-block mt-0.5 font-mono text-emerald-700 font-bold text-[10px] bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded">
-                                            {{ $branch->code }}
-                                        </span>
-                                    </td>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                    <thead class="bg-slate-50 text-slate-500 font-bold uppercase tracking-wider text-[10px] border-b border-slate-200">
+                        <tr>
+                            <th class="py-3 px-5">Branch / Boutique &amp; Code</th>
+                            <th class="py-3 px-4">Branch Manager</th>
+                            <th class="py-3 px-4 text-center">Staff &amp; Active Tickets</th>
+                            <th class="py-3 px-4">Status</th>
+                            <th class="py-3 px-5 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        @forelse($branches as $branch)
+                            <tr class="hover:bg-slate-50/70 transition"
+                                x-show="!branchSearch || ('{{ strtolower($branch->name . ' ' . $branch->code) }}').includes(branchSearch.toLowerCase())">
+                                <td class="py-4 px-5 whitespace-nowrap">
+                                    <div class="font-bold text-slate-900 text-sm">{{ $branch->name }}</div>
+                                    <span class="inline-block mt-1 font-mono text-emerald-700 font-bold text-[10px] bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded">
+                                        {{ $branch->code }}
+                                    </span>
+                                </td>
 
-                                    <td class="py-3.5 px-3 whitespace-nowrap">
-                                        @if($branch->manager)
-                                            <div class="flex items-center space-x-2">
-                                                <div class="w-7 h-7 rounded-full bg-emerald-800 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
-                                                    {{ strtoupper(substr($branch->manager->name, 0, 2)) }}
-                                                </div>
-                                                <div>
-                                                    <div class="font-bold text-slate-800 text-xs">{{ $branch->manager->name }}</div>
-                                                    <div class="text-[10px] text-slate-400">{{ $branch->manager->email }}</div>
-                                                </div>
+                                <td class="py-4 px-4 whitespace-nowrap">
+                                    @if($branch->manager)
+                                        <div class="flex items-center space-x-2.5">
+                                            <div class="w-8 h-8 rounded-full bg-emerald-700 text-white font-bold text-xs flex items-center justify-center shrink-0">
+                                                {{ strtoupper(substr($branch->manager->name, 0, 2)) }}
                                             </div>
-                                        @else
-                                            <button type="button" 
-                                                    @click="targetBranch = {{ json_encode($branch) }}; assignBranchManagerModal = true"
-                                                    class="inline-flex items-center space-x-1 text-[11px] font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 border border-slate-200 px-2 py-0.5 rounded-full transition cursor-pointer">
-                                                <span>➕ Assign Manager</span>
-                                            </button>
-                                        @endif
-                                    </td>
-
-                                    <td class="py-3.5 px-3 text-center whitespace-nowrap">
-                                        <span class="text-slate-600 font-semibold bg-slate-100 px-2 py-0.5 rounded-full text-[11px]">
-                                            {{ $branch->employees_count }} staff &bull; {{ $branch->tickets_count }} tickets
-                                        </span>
-                                    </td>
-
-                                    <td class="py-3.5 px-3 whitespace-nowrap">
-                                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full border {{ $branch->is_active ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200' }}">
-                                            {{ $branch->is_active ? 'Active' : 'Suspended' }}
-                                        </span>
-                                    </td>
-
-                                    <td class="py-3.5 px-4 text-right whitespace-nowrap space-x-1.5">
+                                            <div>
+                                                <div class="font-bold text-slate-800 text-xs">{{ $branch->manager->name }}</div>
+                                                <div class="text-[10px] text-slate-400">{{ $branch->manager->email }}</div>
+                                            </div>
+                                        </div>
+                                    @else
                                         <button type="button" 
                                                 @click="targetBranch = {{ json_encode($branch) }}; assignBranchManagerModal = true"
-                                                class="text-xs text-emerald-600 hover:text-emerald-800 font-semibold bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-lg transition cursor-pointer">
-                                            Manager
+                                                class="inline-flex items-center space-x-1 text-[11px] font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 border border-slate-200 px-2.5 py-1 rounded-full transition cursor-pointer">
+                                            <span>➕ Assign Manager</span>
                                         </button>
-                                        <button type="button" 
-                                                @click="targetBranch = {{ json_encode($branch) }}; editBranchModal = true"
-                                                class="text-xs text-slate-600 hover:text-slate-900 font-semibold bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded-lg transition cursor-pointer">
-                                            Edit
+                                    @endif
+                                </td>
+
+                                <td class="py-4 px-4 text-center whitespace-nowrap">
+                                    <span class="text-slate-700 font-semibold bg-slate-100 border border-slate-200 px-3 py-1 rounded-full text-[11px]">
+                                        {{ $branch->employees_count }} staff &bull; {{ $branch->tickets_count }} tickets
+                                    </span>
+                                </td>
+
+                                <td class="py-4 px-4 whitespace-nowrap">
+                                    <span class="text-[10px] font-bold px-2.5 py-0.5 rounded-full border {{ $branch->is_active ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200' }}">
+                                        {{ $branch->is_active ? 'Active' : 'Suspended' }}
+                                    </span>
+                                </td>
+
+                                <td class="py-4 px-5 text-right whitespace-nowrap space-x-1.5">
+                                    <button type="button" 
+                                            @click="targetBranch = {{ json_encode($branch) }}; assignBranchManagerModal = true"
+                                            class="text-xs text-emerald-600 hover:text-emerald-800 font-bold bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-lg transition cursor-pointer">
+                                        Manager
+                                    </button>
+                                    <button type="button" 
+                                            @click="targetBranch = {{ json_encode($branch) }}; editBranchModal = true"
+                                            class="text-xs text-slate-600 hover:text-slate-900 font-bold bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded-lg transition cursor-pointer">
+                                        Edit
+                                    </button>
+                                    <form method="POST" action="{{ route('portal.admin.branches.toggle', $branch->id) }}" class="inline-block">
+                                        @csrf
+                                        <button type="submit" class="text-xs {{ $branch->is_active ? 'text-amber-600 hover:text-amber-800' : 'text-emerald-600 hover:text-emerald-800' }} font-bold px-2 py-1 transition cursor-pointer">
+                                            {{ $branch->is_active ? 'Suspend' : 'Activate' }}
                                         </button>
-                                        <form method="POST" action="{{ route('portal.admin.branches.toggle', $branch->id) }}" class="inline-block">
+                                    </form>
+                                    @if($branch->employees_count === 0 && $branch->tickets_count === 0)
+                                        <form method="POST" action="{{ route('portal.admin.branches.destroy', $branch->id) }}" class="inline-block" onsubmit="return confirm('Delete branch {{ $branch->name }}?')">
                                             @csrf
-                                            <button type="submit" class="text-xs {{ $branch->is_active ? 'text-amber-600 hover:text-amber-800' : 'text-emerald-600 hover:text-emerald-800' }} font-semibold px-2 py-1 transition cursor-pointer">
-                                                {{ $branch->is_active ? 'Suspend' : 'Activate' }}
+                                            @method('DELETE')
+                                            <button type="submit" class="text-xs text-rose-600 hover:text-rose-800 font-bold bg-rose-50 hover:bg-rose-100 px-2.5 py-1 rounded-lg transition cursor-pointer">
+                                                Delete
                                             </button>
                                         </form>
-                                        @if($branch->employees_count === 0 && $branch->tickets_count === 0)
-                                            <form method="POST" action="{{ route('portal.admin.branches.destroy', $branch->id) }}" class="inline-block" onsubmit="return confirm('Delete branch {{ $branch->name }}?')">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="submit" class="text-xs text-rose-600 hover:text-rose-800 font-semibold px-2 py-1 transition cursor-pointer">
-                                                    Delete
-                                                </button>
-                                            </form>
-                                        @endif
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="5" class="py-6 text-center text-slate-400 text-xs">No branches found.</td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
+                                    @endif
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="5" class="py-8 text-center text-slate-400 text-xs">No branches found.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
 
-                @if($branches->hasPages())
-                    <div class="px-4 py-3 border-t border-slate-100 bg-slate-50/50">
-                        {{ $branches->links() }}
+            @if($branches->hasPages())
+                <div class="px-5 py-3 border-t border-slate-100 bg-slate-50/50">
+                    {{ $branches->appends(['tab' => 'branches'])->links() }}
+                </div>
+            @endif
+        </div>
+    </div>
+
+    <!-- TAB 3: IT DIVISIONS & SPECIALIZED OFFICES (100% FULL-WIDTH) -->
+    <div x-show="orgTab === 'it_units'" class="space-y-4">
+        <div class="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs space-y-5">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                <div>
+                    <div class="flex items-center space-x-2">
+                        <span class="text-xl">🛡️</span>
+                        <h2 class="text-base font-bold text-slate-900">Information Technology — Divisions &amp; Specialized Offices</h2>
+                        <span class="text-[10px] font-extrabold bg-indigo-50 text-indigo-700 px-2.5 py-0.5 rounded-full border border-indigo-200/60">{{ $itUnits->count() }} Units</span>
                     </div>
-                @endif
+                    <p class="text-xs text-slate-500 mt-1">Specialized sub-offices under Information Technology. Tickets requiring IT HOD approval (Slot 3) route dynamically to the designated head of that specific office.</p>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <button type="button" 
+                            @click="targetParentId = '{{ $itParent?->id }}'; createDeptModal = true"
+                            class="text-xs font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-3.5 py-2 rounded-xl transition flex items-center space-x-1.5 cursor-pointer">
+                        <span>➕</span>
+                        <span>Add IT Division / Office</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Dynamic Grid of All IT Units (IT-OPR, IT-PRD, IT-SOL, etc.) -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                @forelse($itUnits as $unit)
+                    <div class="p-5 rounded-3xl border {{ $unit->head ? 'border-indigo-200 bg-indigo-50/20' : 'border-amber-200 bg-amber-50/20' }} flex flex-col justify-between space-y-4 shadow-2xs">
+                        <div>
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-2">
+                                    <span class="px-2 py-0.5 rounded-md text-[10px] font-black font-mono bg-indigo-100 text-indigo-800 border border-indigo-200">{{ $unit->code }}</span>
+                                    <span class="text-xs font-bold text-slate-900 truncate" title="{{ $unit->name }}">{{ $unit->name }}</span>
+                                </div>
+                                <span class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full {{ $unit->is_active ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800' }}">
+                                    {{ $unit->is_active ? 'Active' : 'Inactive' }}
+                                </span>
+                            </div>
+
+                            <div class="mt-3.5 p-3.5 bg-white rounded-2xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
+                                <div class="flex items-center space-x-3 truncate">
+                                    <div class="w-9 h-9 rounded-full bg-indigo-600 text-white font-bold text-xs flex items-center justify-center shrink-0">
+                                        {{ $unit->head ? strtoupper(substr($unit->head->name, 0, 2)) : '??' }}
+                                    </div>
+                                    <div class="truncate">
+                                        <div class="text-xs font-bold text-slate-900 truncate">
+                                            {{ $unit->head ? $unit->head->name : 'No Designated Approver' }}
+                                        </div>
+                                        <div class="text-[11px] text-slate-400 truncate">
+                                            {{ $unit->head ? $unit->head->email : 'Fallback to parent IT manager' }}
+                                        </div>
+                                    </div>
+                                </div>
+                                @if($unit->head && $unit->head->telegram_id)
+                                    <span class="text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full flex items-center space-x-1 shrink-0">
+                                        <span>📱</span>
+                                    </span>
+                                @endif
+                            </div>
+                        </div>
+
+                        <div class="pt-3 border-t border-slate-200/60 flex items-center justify-between gap-2">
+                            <span class="text-[10px] text-slate-400 font-semibold">{{ $unit->categories_count }} Categories mapped</span>
+                            
+                            <div class="flex items-center space-x-1.5">
+                                <button type="button" 
+                                        @click="targetDept = {{ json_encode($unit) }}; assignDeptApproverModal = true"
+                                        class="text-xs font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1.5 rounded-xl transition flex items-center space-x-1 cursor-pointer">
+                                    <span>👤 Head</span>
+                                </button>
+                                <button type="button" 
+                                        @click="targetDept = {{ json_encode($unit) }}; editDeptModal = true"
+                                        class="text-xs font-bold text-slate-600 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 px-2.5 py-1.5 rounded-xl transition flex items-center space-x-1 cursor-pointer">
+                                    <span>✏️ Edit</span>
+                                </button>
+                                @if(($unit->employees_count ?? 0) === 0 && ($unit->categories_count ?? 0) === 0)
+                                    <form method="POST" action="{{ route('portal.admin.departments.destroy', $unit->id) }}" class="inline-block" onsubmit="return confirm('Permanently delete IT Division \'{{ $unit->name }}\'?')">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="text-xs font-bold text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 px-2.5 py-1.5 rounded-xl transition flex items-center space-x-1 cursor-pointer">
+                                            <span>🗑️ Delete</span>
+                                        </button>
+                                    </form>
+                                @endif
+                            </div>
+                        </div>
+                    </div>
+                @empty
+                    <div class="col-span-full py-6 text-center text-slate-400 text-xs">No IT divisions configured.</div>
+                @endforelse
             </div>
         </div>
-
     </div>
 
     <!-- ========================================== -->

@@ -752,7 +752,7 @@ class PortalAdminController extends Controller
         $departments = Department::with(['head', 'employees', 'parent', 'children.head'])
             ->withCount('employees')
             ->orderByRaw("CASE WHEN parent_id IS NULL THEN 0 ELSE 1 END, name ASC")
-            ->paginate(10, ['*'], 'depts_page')
+            ->paginate(15, ['*'], 'depts_page')
             ->withQueryString();
 
         $branches = Branch::with(['manager', 'employees'])
@@ -768,7 +768,7 @@ class PortalAdminController extends Controller
         $itParent = Department::where('code', 'IT')->with(['children.head', 'head'])->first();
 
         // Dynamic IT sub-units (IT-OPR, IT-PRD, IT-SOL, etc.)
-        $itUnits = Department::itUnits()->with('head')->orderBy('name')->get();
+        $itUnits = Department::itUnits()->with('head')->withCount(['employees', 'categories'])->orderBy('name')->get();
 
         // Eligible candidates to be assigned as HOD or Branch Manager
         $approverCandidates = User::where('is_active', true)
@@ -1016,6 +1016,14 @@ class PortalAdminController extends Controller
         if ($department->employees()->count() > 0) {
             return back()->withErrors(['error' => "Cannot delete department '{$department->name}' because it has assigned employees. Suspend it instead."]);
         }
+
+        if ($department->children()->count() > 0) {
+            return back()->withErrors(['error' => "Cannot delete department '{$department->name}' because it has sub-departments. Delete or move them first."]);
+        }
+
+        // Clean up categories and approvers linked to this department/unit
+        $department->categories()->update(['it_department_id' => null]);
+        $department->approvers()->delete();
 
         $name = $department->name;
         $department->delete();
