@@ -231,15 +231,29 @@
                 @endforeach
             </div>
 
-            <!-- Client-side Quick Search Filter -->
-            <div class="relative w-full lg:w-72">
-                <input type="text"
-                       x-model="cardSearch"
-                       placeholder="🔍 Search cards by name, dept, title..."
-                       class="w-full text-xs pl-8 pr-3 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-2xs">
-                <span class="absolute left-2.5 top-2.5 text-slate-400 text-xs">🔍</span>
-                <button type="button" x-show="cardSearch" @click="cardSearch = ''" class="absolute right-3 top-2 text-slate-400 hover:text-slate-600 text-xs font-bold">✕</button>
-            </div>
+            <!-- Server Search Filter -->
+            <form method="GET" action="{{ route('portal.admin.approvers') }}" class="flex items-center space-x-2 w-full lg:w-auto">
+                @if(!empty($selectedBranchId))<input type="hidden" name="branch_id" value="{{ $selectedBranchId }}">@endif
+                @if(!empty($selectedDeptId))<input type="hidden" name="department_id" value="{{ $selectedDeptId }}">@endif
+                @if(!empty($selectedLevel))<input type="hidden" name="level" value="{{ $selectedLevel }}">@endif
+                @if(isset($perPage) && $perPage != 10)<input type="hidden" name="per_page" value="{{ $perPage }}">@endif
+                
+                <div class="relative w-full lg:w-72">
+                    <input type="text"
+                           name="search"
+                           value="{{ $search ?? '' }}"
+                           placeholder="🔍 Search cards by name, dept, title... (Enter)"
+                           class="w-full text-xs pl-8 pr-7 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-2xs">
+                    <span class="absolute left-2.5 top-2.5 text-slate-400 text-xs">🔍</span>
+                    @if(!empty($search))
+                        <a href="{{ route('portal.admin.approvers', array_filter(['branch_id' => $selectedBranchId, 'department_id' => $selectedDeptId, 'level' => $selectedLevel, 'per_page' => (isset($perPage) && $perPage != 10) ? $perPage : null])) }}" 
+                           class="absolute right-2.5 top-2 text-xs text-slate-400 hover:text-slate-600 font-bold" title="Clear search">✕</a>
+                    @endif
+                </div>
+                <button type="submit" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs px-3 py-2 rounded-xl border border-indigo-200 transition cursor-pointer shrink-0">
+                    Search
+                </button>
+            </form>
         </div>
 
         <!-- Secondary Filters: Department & Level -->
@@ -307,8 +321,7 @@
                 <div class="p-5">
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         @foreach($cards as $card)
-                            <div x-show="!cardSearch || ('{{ strtolower($card->user?->name . ' ' . $card->user?->email . ' ' . $card->title . ' ' . $groupTitle) }}').includes(cardSearch.toLowerCase())"
-                                 class="border border-slate-200 rounded-2xl p-4 bg-slate-50/40 hover:bg-white transition shadow-2xs relative flex flex-col justify-between space-y-3">
+                            <div class="border border-slate-200 rounded-2xl p-4 bg-slate-50/40 hover:bg-white transition shadow-2xs relative flex flex-col justify-between space-y-3">
                                 <div>
                                     <div class="flex items-center justify-between">
                                         <div class="flex items-center space-x-1.5">
@@ -357,13 +370,24 @@
         @empty
             <div class="bg-white rounded-3xl p-12 text-center border border-slate-200/80 shadow-xs space-y-3">
                 <span class="text-4xl">🗂️</span>
-                <h3 class="text-base font-bold text-slate-800">No Approver Cards Configured</h3>
-                <p class="text-xs text-slate-400 max-w-md mx-auto">
-                    Start by clicking <span class="font-bold text-indigo-600">+ Add Approver Card</span> to connect a Branch and Department to Level 1 Team Leaders and Level 2 Supervisors.
-                </p>
-                <button type="button" @click="openAddModal()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-xs transition inline-flex items-center space-x-1.5 cursor-pointer">
-                    <span>➕ Add First Approver Card</span>
-                </button>
+                @if(!empty($search))
+                    <h3 class="text-base font-bold text-slate-800">No Approver Cards Match "{{ $search }}"</h3>
+                    <p class="text-xs text-slate-400 max-w-md mx-auto">
+                        No approver cards matched your search term across departments, branches, or names.
+                    </p>
+                    <a href="{{ route('portal.admin.approvers', array_filter(['branch_id' => $selectedBranchId, 'department_id' => $selectedDeptId, 'level' => $selectedLevel, 'per_page' => (isset($perPage) && $perPage != 10) ? $perPage : null])) }}" 
+                       class="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs rounded-xl border border-indigo-200 transition inline-flex items-center space-x-1.5 cursor-pointer">
+                        <span>✕ Clear Search Filter</span>
+                    </a>
+                @else
+                    <h3 class="text-base font-bold text-slate-800">No Approver Cards Configured</h3>
+                    <p class="text-xs text-slate-400 max-w-md mx-auto">
+                        Start by clicking <span class="font-bold text-indigo-600">+ Add Approver Card</span> to connect a Branch and Department to Level 1 Team Leaders and Level 2 Supervisors.
+                    </p>
+                    <button type="button" @click="openAddModal()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-xs transition inline-flex items-center space-x-1.5 cursor-pointer">
+                        <span>➕ Add First Approver Card</span>
+                    </button>
+                @endif
             </div>
         @endforelse
 

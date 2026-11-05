@@ -30,22 +30,10 @@
             <p class="text-xs text-slate-500 mt-0.5">Hierarchical structure: Assign designated HODs for Slot 1 approvals, branch managers, and IT division/office routing (IT-OPR, IT-PRD, IT-SOL).</p>
         </div>
 
-        <div class="flex flex-wrap items-center gap-2 self-start sm:self-auto">
-            <button type="button" @click="showWorkflowInfo = !showWorkflowInfo" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs px-3.5 py-2.5 rounded-xl shadow-xs transition flex items-center space-x-1.5">
+        <div class="flex items-center self-start sm:self-auto">
+            <button type="button" @click="showWorkflowInfo = !showWorkflowInfo" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs px-3.5 py-2.5 rounded-xl shadow-xs transition flex items-center space-x-1.5 cursor-pointer">
                 <span>ℹ️</span>
                 <span x-text="showWorkflowInfo ? 'Hide Workflow' : 'Approval Rules'">Approval Rules</span>
-            </button>
-            <button type="button" @click="targetParentId = '{{ $itParent?->id }}'; createDeptModal = true" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs px-3.5 py-2.5 rounded-xl border border-indigo-200 transition flex items-center space-x-1.5">
-                <span>➕</span>
-                <span>Add IT Office</span>
-            </button>
-            <button type="button" @click="targetParentId = ''; createDeptModal = true" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3.5 py-2.5 rounded-xl shadow-xs transition flex items-center space-x-1.5">
-                <span>➕</span>
-                <span>Add Department</span>
-            </button>
-            <button type="button" @click="createBranchModal = true" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3.5 py-2.5 rounded-xl shadow-xs transition flex items-center space-x-1.5">
-                <span>➕</span>
-                <span>Add Branch</span>
             </button>
         </div>
     </div>
@@ -182,27 +170,6 @@
                 </span>
             </button>
         </div>
-
-        <div class="flex items-center space-x-2 self-end sm:self-auto shrink-0">
-            <template x-if="orgTab === 'departments'">
-                <button type="button" @click="targetParentId = ''; createDeptModal = true" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow-xs transition flex items-center space-x-1.5 cursor-pointer">
-                    <span>➕</span>
-                    <span>Add Department</span>
-                </button>
-            </template>
-            <template x-if="orgTab === 'branches'">
-                <button type="button" @click="createBranchModal = true" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow-xs transition flex items-center space-x-1.5 cursor-pointer">
-                    <span>➕</span>
-                    <span>Add Branch</span>
-                </button>
-            </template>
-            <template x-if="orgTab === 'it_units'">
-                <button type="button" @click="targetParentId = '{{ $itParent?->id }}'; createDeptModal = true" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow-xs transition flex items-center space-x-1.5 cursor-pointer">
-                    <span>➕</span>
-                    <span>Add IT Division</span>
-                </button>
-            </template>
-        </div>
     </div>
 
     <!-- TAB 1: COMPANY DEPARTMENTS (100% FULL-WIDTH) -->
@@ -218,16 +185,29 @@
                     <p class="text-[11px] text-slate-400 mt-0.5">Top-level operational departments and specialized sub-units across the company.</p>
                 </div>
                 
-                <div class="flex items-center space-x-3 w-full md:w-auto">
-                    <div class="relative w-full md:w-72">
-                        <input type="text" 
-                               x-model="deptSearch" 
-                               placeholder="🔍 Search department name or code..." 
-                               class="w-full text-xs pl-3.5 pr-8 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50 focus:bg-white transition">
-                        <button type="button" x-show="deptSearch" @click="deptSearch = ''" class="absolute right-2.5 top-2 text-xs text-slate-400 hover:text-slate-600">✕</button>
-                    </div>
-                    <button type="button" @click="targetParentId = ''; createDeptModal = true" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow-xs transition flex items-center space-x-1.5 shrink-0 cursor-pointer">
-                        <span>➕ Add</span>
+                <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full md:w-auto">
+                    <form method="GET" action="{{ route('portal.admin.organization') }}" class="flex items-center space-x-2 w-full sm:w-auto">
+                        <input type="hidden" name="tab" value="departments">
+                        @if(isset($deptPerPage) && $deptPerPage != 10)
+                            <input type="hidden" name="dept_per_page" value="{{ $deptPerPage }}">
+                        @endif
+                        <div class="relative w-full sm:w-72">
+                            <input type="text" 
+                                   name="dept_search"
+                                   value="{{ $deptSearch ?? '' }}"
+                                   placeholder="🔍 Search name or code... (Enter)" 
+                                   class="w-full text-xs pl-3.5 pr-8 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50 focus:bg-white transition">
+                            @if(!empty($deptSearch))
+                                <a href="{{ route('portal.admin.organization', array_filter(['tab' => 'departments', 'dept_per_page' => (isset($deptPerPage) && $deptPerPage != 10) ? $deptPerPage : null])) }}" 
+                                   class="absolute right-2.5 top-2 text-xs text-slate-400 hover:text-slate-600 font-bold" title="Clear search">✕</a>
+                            @endif
+                        </div>
+                        <button type="submit" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs px-3 py-2 rounded-xl border border-indigo-200 transition cursor-pointer shrink-0">
+                            Search
+                        </button>
+                    </form>
+                    <button type="button" @click="targetParentId = ''; createDeptModal = true" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow-xs transition flex items-center justify-center space-x-1.5 shrink-0 cursor-pointer">
+                        <span>➕ Add Department</span>
                     </button>
                 </div>
             </div>
@@ -245,8 +225,7 @@
                     </thead>
                     <tbody class="divide-y divide-slate-100">
                         @forelse($departments as $dept)
-                            <tr class="hover:bg-slate-50/70 transition {{ $dept->parent_id ? 'bg-slate-50/30' : '' }}"
-                                x-show="!deptSearch || ('{{ strtolower($dept->name . ' ' . $dept->code) }}').includes(deptSearch.toLowerCase())">
+                            <tr class="hover:bg-slate-50/70 transition {{ $dept->parent_id ? 'bg-slate-50/30' : '' }}">
                                 <td class="py-3.5 px-5 whitespace-nowrap">
                                     <div class="flex items-center space-x-2">
                                         @if($dept->parent_id)
@@ -330,7 +309,14 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="5" class="py-8 text-center text-slate-400 text-xs">No departments found.</td>
+                                <td colspan="5" class="py-8 text-center text-slate-400 text-xs">
+                                    @if(!empty($deptSearch))
+                                        No departments found matching "<span class="font-bold text-slate-700">{{ $deptSearch }}</span>". 
+                                        <a href="{{ route('portal.admin.organization', ['tab' => 'departments']) }}" class="text-indigo-600 hover:underline font-bold ml-1">Clear search</a>
+                                    @else
+                                        No departments found.
+                                    @endif
+                                </td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -383,15 +369,28 @@
                     <p class="text-[11px] text-slate-400 mt-0.5">Physical luxury retail boutiques, corporate head offices, and jewelry workshops.</p>
                 </div>
                 
-                <div class="flex items-center space-x-3 w-full md:w-auto">
-                    <div class="relative w-full md:w-72">
-                        <input type="text" 
-                               x-model="branchSearch" 
-                               placeholder="🔍 Search branch name or code..." 
-                               class="w-full text-xs pl-3.5 pr-8 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 focus:bg-white transition">
-                        <button type="button" x-show="branchSearch" @click="branchSearch = ''" class="absolute right-2.5 top-2 text-xs text-slate-400 hover:text-slate-600">✕</button>
-                    </div>
-                    <button type="button" @click="createBranchModal = true" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow-xs transition flex items-center space-x-1.5 shrink-0 cursor-pointer">
+                <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full md:w-auto">
+                    <form method="GET" action="{{ route('portal.admin.organization') }}" class="flex items-center space-x-2 w-full sm:w-auto">
+                        <input type="hidden" name="tab" value="branches">
+                        @if(isset($branchPerPage) && $branchPerPage != 10)
+                            <input type="hidden" name="branch_per_page" value="{{ $branchPerPage }}">
+                        @endif
+                        <div class="relative w-full sm:w-72">
+                            <input type="text" 
+                                   name="branch_search"
+                                   value="{{ $branchSearch ?? '' }}"
+                                   placeholder="🔍 Search name or code... (Enter)" 
+                                   class="w-full text-xs pl-3.5 pr-8 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50 focus:bg-white transition">
+                            @if(!empty($branchSearch))
+                                <a href="{{ route('portal.admin.organization', array_filter(['tab' => 'branches', 'branch_per_page' => (isset($branchPerPage) && $branchPerPage != 10) ? $branchPerPage : null])) }}" 
+                                   class="absolute right-2.5 top-2 text-xs text-slate-400 hover:text-slate-600 font-bold" title="Clear search">✕</a>
+                            @endif
+                        </div>
+                        <button type="submit" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-xs px-3 py-2 rounded-xl border border-emerald-200 transition cursor-pointer shrink-0">
+                            Search
+                        </button>
+                    </form>
+                    <button type="button" @click="createBranchModal = true" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow-xs transition flex items-center justify-center space-x-1.5 shrink-0 cursor-pointer">
                         <span>➕ Add Branch</span>
                     </button>
                 </div>
@@ -410,8 +409,7 @@
                     </thead>
                     <tbody class="divide-y divide-slate-100">
                         @forelse($branches as $branch)
-                            <tr class="hover:bg-slate-50/70 transition"
-                                x-show="!branchSearch || ('{{ strtolower($branch->name . ' ' . $branch->code) }}').includes(branchSearch.toLowerCase())">
+                            <tr class="hover:bg-slate-50/70 transition">
                                 <td class="py-4 px-5 whitespace-nowrap">
                                     <div class="font-bold text-slate-900 text-sm">{{ $branch->name }}</div>
                                     <span class="inline-block mt-1 font-mono text-emerald-700 font-bold text-[10px] bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded">
@@ -481,7 +479,14 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="5" class="py-8 text-center text-slate-400 text-xs">No branches found.</td>
+                                <td colspan="5" class="py-8 text-center text-slate-400 text-xs">
+                                    @if(!empty($branchSearch))
+                                        No branches found matching "<span class="font-bold text-slate-700">{{ $branchSearch }}</span>". 
+                                        <a href="{{ route('portal.admin.organization', ['tab' => 'branches']) }}" class="text-emerald-600 hover:underline font-bold ml-1">Clear search</a>
+                                    @else
+                                        No branches found.
+                                    @endif
+                                </td>
                             </tr>
                         @endforelse
                     </tbody>

@@ -120,25 +120,29 @@
                 </a>
             </div>
 
-            <!-- Instant & Server Search Filter -->
-            <form method="GET" action="{{ route('portal.admin.users') }}" class="relative w-full sm:w-80">
+            <!-- Server Search Filter -->
+            <form method="GET" action="{{ route('portal.admin.users') }}" class="flex items-center space-x-2 w-full sm:w-auto">
                 @if($filter !== 'all')
                     <input type="hidden" name="filter" value="{{ $filter }}">
                 @endif
                 @if(isset($perPage) && $perPage != 25)
                     <input type="hidden" name="per_page" value="{{ $perPage }}">
                 @endif
-                <input type="text"
-                       name="search"
-                       x-model="search"
-                       placeholder="Filter or press Enter to search..."
-                       class="w-full text-xs pl-9 pr-8 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-2xs">
-                <span class="absolute left-3 top-2.5 text-slate-400 text-xs">🔍</span>
-                @if(!empty($search))
-                    <a href="{{ route('portal.admin.users', array_filter(['filter' => $filter !== 'all' ? $filter : null, 'per_page' => (isset($perPage) && $perPage != 25) ? $perPage : null])) }}" class="absolute right-3 top-2 text-slate-400 hover:text-slate-600 text-xs" title="Clear server filter">✕</a>
-                @else
-                    <button type="button" x-show="search" @click="search = ''" class="absolute right-3 top-2 text-slate-400 hover:text-slate-600 text-xs">✕</button>
-                @endif
+                <div class="relative w-full sm:w-72">
+                    <input type="text"
+                           name="search"
+                           value="{{ $search ?? '' }}"
+                           placeholder="🔍 Search name, email, code, dept... (Enter)"
+                           class="w-full text-xs pl-8 pr-7 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-2xs">
+                    <span class="absolute left-2.5 top-2.5 text-slate-400 text-xs">🔍</span>
+                    @if(!empty($search))
+                        <a href="{{ route('portal.admin.users', array_filter(['filter' => $filter !== 'all' ? $filter : null, 'per_page' => (isset($perPage) && $perPage != 25) ? $perPage : null])) }}" 
+                           class="absolute right-2.5 top-2 text-xs text-slate-400 hover:text-slate-600 font-bold" title="Clear search">✕</a>
+                    @endif
+                </div>
+                <button type="submit" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs px-3 py-2 rounded-xl border border-indigo-200 transition cursor-pointer shrink-0">
+                    Search
+                </button>
             </form>
         </div>
     </div>
@@ -173,8 +177,7 @@
                 </thead>
                 <tbody class="divide-y divide-slate-100">
                     @forelse($users as $user)
-                        <tr class="hover:bg-slate-50/70 transition"
-                            x-show="!search.trim() || '{{ strtolower(addslashes($user->name)) }}'.includes(search.toLowerCase().trim()) || '{{ strtolower(addslashes($user->email ?? '')) }}'.includes(search.toLowerCase().trim()) || '{{ strtolower(addslashes($user->telegram_username ?? '')) }}'.includes(search.toLowerCase().trim()) || '{{ strtolower(addslashes($user->employee?->employee_code ?? '')) }}'.includes(search.toLowerCase().trim()) || '{{ strtolower(addslashes($user->employee?->department?->name ?? '')) }}'.includes(search.toLowerCase().trim())">
+                        <tr class="hover:bg-slate-50/70 transition">
                             <td class="py-3.5 px-6 whitespace-nowrap">
                                 <div class="flex items-center space-x-2">
                                     <div class="font-bold text-slate-900">{{ $user->name }}</div>
@@ -266,7 +269,14 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="py-8 text-center text-slate-400 text-xs">No users found.</td>
+                            <td colspan="5" class="py-8 text-center text-slate-400 text-xs">
+                                @if(!empty($search))
+                                    No staff or users found matching "<span class="font-bold text-slate-700">{{ $search }}</span>". 
+                                    <a href="{{ route('portal.admin.users', array_filter(['filter' => $filter !== 'all' ? $filter : null, 'per_page' => (isset($perPage) && $perPage != 25) ? $perPage : null])) }}" class="text-indigo-600 hover:underline font-bold ml-1">Clear search</a>
+                                @else
+                                    No users found.
+                                @endif
+                            </td>
                         </tr>
                     @endforelse
                 </tbody>

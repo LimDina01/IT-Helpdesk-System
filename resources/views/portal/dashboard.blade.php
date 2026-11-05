@@ -322,8 +322,7 @@
                 <tbody class="divide-y divide-slate-100">
                     @forelse($tickets as $t)
                         <tr class="group hover:bg-slate-50/70 transition"
-                            data-search="{{ strtolower($t->ticket_code . ' ' . $t->subject . ' ' . $t->requester->name . ' ' . $t->branch->name . ' ' . $t->branch->code . ' ' . ($t->technician->name ?? '') . ' ' . ($t->category->name ?? '') . ' ' . $t->priority . ' ' . $t->status) }}"
-                            x-show="matchesSearch($el)">
+                            data-search="{{ strtolower($t->ticket_code . ' ' . $t->subject . ' ' . $t->requester->name . ' ' . $t->branch->name . ' ' . $t->branch->code . ' ' . ($t->technician->name ?? '') . ' ' . ($t->category->name ?? '') . ' ' . $t->priority . ' ' . $t->status) }}">
                             
                             <!-- Ticket Code & Priority -->
                             <td class="py-2.5 px-3 whitespace-nowrap">

@@ -768,5 +768,43 @@ class HodCockpitAndAdminTest extends TestCase
         $ticket->refresh();
         $this->assertEquals('submitted', $ticket->status);
     }
+
+    public function test_admin_search_across_paginated_records(): void
+    {
+        $this->actingAs($this->adminUser);
+
+        // 1. Departments server-side search across pagination
+        $deptResponse = $this->get(route('portal.admin.organization', [
+            'tab' => 'departments',
+            'dept_search' => 'Finance',
+            'dept_per_page' => 10,
+        ]));
+        $deptResponse->assertStatus(200);
+        $deptResponse->assertSee('Finance & Accounting');
+
+        // Non-existent search
+        $emptyDeptResponse = $this->get(route('portal.admin.organization', [
+            'tab' => 'departments',
+            'dept_search' => 'NonExistentXYZ999',
+            'dept_per_page' => 10,
+        ]));
+        $emptyDeptResponse->assertStatus(200);
+        $emptyDeptResponse->assertSee('No departments found matching');
+
+        // 2. Users server-side search
+        $userResponse = $this->get(route('portal.admin.users', [
+            'search' => 'Chhayly',
+            'per_page' => 10,
+        ]));
+        $userResponse->assertStatus(200);
+        $userResponse->assertSee('Chhayly Tep');
+
+        // 3. Approvers server-side search
+        $approverResponse = $this->get(route('portal.admin.approvers', [
+            'search' => 'Chhayly',
+            'per_page' => 10,
+        ]));
+        $approverResponse->assertStatus(200);
+    }
 }
 

@@ -780,15 +780,34 @@ class PortalAdminController extends Controller
             $branchPerPage = 10;
         }
 
-        $departments = Department::with(['head', 'employees', 'parent', 'children.head'])
-            ->withCount('employees')
-            ->orderByRaw("CASE WHEN parent_id IS NULL THEN 0 ELSE 1 END, name ASC")
+        $deptSearch = trim((string) $request->input('dept_search', ''));
+        $branchSearch = trim((string) $request->input('branch_search', ''));
+
+        $deptQuery = Department::with(['head', 'employees', 'parent', 'children.head'])
+            ->withCount('employees');
+
+        if ($deptSearch !== '') {
+            $deptQuery->where(function ($q) use ($deptSearch) {
+                $q->where('name', 'like', "%{$deptSearch}%")
+                  ->orWhere('code', 'like', "%{$deptSearch}%");
+            });
+        }
+
+        $departments = $deptQuery->orderByRaw("CASE WHEN parent_id IS NULL THEN 0 ELSE 1 END, name ASC")
             ->paginate($deptPerPage, ['*'], 'depts_page')
             ->withQueryString();
 
-        $branches = Branch::with(['manager', 'employees'])
-            ->withCount(['employees', 'tickets'])
-            ->orderBy('name')
+        $branchQuery = Branch::with(['manager', 'employees'])
+            ->withCount(['employees', 'tickets']);
+
+        if ($branchSearch !== '') {
+            $branchQuery->where(function ($q) use ($branchSearch) {
+                $q->where('name', 'like', "%{$branchSearch}%")
+                  ->orWhere('code', 'like', "%{$branchSearch}%");
+            });
+        }
+
+        $branches = $branchQuery->orderBy('name')
             ->paginate($branchPerPage, ['*'], 'branches_page')
             ->withQueryString();
 
@@ -832,7 +851,9 @@ class PortalAdminController extends Controller
             'approverCandidates',
             'candidatesJson',
             'deptPerPage',
-            'branchPerPage'
+            'branchPerPage',
+            'deptSearch',
+            'branchSearch'
         ));
     }
 
@@ -1189,6 +1210,19 @@ class PortalAdminController extends Controller
             $approversQuery->where('level', (int) $selectedLevel);
         }
 
+        $search = trim((string) $request->input('search', ''));
+        if ($search !== '') {
+            $approversQuery->where(function ($q) use ($search) {
+                $q->where('title', 'like', "%{$search}%")
+                  ->orWhereHas('user', function ($uq) use ($search) {
+                      $uq->where('name', 'like', "%{$search}%")
+                         ->orWhere('email', 'like', "%{$search}%");
+                  })
+                  ->orWhereHas('department', fn($dq) => $dq->where('name', 'like', "%{$search}%")->orWhere('code', 'like', "%{$search}%"))
+                  ->orWhereHas('branch', fn($bq) => $bq->where('name', 'like', "%{$search}%")->orWhere('code', 'like', "%{$search}%"));
+            });
+        }
+
         $perPage = (int) $request->input('per_page', 10);
         if (!in_array($perPage, [10, 15, 25, 50], true)) {
             $perPage = 10;
@@ -1246,7 +1280,8 @@ class PortalAdminController extends Controller
             'totalCardsCount',
             'hqCardsCount',
             'branchCardsCount',
-            'perPage'
+            'perPage',
+            'search'
         ));
     }
 
