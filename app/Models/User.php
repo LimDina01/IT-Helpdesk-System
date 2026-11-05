@@ -161,17 +161,32 @@ class User extends Authenticatable
         return false;
     }
 
-    public function getApproverBadge(): ?array
+    /**
+     * Get all active approver badges for this user (supports multiple cards across depts/branches).
+     *
+     * @return array<int, array{label: string, class: string, title: string, level: int, branch: string, department: ?string}>
+     */
+    public function getApproverBadges(): array
     {
+        $badges = [];
+
         if ($this->isItHod()) {
-            return ['label' => 'IT HOD', 'class' => 'bg-indigo-100 text-indigo-800 border-indigo-200'];
+            $badges[] = [
+                'label' => 'IT HOD',
+                'class' => 'bg-indigo-100 text-indigo-800 border-indigo-200',
+                'title' => 'IT HOD',
+                'level' => 3,
+                'branch' => 'HQ / All Branches',
+                'department' => 'Information Technology',
+            ];
+            return $badges;
         }
 
-        $card = $this->relationLoaded('departmentApproverRoles')
-            ? $this->departmentApproverRoles->where('is_active', true)->sortBy('level')->first()
-            : $this->departmentApproverRoles()->where('is_active', true)->orderBy('level')->first();
+        $cards = $this->relationLoaded('departmentApproverRoles')
+            ? $this->departmentApproverRoles->where('is_active', true)->sortBy('level')
+            : $this->departmentApproverRoles()->where('is_active', true)->orderBy('level')->get();
 
-        if ($card) {
+        foreach ($cards as $card) {
             $defaultTitle = match ($card->level) {
                 1 => 'Team Leader',
                 2 => 'Supervisor',
@@ -203,7 +218,7 @@ class User extends Authenticatable
             $branchName = $card->relationLoaded('branch') ? $card->branch?->name : ($card->branch_id ? \App\Models\Branch::find($card->branch_id)?->name : null);
             $deptName = $card->relationLoaded('department') ? $card->department?->name : ($card->department_id ? \App\Models\Department::find($card->department_id)?->name : null);
 
-            return [
+            $badges[] = [
                 'label' => $label,
                 'class' => $cls,
                 'title' => $displayTitle,
@@ -213,19 +228,40 @@ class User extends Authenticatable
             ];
         }
 
-        $hasSubordinates = $this->relationLoaded('subordinates')
-            ? $this->subordinates->where('is_active', true)->isNotEmpty()
-            : $this->subordinates()->where('is_active', true)->exists();
+        // If no cards, check if user is a direct line manager (Team Leader)
+        if (empty($badges)) {
+            $hasSubordinates = $this->relationLoaded('subordinates')
+                ? $this->subordinates->where('is_active', true)->isNotEmpty()
+                : $this->subordinates()->where('is_active', true)->exists();
 
-        if ($hasSubordinates) {
-            return ['label' => 'Team Leader', 'class' => 'bg-blue-100 text-blue-800 border-blue-200'];
+            if ($hasSubordinates) {
+                $badges[] = [
+                    'label' => 'Team Leader',
+                    'class' => 'bg-blue-100 text-blue-800 border-blue-200',
+                    'title' => 'Team Leader',
+                    'level' => 1,
+                    'branch' => $this->employee?->branch?->name ?? 'HQ / All Branches',
+                    'department' => $this->employee?->department?->name,
+                ];
+            } elseif ($this->hasRole('hod') && $this->isItStaff()) {
+                $badges[] = [
+                    'label' => 'IT HOD',
+                    'class' => 'bg-indigo-100 text-indigo-800 border-indigo-200',
+                    'title' => 'IT HOD',
+                    'level' => 3,
+                    'branch' => 'HQ / All Branches',
+                    'department' => 'Information Technology',
+                ];
+            }
         }
 
-        if ($this->hasRole('hod') && $this->isItStaff()) {
-            return ['label' => 'IT HOD', 'class' => 'bg-indigo-100 text-indigo-800 border-indigo-200'];
-        }
+        return $badges;
+    }
 
-        return null;
+    public function getApproverBadge(): ?array
+    {
+        $badges = $this->getApproverBadges();
+        return !empty($badges) ? $badges[0] : null;
     }
 
     public function canAccessPortal(): bool

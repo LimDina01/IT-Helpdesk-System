@@ -27,11 +27,11 @@
         roles: [],
         tma_role: ''
     },
-    editApproverBadge: null,
-    openEditModal(u, isStaff, approverBadge = null) {
+    editApproverBadges: [],
+    openEditModal(u, isStaff, approverBadges = []) {
         this.targetUser = u;
         this.isTargetStaff = isStaff;
-        this.editApproverBadge = approverBadge;
+        this.editApproverBadges = Array.isArray(approverBadges) ? approverBadges : (approverBadges ? [approverBadges] : []);
         const reqRole = u.roles ? u.roles.find(r => r.name === 'requester') : null;
         this.editForm = {
             id: u.id,
@@ -227,21 +227,18 @@
                                         @endforeach
                                     @else
                                         <span class="bg-slate-100 text-slate-700 font-medium text-[9px] uppercase px-1.5 py-0.2 rounded border border-slate-200">Requester</span>
-                                        @php
-                                            $approverBadge = $user->getApproverBadge();
-                                        @endphp
-                                        @if($approverBadge)
-                                            <span class="{{ $approverBadge['class'] }} font-extrabold text-[9px] uppercase px-1.5 py-0.2 rounded border">
-                                                {{ $approverBadge['label'] }}
+                                        @foreach($user->getApproverBadges() as $badge)
+                                            <span class="{{ $badge['class'] }} font-extrabold text-[9px] uppercase px-1.5 py-0.2 rounded border" title="{{ ($badge['branch'] ?? 'HQ') }} • {{ $badge['department'] ?? '' }}">
+                                                {{ $badge['label'] }}
                                             </span>
-                                        @endif
+                                        @endforeach
                                     @endif
                                 </div>
                             </td>
 
                             <td class="py-3.5 px-6 text-right whitespace-nowrap space-x-2">
                                 <button type="button"
-                                        @click="openEditModal({{ json_encode($user) }}, {{ $user->isItStaff() ? 'true' : 'false' }}, {{ json_encode($user->getApproverBadge()) }})"
+                                        @click="openEditModal({{ json_encode($user) }}, {{ $user->isItStaff() ? 'true' : 'false' }}, {{ json_encode($user->getApproverBadges()) }})"
                                         class="text-[11px] text-blue-600 hover:text-blue-800 font-bold hover:underline inline-flex items-center space-x-1 cursor-pointer">
                                     <span>✏️</span>
                                     <span>Edit</span>
@@ -661,19 +658,23 @@
                                 Configure in Approvers &amp; Levels ↗
                             </a>
                         </div>
-                        <template x-if="editApproverBadge">
-                            <div class="p-3 bg-white rounded-xl border border-indigo-100 flex items-center justify-between shadow-2xs">
-                                <div class="flex items-center space-x-2">
-                                    <span class="px-2 py-0.5 rounded text-[10px] font-extrabold uppercase border" :class="editApproverBadge.class" x-text="editApproverBadge.label"></span>
-                                    <span class="text-xs text-slate-500 font-medium" x-show="editApproverBadge.department" x-text="'(' + (editApproverBadge.branch || 'HQ') + ' • ' + editApproverBadge.department + ')'"></span>
-                                </div>
-                                <span class="text-[10px] text-emerald-600 font-bold flex items-center space-x-1">
-                                    <span>●</span>
-                                    <span>Active Reviewer</span>
-                                </span>
+                        <template x-if="editApproverBadges && editApproverBadges.length > 0">
+                            <div class="space-y-2">
+                                <template x-for="(badge, idx) in editApproverBadges" :key="idx">
+                                    <div class="p-2.5 bg-white rounded-xl border border-indigo-100 flex items-center justify-between shadow-2xs">
+                                        <div class="flex items-center space-x-2">
+                                            <span class="px-2 py-0.5 rounded text-[10px] font-extrabold uppercase border" :class="badge.class" x-text="badge.label"></span>
+                                            <span class="text-xs text-slate-500 font-medium" x-show="badge.department" x-text="'(' + (badge.branch || 'HQ') + ' • ' + badge.department + ')'"></span>
+                                        </div>
+                                        <span class="text-[10px] text-emerald-600 font-bold flex items-center space-x-1">
+                                            <span>●</span>
+                                            <span>Active</span>
+                                        </span>
+                                    </div>
+                                </template>
                             </div>
                         </template>
-                        <template x-if="!editApproverBadge">
+                        <template x-if="!editApproverBadges || editApproverBadges.length === 0">
                             <div class="p-3 bg-white rounded-xl border border-slate-200 flex items-center justify-between shadow-2xs">
                                 <div class="text-xs text-slate-500">
                                     <span class="font-semibold text-slate-700">Standard Requester</span> — No approver cards currently assigned.
