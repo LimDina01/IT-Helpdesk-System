@@ -107,6 +107,7 @@ window.tmaI18n = {
 
         // Chat Messenger
         details: "Details",
+        ticket_details: "Ticket Info",
         satisfaction_title: "Specialist Marked This Request as Resolved",
         satisfaction_subtitle: "Has your issue been completely resolved to your satisfaction?",
         confirm_resolution: "Yes, Confirm & Close Ticket",
@@ -237,6 +238,7 @@ window.tmaI18n = {
 
         // Chat Messenger
         details: "លម្អិត",
+        ticket_details: "ព័ត៌មានលម្អិតសំណើ",
         satisfaction_title: "អ្នកបច្ចេកទេសបានដោះស្រាយរួចរាល់",
         satisfaction_subtitle: "តើបញ្ហារបស់លោកអ្នកត្រូវបានដោះស្រាយពេញចិត្តហើយឬនៅ?",
         confirm_resolution: "បាទ/ចាស បញ្ជាក់ & បិទសំណើ",

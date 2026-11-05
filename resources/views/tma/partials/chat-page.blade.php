@@ -1,5 +1,6 @@
     <!-- DEDICATED CHAT PAGE (NATIVE MESSENGER FULL-SCREEN STYLE) -->
     <div x-show="activeTicketModal"
+         x-cloak
          x-transition:enter="transition ease-out duration-200"
          x-transition:enter-start="opacity-0 translate-x-4"
          x-transition:enter-end="opacity-100 translate-x-0"
@@ -223,13 +224,6 @@
                 <div class="flex justify-end space-x-2 pt-1">
                     <button @click="showForwardPrompt = false" class="text-xs px-2.5 py-1 text-slate-600 font-semibold active:scale-95 transition-all duration-150" x-text="t('cancel_action')">Cancel</button>
                     <button @click="submitForward()" :disabled="actioningApproval || !forwardTargetUserId || !forwardComment || !forwardComment.trim()" class="text-xs px-3 py-1 bg-sky-600 active:bg-sky-700 active:scale-95 text-white font-bold rounded-md transition-all duration-150 disabled:opacity-50 disabled:pointer-events-none">Confirm Delegation</button>
-                </div>
-            </div>
-                </div>
-
-                <div class="flex justify-end space-x-2 pt-1">
-                    <button @click="showForwardPrompt = false" class="text-xs px-2.5 py-1 text-slate-600 font-semibold active:scale-95 transition-all duration-150" x-text="t('cancel_action')">Cancel</button>
-                    <button @click="submitForward()" :disabled="actioningApproval || !forwardTargetUserId" class="text-xs px-3 py-1 bg-sky-600 active:bg-sky-700 active:scale-95 text-white font-bold rounded-md transition-all duration-150">Confirm Delegation</button>
                 </div>
             </div>
 
