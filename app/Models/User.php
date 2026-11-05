@@ -172,19 +172,45 @@ class User extends Authenticatable
             : $this->departmentApproverRoles()->where('is_active', true)->orderBy('level')->first();
 
         if ($card) {
-            $label = match ($card->level) {
-                1 => 'Level 1: Team Leader',
-                2 => 'Level 2: Supervisor',
-                3 => 'Level 3: Dept Manager',
-                default => "Level {$card->level}: Approver",
+            $defaultTitle = match ($card->level) {
+                1 => 'Team Leader',
+                2 => 'Supervisor',
+                3 => 'Dept Manager',
+                4 => 'General Manager',
+                5 => 'Director',
+                default => "Level {$card->level} Approver",
             };
-            $cls = match ($card->level) {
-                1 => 'bg-blue-100 text-blue-800 border-blue-200',
-                2 => 'bg-purple-100 text-purple-800 border-purple-200',
-                3 => 'bg-emerald-100 text-emerald-800 border-emerald-200',
-                default => 'bg-amber-100 text-amber-800 border-amber-200',
+
+            $rawTitle = trim($card->title ?? '');
+            $displayTitle = !empty($rawTitle) ? $rawTitle : $defaultTitle;
+
+            // Avoid double prefix like "Level 2: Level 2: Supervisor"
+            if (preg_match('/^level\s*\d+\s*:\s*/i', $displayTitle)) {
+                $label = $displayTitle;
+            } else {
+                $label = "Level {$card->level}: {$displayTitle}";
+            }
+
+            $cls = match (true) {
+                $card->level === 1 => 'bg-blue-100 text-blue-800 border-blue-200',
+                $card->level === 2 => 'bg-purple-100 text-purple-800 border-purple-200',
+                $card->level === 3 => 'bg-emerald-100 text-emerald-800 border-emerald-200',
+                $card->level === 4 => 'bg-amber-100 text-amber-800 border-amber-200',
+                $card->level >= 5 => 'bg-rose-100 text-rose-800 border-rose-200',
+                default => 'bg-slate-100 text-slate-800 border-slate-200',
             };
-            return ['label' => $label, 'class' => $cls];
+
+            $branchName = $card->relationLoaded('branch') ? $card->branch?->name : ($card->branch_id ? \App\Models\Branch::find($card->branch_id)?->name : null);
+            $deptName = $card->relationLoaded('department') ? $card->department?->name : ($card->department_id ? \App\Models\Department::find($card->department_id)?->name : null);
+
+            return [
+                'label' => $label,
+                'class' => $cls,
+                'title' => $displayTitle,
+                'level' => $card->level,
+                'branch' => $branchName ?? 'HQ / All Branches',
+                'department' => $deptName,
+            ];
         }
 
         $hasSubordinates = $this->relationLoaded('subordinates')

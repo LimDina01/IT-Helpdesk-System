@@ -665,7 +665,7 @@
                             <div class="p-3 bg-white rounded-xl border border-indigo-100 flex items-center justify-between shadow-2xs">
                                 <div class="flex items-center space-x-2">
                                     <span class="px-2 py-0.5 rounded text-[10px] font-extrabold uppercase border" :class="editApproverBadge.class" x-text="editApproverBadge.label"></span>
-                                    <span class="text-xs text-slate-600 font-medium">Configured Approver</span>
+                                    <span class="text-xs text-slate-500 font-medium" x-show="editApproverBadge.department" x-text="'(' + (editApproverBadge.branch || 'HQ') + ' • ' + editApproverBadge.department + ')'"></span>
                                 </div>
                                 <span class="text-[10px] text-emerald-600 font-bold flex items-center space-x-1">
                                     <span>●</span>
