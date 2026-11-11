@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Services\BusinessHoursService;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Ticket extends Model
 {
@@ -53,17 +56,18 @@ class Ticket extends Model
 
     public static function generateTicketCode(): string
     {
-        $prefix = 'IT-' . date('Ym') . '-';
-        $latest = self::where('ticket_code', 'like', $prefix . '%')
+        $prefix = 'IT-'.date('Ym').'-';
+        $latest = self::where('ticket_code', 'like', $prefix.'%')
             ->orderByDesc('id')
             ->value('ticket_code');
 
-        if (!$latest) {
-            return $prefix . '0001';
+        if (! $latest) {
+            return $prefix.'0001';
         }
 
         $number = (int) substr($latest, strlen($prefix)) + 1;
-        return $prefix . str_pad((string) $number, 4, '0', STR_PAD_LEFT);
+
+        return $prefix.str_pad((string) $number, 4, '0', STR_PAD_LEFT);
     }
 
     // Relationships
@@ -99,7 +103,7 @@ class Ticket extends Model
 
     public function isHoldPending(): bool
     {
-        return !empty($this->hold_requested_at) && $this->status !== 'blocked';
+        return ! empty($this->hold_requested_at) && $this->status !== 'blocked';
     }
 
     public function assignments(): HasMany
@@ -112,7 +116,7 @@ class Ticket extends Model
         return $this->hasMany(TicketMessage::class)->orderBy('created_at');
     }
 
-    public function latestRequesterMessage(): \Illuminate\Database\Eloquent\Relations\HasOne
+    public function latestRequesterMessage(): HasOne
     {
         return $this->hasOne(TicketMessage::class)
             ->whereIn('visibility', ['requester_visible', 'system_event'])
@@ -142,6 +146,18 @@ class Ticket extends Model
     public function currentApproval(): ?TicketApproval
     {
         return $this->approvals()->where('status', 'pending')->first();
+    }
+
+    public function assets(): BelongsToMany
+    {
+        return $this->belongsToMany(Asset::class, 'ticket_assets')
+            ->withPivot(['attached_by_user_id', 'notes'])
+            ->withTimestamps();
+    }
+
+    public function assetParts(): HasMany
+    {
+        return $this->hasMany(TicketAssetPart::class, 'ticket_id')->orderByDesc('created_at');
     }
 
     // Lifecycle Status Helpers
@@ -216,7 +232,7 @@ class Ticket extends Model
     public function getPausedMinutes(): int
     {
         $minutes = (int) ($this->paused_minutes ?? 0);
-        $businessService = app(\App\Services\BusinessHoursService::class);
+        $businessService = app(BusinessHoursService::class);
 
         if ($this->status === 'blocked' && $this->blocked_at) {
             $minutes += $businessService->getWorkingMinutesBetween($this->blocked_at, now());
@@ -242,7 +258,7 @@ class Ticket extends Model
     public function getActiveMinutesElapsed(): int
     {
         $referenceEnd = $this->resolved_at ?? $this->closed_at ?? now();
-        $businessService = app(\App\Services\BusinessHoursService::class);
+        $businessService = app(BusinessHoursService::class);
         $totalWorkingMinutes = $businessService->getWorkingMinutesBetween($this->created_at, $referenceEnd);
         $paused = $this->getPausedMinutes();
 
@@ -262,7 +278,7 @@ class Ticket extends Model
      */
     public function getTargetResolveHours(): ?int
     {
-        if (!$this->category) {
+        if (! $this->category) {
             return null;
         }
 
@@ -275,7 +291,7 @@ class Ticket extends Model
     public function getSlaRemainingHours(): ?int
     {
         $targetHours = $this->getTargetResolveHours();
-        if (!$targetHours) {
+        if (! $targetHours) {
             return null;
         }
 
@@ -285,14 +301,14 @@ class Ticket extends Model
     /**
      * Exact date and time when the resolution SLA target will be reached during business hours.
      */
-    public function getSlaDeadline(): ?\Carbon\Carbon
+    public function getSlaDeadline(): ?Carbon
     {
         $targetHours = $this->getTargetResolveHours();
-        if (!$targetHours) {
+        if (! $targetHours) {
             return null;
         }
 
-        $businessService = app(\App\Services\BusinessHoursService::class);
+        $businessService = app(BusinessHoursService::class);
         $pausedMinutes = $this->getPausedMinutes();
         $totalMinutesNeeded = (int) round(($targetHours * 60) + $pausedMinutes);
 
@@ -312,7 +328,7 @@ class Ticket extends Model
      */
     public function isLunchBreak(): bool
     {
-        return app(\App\Services\BusinessHoursService::class)->isLunchBreak();
+        return app(BusinessHoursService::class)->isLunchBreak();
     }
 
     /**
@@ -320,7 +336,7 @@ class Ticket extends Model
      */
     public function isOutsideBusinessHours(): bool
     {
-        return !app(\App\Services\BusinessHoursService::class)->isWorkingTime();
+        return ! app(BusinessHoursService::class)->isWorkingTime();
     }
 
     /**
@@ -333,6 +349,7 @@ class Ticket extends Model
         }
 
         $remaining = $this->getSlaRemainingHours();
+
         return $remaining !== null && $remaining < 0;
     }
 }

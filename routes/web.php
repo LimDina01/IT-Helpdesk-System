@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Portal\PortalAdminController;
+use App\Http\Controllers\Portal\PortalAssetController;
 use App\Http\Controllers\Portal\PortalAuthController;
 use App\Http\Controllers\Portal\PortalCockpitController;
 use App\Http\Controllers\Portal\PortalDashboardController;
@@ -95,6 +96,27 @@ Route::prefix('portal')->group(function () {
         Route::post('/tickets/{ticket}/approvals/{approval}/reject', [PortalTicketController::class, 'rejectStep'])->name('portal.tickets.approvals.reject');
         Route::post('/tickets/{ticket}/reclassify', [PortalTicketController::class, 'reclassify'])->name('portal.tickets.reclassify');
 
+        // Ticket Asset Linkage
+        Route::post('/tickets/{ticket}/assets/attach', [PortalTicketController::class, 'attachAsset'])->name('portal.tickets.assets.attach');
+        Route::delete('/tickets/{ticket}/assets/{asset}/detach', [PortalTicketController::class, 'detachAsset'])->name('portal.tickets.assets.detach');
+        Route::post('/tickets/{ticket}/assets/parts', [PortalTicketController::class, 'recordAssetPart'])->name('portal.tickets.assets.parts');
+
+        // IT Asset & Component Inventory
+        Route::prefix('assets')->group(function () {
+            Route::get('/', [PortalAssetController::class, 'index'])->name('portal.assets.index');
+            Route::post('/', [PortalAssetController::class, 'store'])->name('portal.assets.store');
+            Route::get('/{asset}', [PortalAssetController::class, 'show'])->name('portal.assets.show');
+            Route::put('/{asset}', [PortalAssetController::class, 'update'])->name('portal.assets.update');
+            Route::delete('/{asset}', [PortalAssetController::class, 'destroy'])->name('portal.assets.destroy');
+
+            // Asset Components (RAM, SSDs, etc.)
+            Route::post('/{asset}/components', [PortalAssetController::class, 'storeComponent'])->name('portal.assets.components.store');
+            Route::delete('/{asset}/components/{component}', [PortalAssetController::class, 'destroyComponent'])->name('portal.assets.components.destroy');
+
+            // Loose Spare Parts Stock
+            Route::post('/spares/stock', [PortalAssetController::class, 'storeSpareComponent'])->name('portal.assets.spares.store');
+        });
+
         // Option B: Telegram Account Link Requests
         Route::get('/link-requests', [PortalLinkRequestController::class, 'index'])->name('portal.link-requests.index');
         Route::post('/link-requests/{linkRequest}/approve', [PortalLinkRequestController::class, 'approve'])->name('portal.link-requests.approve');
@@ -151,4 +173,3 @@ Route::prefix('portal')->group(function () {
         });
     });
 });
-

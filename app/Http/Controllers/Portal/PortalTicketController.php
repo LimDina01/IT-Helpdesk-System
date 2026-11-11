@@ -3,7 +3,10 @@
 namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
+use App\Models\Asset;
 use App\Models\Ticket;
+use App\Models\TicketApproval;
+use App\Models\TicketAssetPart;
 use App\Models\TicketAssignment;
 use App\Models\TicketAttachment;
 use App\Models\TicketAuditLog;
@@ -12,7 +15,7 @@ use App\Models\TicketMessage;
 use App\Models\User;
 use App\Services\BusinessHoursService;
 use App\Services\TelegramNotificationService;
-use Carbon\Carbon;
+use App\Services\TicketApprovalService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -41,6 +44,10 @@ class PortalTicketController extends Controller
             'assignments.technician',
             'auditLogs.actor',
             'approvals.approver',
+            'assets.category',
+            'assets.branch',
+            'assetParts.component',
+            'assetParts.recordedBy',
         ]);
 
         // Load all messages (Staff can see both requester-visible and internal notes)
@@ -50,17 +57,17 @@ class PortalTicketController extends Controller
             ->get();
 
         // Available technicians for reassignment
-        $technicians = User::whereHas('roles', fn($q) => $q->where('name', 'technician'))
+        $technicians = User::whereHas('roles', fn ($q) => $q->where('name', 'technician'))
             ->where('is_active', true)
             ->get();
 
         // 30-min acknowledgement SLA status
         $isOverdueAcknowledgement = false;
-        if ($ticket->status === 'assigned' && !$ticket->acknowledged_at && $ticket->assigned_at) {
+        if ($ticket->status === 'assigned' && ! $ticket->acknowledged_at && $ticket->assigned_at) {
             $isOverdueAcknowledgement = abs((int) now()->diffInMinutes($ticket->assigned_at)) > 30;
         }
 
-        $approvalService = app(\App\Services\TicketApprovalService::class);
+        $approvalService = app(TicketApprovalService::class);
         $currentApproval = $ticket->currentApproval();
         $canApproveCurrent = $currentApproval ? $approvalService->canUserApprove(Auth::user(), $currentApproval) : false;
 
@@ -89,6 +96,11 @@ class PortalTicketController extends Controller
                 ];
             });
 
+        $availableAssets = Asset::with(['category', 'branch'])
+            ->where('status', '!=', 'decommissioned')
+            ->orderBy('name')
+            ->get(['id', 'asset_tag', 'name', 'category_id', 'branch_id', 'ownership_type', 'location_details', 'assigned_user_id']);
+
         return view('portal.ticket-detail', compact(
             'ticket',
             'messages',
@@ -96,7 +108,8 @@ class PortalTicketController extends Controller
             'isOverdueAcknowledgement',
             'currentApproval',
             'canApproveCurrent',
-            'categoriesHierarchy'
+            'categoriesHierarchy',
+            'availableAssets'
         ));
     }
 
@@ -112,7 +125,7 @@ class PortalTicketController extends Controller
         ]);
 
         $user = Auth::user();
-        abort_if(!$user->hasAnyRole(['helpdesk', 'system_admin', 'hod']) && (int) $validated['technician_id'] !== (int) $user->id, 403, 'Technicians can only assign tickets to themselves.');
+        abort_if(! $user->hasAnyRole(['helpdesk', 'system_admin', 'hod']) && (int) $validated['technician_id'] !== (int) $user->id, 403, 'Technicians can only assign tickets to themselves.');
 
         $tech = User::findOrFail($validated['technician_id']);
 
@@ -151,8 +164,8 @@ class PortalTicketController extends Controller
                 'ticket_id' => $ticket->id,
                 'actor_id' => $user->id,
                 'action' => 'ASSIGNED',
-                'old_value' => $oldTechId ? (string)$oldTechId : null,
-                'new_value' => (string)$tech->id,
+                'old_value' => $oldTechId ? (string) $oldTechId : null,
+                'new_value' => (string) $tech->id,
                 'metadata' => [
                     'technician_name' => $tech->name,
                     'note' => $validated['assignment_note'] ?? null,
@@ -205,8 +218,8 @@ class PortalTicketController extends Controller
                 'ticket_id' => $ticket->id,
                 'actor_id' => $user->id,
                 'action' => 'ASSIGNED',
-                'old_value' => $oldTechId ? (string)$oldTechId : null,
-                'new_value' => (string)$user->id,
+                'old_value' => $oldTechId ? (string) $oldTechId : null,
+                'new_value' => (string) $user->id,
                 'metadata' => [
                     'technician_name' => $user->name,
                     'note' => 'Self-assigned from ticket workspace',
@@ -251,12 +264,12 @@ class PortalTicketController extends Controller
                     'sender_id' => Auth::id(),
                     'visibility' => 'system_event',
                     'message_type' => 'status_change',
-                    'body' => "Priority changed from " . strtoupper($oldPriority) . " to " . strtoupper($newPriority) . ".",
+                    'body' => 'Priority changed from '.strtoupper($oldPriority).' to '.strtoupper($newPriority).'.',
                 ]);
             });
         }
 
-        return back()->with('status', 'Ticket priority updated to ' . strtoupper($newPriority) . '.');
+        return back()->with('status', 'Ticket priority updated to '.strtoupper($newPriority).'.');
     }
 
     /**
@@ -267,7 +280,7 @@ class PortalTicketController extends Controller
         $user = Auth::user();
 
         // Must be the assigned tech or an admin
-        if ($ticket->current_technician_id !== $user->id && !$user->hasRole(['system_admin', 'hod'])) {
+        if ($ticket->current_technician_id !== $user->id && ! $user->hasRole(['system_admin', 'hod'])) {
             return back()->withErrors(['error' => 'Only the assigned technician can accept or resume this ticket.']);
         }
 
@@ -283,7 +296,7 @@ class PortalTicketController extends Controller
 
             // If resuming from Blocked/Hold, accumulate paused working minutes
             if ($oldStatus === 'blocked' && $ticket->blocked_at) {
-                $additionalPauseMinutes = app(\App\Services\BusinessHoursService::class)->getWorkingMinutesBetween($ticket->blocked_at, $now);
+                $additionalPauseMinutes = app(BusinessHoursService::class)->getWorkingMinutesBetween($ticket->blocked_at, $now);
                 $updateData['paused_minutes'] = ($ticket->paused_minutes ?? 0) + $additionalPauseMinutes;
                 $updateData['blocked_at'] = null;
                 $updateData['hold_requested_at'] = null;
@@ -295,7 +308,7 @@ class PortalTicketController extends Controller
 
             // Stamp acknowledgement on latest assignment record
             $latestAssignment = $ticket->assignments()->latest('id')->first();
-            if ($latestAssignment && !$latestAssignment->acknowledged_at) {
+            if ($latestAssignment && ! $latestAssignment->acknowledged_at) {
                 $latestAssignment->update(['acknowledged_at' => $now]);
             }
 
@@ -359,7 +372,7 @@ class PortalTicketController extends Controller
                 'sender_id' => $user->id,
                 'visibility' => 'requester_visible',
                 'message_type' => 'text',
-                'body' => "❓ CLARIFICATION REQUESTED: " . $validated['question'],
+                'body' => '❓ CLARIFICATION REQUESTED: '.$validated['question'],
             ]);
 
             TicketAuditLog::create([
@@ -375,7 +388,7 @@ class PortalTicketController extends Controller
 
         // Trigger Telegram alert to requester only if they are NOT active in chat right now
         $isRequesterActive = Cache::has("ticket_presence_{$ticket->id}_{$ticket->requester_id}");
-        if (!$isRequesterActive && $ticket->requester) {
+        if (! $isRequesterActive && $ticket->requester) {
             $telegram->sendClarificationAlert($ticket->requester, $ticket, $validated['question']);
         }
 
@@ -401,7 +414,7 @@ class PortalTicketController extends Controller
             ];
 
             if ($ticket->status === 'blocked' && $ticket->blocked_at) {
-                $additionalPauseMinutes = app(\App\Services\BusinessHoursService::class)->getWorkingMinutesBetween($ticket->blocked_at, $now);
+                $additionalPauseMinutes = app(BusinessHoursService::class)->getWorkingMinutesBetween($ticket->blocked_at, $now);
                 $updateData['paused_minutes'] = ($ticket->paused_minutes ?? 0) + $additionalPauseMinutes;
                 $updateData['blocked_at'] = null;
             }
@@ -451,7 +464,7 @@ class PortalTicketController extends Controller
         $user = Auth::user();
         $isItManagement = $user->hasRole(['system_admin', 'hod']);
 
-        $category = !empty($validated['hold_category']) ? trim($validated['hold_category']) : 'Waiting for Vendor / Hardware Delivery';
+        $category = ! empty($validated['hold_category']) ? trim($validated['hold_category']) : 'Waiting for Vendor / Hardware Delivery';
         $reason = trim($validated['blocked_reason']);
 
         if ($isItManagement) {
@@ -540,11 +553,11 @@ class PortalTicketController extends Controller
     public function approveHold(Request $request, Ticket $ticket): RedirectResponse
     {
         $user = Auth::user();
-        if (!$user->hasRole(['system_admin', 'hod'])) {
+        if (! $user->hasRole(['system_admin', 'hod'])) {
             return back()->withErrors(['error' => 'Only IT HOD or System Admin can approve a ticket hold.']);
         }
 
-        if (!$ticket->isHoldPending()) {
+        if (! $ticket->isHoldPending()) {
             return back()->withErrors(['error' => 'This ticket does not have a pending hold request.']);
         }
 
@@ -592,7 +605,7 @@ class PortalTicketController extends Controller
     public function rejectHold(Request $request, Ticket $ticket): RedirectResponse
     {
         $user = Auth::user();
-        if (!$user->hasRole(['system_admin', 'hod'])) {
+        if (! $user->hasRole(['system_admin', 'hod'])) {
             return back()->withErrors(['error' => 'Only IT HOD or System Admin can reject a ticket hold.']);
         }
 
@@ -662,7 +675,7 @@ class PortalTicketController extends Controller
             if ($request->hasFile('attachments')) {
                 foreach ($request->file('attachments') as $file) {
                     $yearMonth = date('Y/m');
-                    $storedName = (string) Str::uuid() . '.' . $file->getClientOriginalExtension();
+                    $storedName = (string) Str::uuid().'.'.$file->getClientOriginalExtension();
                     $storagePath = $file->storeAs("attachments/{$yearMonth}", $storedName, 'attachments');
 
                     TicketAttachment::create([
@@ -693,8 +706,8 @@ class PortalTicketController extends Controller
 
         // Trigger Telegram alert to requester only if public and requester is NOT active in chat right now
         $isRequesterActive = Cache::has("ticket_presence_{$ticket->id}_{$ticket->requester_id}");
-        if (!$isRequesterActive && $validated['visibility'] === 'requester_visible' && $ticket->requester?->telegram_id) {
-            $alertBody = !empty($bodyText) ? $bodyText : '📎 Sent an attachment';
+        if (! $isRequesterActive && $validated['visibility'] === 'requester_visible' && $ticket->requester?->telegram_id) {
+            $alertBody = ! empty($bodyText) ? $bodyText : '📎 Sent an attachment';
             $telegram->sendStaffReplyAlert($ticket->requester, $ticket, $alertBody, $user->name);
         }
 
@@ -707,7 +720,7 @@ class PortalTicketController extends Controller
             ]);
         }
 
-        return redirect()->to(route('portal.tickets.show', $ticket->id) . '#chatPanel')->with('status', $msgType);
+        return redirect()->to(route('portal.tickets.show', $ticket->id).'#chatPanel')->with('status', $msgType);
     }
 
     /**
@@ -715,7 +728,7 @@ class PortalTicketController extends Controller
      */
     public function downloadAttachment(Ticket $ticket, TicketAttachment $attachment, Request $request): StreamedResponse
     {
-        if (!Storage::disk('attachments')->exists($attachment->storage_path)) {
+        if (! Storage::disk('attachments')->exists($attachment->storage_path)) {
             abort(404, 'File not found on storage disk.');
         }
 
@@ -736,14 +749,14 @@ class PortalTicketController extends Controller
     /**
      * Approve a pending approval step via Web Portal.
      */
-    public function approveStep(Request $request, Ticket $ticket, \App\Models\TicketApproval $approval, \App\Services\TicketApprovalService $approvalService): RedirectResponse
+    public function approveStep(Request $request, Ticket $ticket, TicketApproval $approval, TicketApprovalService $approvalService): RedirectResponse
     {
         $validated = $request->validate([
             'comments' => 'required|string|min:3|max:500',
         ]);
         $success = $approvalService->approve($approval, Auth::user(), $validated['comments']);
 
-        if (!$success) {
+        if (! $success) {
             return back()->withErrors(['error' => 'Unauthorized or invalid approval step.']);
         }
 
@@ -753,14 +766,14 @@ class PortalTicketController extends Controller
     /**
      * Reject a pending approval step via Web Portal.
      */
-    public function rejectStep(Request $request, Ticket $ticket, \App\Models\TicketApproval $approval, \App\Services\TicketApprovalService $approvalService): RedirectResponse
+    public function rejectStep(Request $request, Ticket $ticket, TicketApproval $approval, TicketApprovalService $approvalService): RedirectResponse
     {
         $validated = $request->validate([
             'reason' => 'required|string|min:3|max:500',
         ]);
         $success = $approvalService->reject($approval, Auth::user(), $validated['reason']);
 
-        if (!$success) {
+        if (! $success) {
             return back()->withErrors(['error' => 'Unauthorized or invalid approval step.']);
         }
 
@@ -770,17 +783,17 @@ class PortalTicketController extends Controller
     /**
      * Escalate a pending approval step via Web Portal.
      */
-    public function escalateStep(Request $request, Ticket $ticket, \App\Models\TicketApproval $approval, \App\Services\TicketApprovalService $approvalService): RedirectResponse
+    public function escalateStep(Request $request, Ticket $ticket, TicketApproval $approval, TicketApprovalService $approvalService): RedirectResponse
     {
         $validated = $request->validate([
             'comments' => 'required|string|min:3|max:500',
             'target_user_id' => 'nullable|integer',
         ]);
 
-        $targetUserId = !empty($validated['target_user_id']) ? (int) $validated['target_user_id'] : null;
+        $targetUserId = ! empty($validated['target_user_id']) ? (int) $validated['target_user_id'] : null;
         $success = $approvalService->escalate($approval, Auth::user(), $validated['comments'], $targetUserId);
 
-        if (!$success) {
+        if (! $success) {
             return back()->withErrors(['error' => 'Unauthorized or invalid approval step for escalation.']);
         }
 
@@ -790,17 +803,17 @@ class PortalTicketController extends Controller
     /**
      * Forward / Delegate a pending approval step via Web Portal.
      */
-    public function forwardStep(Request $request, Ticket $ticket, \App\Models\TicketApproval $approval, \App\Services\TicketApprovalService $approvalService): RedirectResponse
+    public function forwardStep(Request $request, Ticket $ticket, TicketApproval $approval, TicketApprovalService $approvalService): RedirectResponse
     {
         $validated = $request->validate([
             'target_user_id' => 'required|exists:users,id',
             'comments' => 'required|string|min:3|max:500',
         ]);
 
-        $targetUser = \App\Models\User::findOrFail($validated['target_user_id']);
+        $targetUser = User::findOrFail($validated['target_user_id']);
         $success = $approvalService->forward($approval, Auth::user(), $targetUser, $validated['comments']);
 
-        if (!$success) {
+        if (! $success) {
             return back()->withErrors(['error' => 'Unauthorized or invalid approval step for forwarding.']);
         }
 
@@ -810,7 +823,7 @@ class PortalTicketController extends Controller
     /**
      * Reclassify ticket type (Incident <-> Service Request) and/or category.
      */
-    public function reclassify(Request $request, Ticket $ticket, \App\Services\TicketApprovalService $approvalService): RedirectResponse
+    public function reclassify(Request $request, Ticket $ticket, TicketApprovalService $approvalService): RedirectResponse
     {
         abort_unless(Auth::user()->hasAnyRole(['helpdesk', 'system_admin', 'hod']), 403, 'Only Helpdesk, HOD, and Administrators can reclassify tickets.');
 
@@ -836,11 +849,11 @@ class PortalTicketController extends Controller
         $categoryChanged = ($oldCategoryId !== $newCategoryId);
         $priorityChanged = ($oldPriority !== $newPriority);
 
-        if (!$typeChanged && !$categoryChanged && !$priorityChanged) {
+        if (! $typeChanged && ! $categoryChanged && ! $priorityChanged) {
             return back()->with('info', 'No changes made to ticket type, category, or priority.');
         }
 
-        DB::transaction(function () use ($ticket, $user, $oldType, $newType, $oldCategoryId, $newCategoryId, $newCategory, $oldCategoryName, $oldPriority, $newPriority, $typeChanged, $categoryChanged, $priorityChanged, $reason, $approvalService) {
+        DB::transaction(function () use ($ticket, $user, $oldType, $newType, $newCategoryId, $newCategory, $oldCategoryName, $oldPriority, $newPriority, $typeChanged, $categoryChanged, $priorityChanged, $reason, $approvalService) {
             $ticket->ticket_type = $newType;
             $ticket->category_id = $newCategoryId;
             $ticket->it_division = $newCategory->it_division ?? 'opr';
@@ -867,7 +880,7 @@ class PortalTicketController extends Controller
 
                 // 2. Return to submitted (ready for assignment) or assigned if already has technician
                 if ($ticket->status === 'pending_approval') {
-                    $businessService = app(\App\Services\BusinessHoursService::class);
+                    $businessService = app(BusinessHoursService::class);
                     $approvalWaitMinutes = $businessService->getWorkingMinutesBetween($ticket->created_at, now());
                     $ticket->paused_minutes = (int) ($ticket->paused_minutes ?? 0) + $approvalWaitMinutes;
                     $ticket->status = $ticket->current_technician_id ? 'assigned' : 'submitted';
@@ -875,7 +888,7 @@ class PortalTicketController extends Controller
                 $ticket->save();
             } else {
                 // Same type, but category or priority updated
-                if ($newType === 'service_request' && $newCategory->requires_approval && $ticket->approvals()->where('status', 'pending')->doesntExist() && !in_array($ticket->status, ['resolved_confirmed', 'resolved_auto_closed', 'cancelled'])) {
+                if ($newType === 'service_request' && $newCategory->requires_approval && $ticket->approvals()->where('status', 'pending')->doesntExist() && ! in_array($ticket->status, ['resolved_confirmed', 'resolved_auto_closed', 'cancelled'])) {
                     $ticket->approvals()->delete();
                     $ticket->status = 'pending_approval';
                     $ticket->save();
@@ -914,15 +927,15 @@ class PortalTicketController extends Controller
                 $systemMsg .= "• Category updated to **{$newCategory->name}**\n";
             }
             if ($priorityChanged) {
-                $systemMsg .= "• Priority updated from **" . strtoupper($oldPriority) . "** to **" . strtoupper($newPriority) . "**\n";
+                $systemMsg .= '• Priority updated from **'.strtoupper($oldPriority).'** to **'.strtoupper($newPriority)."**\n";
             }
-            if (!empty($reason)) {
+            if (! empty($reason)) {
                 $systemMsg .= "• Reason: {$reason}\n";
             }
             if ($typeChanged && $newType === 'service_request') {
-                $systemMsg .= "⏳ Request now routed to Department HOD / IT Manager for sign-off before fulfillment.";
+                $systemMsg .= '⏳ Request now routed to Department HOD / IT Manager for sign-off before fulfillment.';
             } elseif ($typeChanged && $newType === 'incident') {
-                $systemMsg .= "✅ Approvals bypassed. Ticket ready for technical triage and assignment.";
+                $systemMsg .= '✅ Approvals bypassed. Ticket ready for technical triage and assignment.';
             }
 
             TicketMessage::create([
@@ -936,16 +949,16 @@ class PortalTicketController extends Controller
 
         $changes = [];
         if ($typeChanged) {
-            $changes[] = "type converted to " . ($newType === 'incident' ? 'Incident' : 'Service Request');
+            $changes[] = 'type converted to '.($newType === 'incident' ? 'Incident' : 'Service Request');
         }
         if ($categoryChanged) {
             $changes[] = "category set to '{$newCategory->name}'";
         }
         if ($priorityChanged) {
-            $changes[] = "priority set to " . strtoupper($newPriority);
+            $changes[] = 'priority set to '.strtoupper($newPriority);
         }
 
-        $successMsg = "Ticket successfully updated (" . implode(', ', $changes) . ")!";
+        $successMsg = 'Ticket successfully updated ('.implode(', ', $changes).')!';
 
         return back()->with('status', $successMsg);
     }
@@ -953,7 +966,7 @@ class PortalTicketController extends Controller
     /**
      * Polling endpoint for real-time ticket conversation and presence updates.
      */
-    public function poll(Ticket $ticket): \Illuminate\Http\JsonResponse
+    public function poll(Ticket $ticket): JsonResponse
     {
         $isRequesterActive = Cache::has("ticket_presence_{$ticket->id}_{$ticket->requester_id}");
 
@@ -961,7 +974,7 @@ class PortalTicketController extends Controller
             ->with(['sender.roles', 'attachments'])
             ->orderBy('created_at', 'asc')
             ->get()
-            ->map(fn($m) => [
+            ->map(fn ($m) => [
                 'id' => $m->id,
                 'sender_name' => $m->sender->name,
                 'is_staff' => $m->sender->isStaff(),
@@ -969,7 +982,7 @@ class PortalTicketController extends Controller
                 'body' => $m->body,
                 'created_at_human' => $m->created_at->diffForHumans(),
                 'created_at_full' => $m->created_at->format('d-M-Y, H:i:s'),
-                'attachments' => $m->attachments->map(fn($a) => [
+                'attachments' => $m->attachments->map(fn ($a) => [
                     'id' => $a->id,
                     'original_filename' => $a->original_filename,
                     'file_size' => $a->formatted_size,
@@ -985,5 +998,85 @@ class PortalTicketController extends Controller
             'messages_count' => $messages->count(),
             'messages' => $messages,
         ]);
+    }
+
+    /**
+     * Attach an asset to this ticket.
+     */
+    public function attachAsset(Request $request, Ticket $ticket): RedirectResponse
+    {
+        $validated = $request->validate([
+            'asset_id' => 'required|exists:assets,id',
+            'notes' => 'nullable|string|max:255',
+        ]);
+
+        $asset = Asset::findOrFail($validated['asset_id']);
+
+        $ticket->assets()->syncWithoutDetaching([
+            $asset->id => [
+                'attached_by_user_id' => Auth::id(),
+                'notes' => $validated['notes'] ?? null,
+            ],
+        ]);
+
+        TicketAuditLog::create([
+            'ticket_id' => $ticket->id,
+            'actor_id' => Auth::id(),
+            'action' => 'ASSET_ATTACHED',
+            'old_value' => null,
+            'new_value' => $asset->asset_tag,
+            'metadata' => [
+                'asset_tag' => $asset->asset_tag,
+                'asset_name' => $asset->name,
+            ],
+        ]);
+
+        return back()->with('status', "Equipment '{$asset->asset_tag} ({$asset->name})' attached to ticket.");
+    }
+
+    /**
+     * Detach an asset from this ticket.
+     */
+    public function detachAsset(Ticket $ticket, Asset $asset): RedirectResponse
+    {
+        $ticket->assets()->detach($asset->id);
+
+        TicketAuditLog::create([
+            'ticket_id' => $ticket->id,
+            'actor_id' => Auth::id(),
+            'action' => 'ASSET_DETACHED',
+            'old_value' => $asset->asset_tag,
+            'new_value' => null,
+            'metadata' => [
+                'asset_tag' => $asset->asset_tag,
+                'asset_name' => $asset->name,
+            ],
+        ]);
+
+        return back()->with('status', "Equipment '{$asset->asset_tag}' detached from ticket.");
+    }
+
+    /**
+     * Record a hardware part replacement / service action on the ticket.
+     */
+    public function recordAssetPart(Request $request, Ticket $ticket): RedirectResponse
+    {
+        $validated = $request->validate([
+            'asset_id' => 'required|exists:assets,id',
+            'action' => 'required|in:replaced,installed,removed,serviced',
+            'description' => 'required|string|max:255',
+            'component_id' => 'nullable|exists:asset_components,id',
+        ]);
+
+        TicketAssetPart::create([
+            'ticket_id' => $ticket->id,
+            'asset_id' => $validated['asset_id'],
+            'component_id' => $validated['component_id'] ?? null,
+            'action' => $validated['action'],
+            'description' => $validated['description'],
+            'recorded_by_user_id' => Auth::id(),
+        ]);
+
+        return back()->with('status', 'Component service action recorded in asset maintenance history.');
     }
 }

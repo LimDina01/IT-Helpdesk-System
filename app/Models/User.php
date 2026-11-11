@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -12,7 +13,7 @@ use Illuminate\Notifications\Notifiable;
 
 class User extends Authenticatable
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
+    /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
 
     /**
@@ -60,6 +61,11 @@ class User extends Authenticatable
     public function employee(): BelongsTo
     {
         return $this->belongsTo(Employee::class);
+    }
+
+    public function assignedAssets(): HasMany
+    {
+        return $this->hasMany(Asset::class, 'assigned_user_id');
     }
 
     public function roles(): BelongsToMany
@@ -125,7 +131,7 @@ class User extends Authenticatable
 
     public function isBusinessHod(): bool
     {
-        return $this->hasRole('hod') && !$this->isItHod();
+        return $this->hasRole('hod') && ! $this->isItHod();
     }
 
     public function isApprover(): bool
@@ -179,6 +185,7 @@ class User extends Authenticatable
                 'branch' => 'HQ / All Branches',
                 'department' => 'Information Technology',
             ];
+
             return $badges;
         }
 
@@ -197,7 +204,7 @@ class User extends Authenticatable
             };
 
             $rawTitle = trim($card->title ?? '');
-            $displayTitle = !empty($rawTitle) ? $rawTitle : $defaultTitle;
+            $displayTitle = ! empty($rawTitle) ? $rawTitle : $defaultTitle;
 
             // Avoid double prefix like "Level 2: Level 2: Supervisor"
             if (preg_match('/^level\s*\d+\s*:\s*/i', $displayTitle)) {
@@ -215,8 +222,8 @@ class User extends Authenticatable
                 default => 'bg-slate-100 text-slate-800 border-slate-200',
             };
 
-            $branchName = $card->relationLoaded('branch') ? $card->branch?->name : ($card->branch_id ? \App\Models\Branch::find($card->branch_id)?->name : null);
-            $deptName = $card->relationLoaded('department') ? $card->department?->name : ($card->department_id ? \App\Models\Department::find($card->department_id)?->name : null);
+            $branchName = $card->relationLoaded('branch') ? $card->branch?->name : ($card->branch_id ? Branch::find($card->branch_id)?->name : null);
+            $deptName = $card->relationLoaded('department') ? $card->department?->name : ($card->department_id ? Department::find($card->department_id)?->name : null);
 
             $badges[] = [
                 'label' => $label,
@@ -261,7 +268,8 @@ class User extends Authenticatable
     public function getApproverBadge(): ?array
     {
         $badges = $this->getApproverBadges();
-        return !empty($badges) ? $badges[0] : null;
+
+        return ! empty($badges) ? $badges[0] : null;
     }
 
     public function canAccessPortal(): bool

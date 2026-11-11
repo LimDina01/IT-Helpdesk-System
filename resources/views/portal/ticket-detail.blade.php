@@ -948,6 +948,154 @@
                 </div>
             </div>
 
+            <!-- Linked Equipment & Asset Card -->
+            <div class="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs space-y-3">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                    <div class="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center space-x-1.5">
+                        <span>🖥️</span>
+                        <span>Linked Equipment / Asset</span>
+                    </div>
+                    @if($ticket->assets->isNotEmpty())
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            {{ $ticket->assets->count() }} Linked
+                        </span>
+                    @endif
+                </div>
+
+                @if($ticket->assets->isNotEmpty())
+                    <div class="space-y-3">
+                        @foreach($ticket->assets as $linkedAsset)
+                            <div class="p-3 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-2">
+                                <div class="flex items-start justify-between gap-2">
+                                    <div class="flex items-center space-x-2.5">
+                                        <div class="w-8 h-8 rounded-xl bg-blue-50 text-blue-700 border border-blue-200/60 flex items-center justify-center text-sm font-black shrink-0">
+                                            {{ $linkedAsset->category?->icon ?? '🖥️' }}
+                                        </div>
+                                        <div>
+                                            <a href="{{ route('portal.assets.show', $linkedAsset->id) }}" class="font-bold text-xs text-blue-600 hover:text-blue-800 hover:underline">
+                                                {{ $linkedAsset->asset_tag }}
+                                            </a>
+                                            <div class="text-[11px] text-slate-800 font-semibold">{{ $linkedAsset->name }}</div>
+                                        </div>
+                                    </div>
+                                    <form method="POST" action="{{ route('portal.tickets.assets.detach', [$ticket->id, $linkedAsset->id]) }}" onsubmit="return confirm('Detach equipment {{ $linkedAsset->asset_tag }} from this ticket?');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="text-slate-400 hover:text-rose-600 text-xs font-bold p-1 cursor-pointer" title="Detach Asset">✕</button>
+                                    </form>
+                                </div>
+
+                                <div class="text-[10px] text-slate-500 flex flex-wrap gap-x-2 gap-y-0.5">
+                                    <span>📍 {{ $linkedAsset->branch?->name ?? 'HQ' }}</span>
+                                    @if($linkedAsset->location_details)
+                                        <span>&bull; {{ $linkedAsset->location_details }}</span>
+                                    @endif
+                                </div>
+
+                                <!-- Parts replaced on this asset for this ticket -->
+                                @php
+                                    $parts = $ticket->assetParts->where('asset_id', $linkedAsset->id);
+                                @endphp
+                                @if($parts->isNotEmpty())
+                                    <div class="pt-2 border-t border-slate-200/60 space-y-1">
+                                        <div class="text-[10px] font-bold text-amber-800 uppercase tracking-wider">Parts Service Log:</div>
+                                        @foreach($parts as $part)
+                                            <div class="text-[11px] text-slate-700 bg-amber-50/80 border border-amber-200/60 rounded-lg p-1.5 flex items-center justify-between">
+                                                <span>⚙️ {{ $part->description }}</span>
+                                                <span class="text-[9px] text-amber-700 font-bold uppercase">{{ $part->action }}</span>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                @endif
+                            </div>
+                        @endforeach
+
+                        <!-- Quick Action: Record Part Replacement / Service -->
+                        <div x-data="{ recordPartOpen: false }" class="pt-1">
+                            <button type="button" @click="recordPartOpen = !recordPartOpen" class="w-full py-1.5 px-2 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-1 cursor-pointer">
+                                <span>⚙️</span>
+                                <span x-text="recordPartOpen ? 'Close Part Entry' : '+ Record Part Replaced (RAM/SSD)'"></span>
+                            </button>
+
+                            <div x-show="recordPartOpen" class="mt-2.5 p-3 bg-amber-50/50 border border-amber-200 rounded-xl space-y-2.5" x-cloak>
+                                <form method="POST" action="{{ route('portal.tickets.assets.parts', $ticket->id) }}" class="space-y-2">
+                                    @csrf
+                                    <div>
+                                        <label class="block text-[10px] font-bold text-amber-900 uppercase mb-0.5">Target Asset</label>
+                                        <select name="asset_id" required class="w-full text-xs p-1.5 rounded-lg border border-amber-300 bg-white">
+                                            @foreach($ticket->assets as $la)
+                                                <option value="{{ $la->id }}">{{ $la->asset_tag }} - {{ $la->name }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-[10px] font-bold text-amber-900 uppercase mb-0.5">Action Taken</label>
+                                        <select name="action" class="w-full text-xs p-1.5 rounded-lg border border-amber-300 bg-white">
+                                            <option value="replaced">Replaced Component (Faulty &rarr; New)</option>
+                                            <option value="installed">Installed New Upgrade Component</option>
+                                            <option value="removed">Removed Component</option>
+                                            <option value="serviced">Cleaned / Serviced Existing Component</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-[10px] font-bold text-amber-900 uppercase mb-0.5">Description / Specs Replaced</label>
+                                        <input type="text" name="description" required placeholder="e.g. Replaced 8GB DDR4 RAM stick with new Kingston from stock" class="w-full text-xs p-1.5 rounded-lg border border-amber-300 bg-white">
+                                    </div>
+                                    <button type="submit" class="w-full py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-lg transition cursor-pointer">
+                                        Log Part to Asset History
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                @else
+                    <div class="text-xs text-slate-400 py-1">
+                        No equipment linked yet. Only IT can link hardware.
+                    </div>
+                @endif
+
+                <!-- Attach Another Equipment Form -->
+                <div x-data="{ attachOpen: false }" class="pt-2 border-t border-slate-100">
+                    <button type="button" @click="attachOpen = !attachOpen" class="w-full py-1.5 px-2 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-1 cursor-pointer">
+                        <span>➕</span>
+                        <span x-text="attachOpen ? 'Cancel' : '+ Attach Equipment / Machine'"></span>
+                    </button>
+
+                    <div x-show="attachOpen" class="mt-2.5 p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2" x-cloak>
+                        <form method="POST" action="{{ route('portal.tickets.assets.attach', $ticket->id) }}" class="space-y-2">
+                            @csrf
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-700 uppercase mb-0.5">Select Machine / Asset</label>
+                                <select name="asset_id" required class="w-full text-xs p-2 rounded-lg border border-slate-300 bg-white">
+                                    <option value="">-- Choose Equipment --</option>
+                                    @php
+                                        $sameBranchAssets = $availableAssets->where('branch_id', $ticket->branch_id);
+                                        $otherAssets = $availableAssets->where('branch_id', '!=', $ticket->branch_id);
+                                    @endphp
+                                    @if($sameBranchAssets->isNotEmpty())
+                                        <optgroup label="📍 Same Branch ({{ $ticket->branch->name }})">
+                                            @foreach($sameBranchAssets as $av)
+                                                <option value="{{ $av->id }}">{{ $av->asset_tag }} &bull; {{ $av->name }} ({{ $av->category?->name }})</option>
+                                            @endforeach
+                                        </optgroup>
+                                    @endif
+                                    @if($otherAssets->isNotEmpty())
+                                        <optgroup label="🌐 Other Branches & HQ">
+                                            @foreach($otherAssets as $av)
+                                                <option value="{{ $av->id }}">{{ $av->asset_tag }} &bull; {{ $av->name }} ({{ $av->branch?->name }})</option>
+                                            @endforeach
+                                        </optgroup>
+                                    @endif
+                                </select>
+                            </div>
+                            <button type="submit" class="w-full py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg transition cursor-pointer">
+                                Confirm &amp; Attach
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
             <!-- Audit Trail & Assignment History -->
             <div class="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs space-y-3">
                 <span class="text-xs font-bold uppercase tracking-wider text-slate-500 block border-b border-slate-100 pb-2">Assignment History</span>

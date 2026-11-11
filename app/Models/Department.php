@@ -58,6 +58,11 @@ class Department extends Model
         return $this->hasMany(DepartmentApprover::class)->where('is_active', true)->orderBy('level')->orderBy('id');
     }
 
+    public function assets(): HasMany
+    {
+        return $this->hasMany(Asset::class);
+    }
+
     public function isItDepartment(): bool
     {
         return $this->code === 'IT' || ($this->parent && $this->parent->code === 'IT') || str_starts_with($this->code, 'IT-');
@@ -65,7 +70,7 @@ class Department extends Model
 
     public function isSubUnit(): bool
     {
-        return !empty($this->parent_id);
+        return ! empty($this->parent_id);
     }
 
     public function scopeTopLevel($query)
@@ -76,8 +81,8 @@ class Department extends Model
     public function scopeItUnits($query)
     {
         return $query->where(function ($q) {
-            $q->whereHas('parent', fn($p) => $p->where('code', 'IT'))
-              ->orWhere('code', 'LIKE', 'IT-%');
+            $q->whereHas('parent', fn ($p) => $p->where('code', 'IT'))
+                ->orWhere('code', 'LIKE', 'IT-%');
         });
     }
 }

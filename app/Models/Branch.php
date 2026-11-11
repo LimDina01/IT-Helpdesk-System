@@ -46,4 +46,9 @@ class Branch extends Model
     {
         return $this->hasMany(DepartmentApprover::class)->orderBy('level')->orderBy('id');
     }
+
+    public function assets(): HasMany
+    {
+        return $this->hasMany(Asset::class);
+    }
 }

@@ -59,6 +59,12 @@
                         @endif
                     </a>
 
+                    <a href="{{ route('portal.assets.index') }}" 
+                       class="{{ request()->routeIs('portal.assets.*') ? 'bg-slate-800 text-white' : 'text-slate-300 hover:text-white hover:bg-slate-800/60' }} px-3 py-2 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition">
+                        <span>🖥️</span>
+                        <span>IT Assets</span>
+                    </a>
+
                     @if(Auth::user()->hasRole(['hod', 'system_admin']))
                         <a href="{{ route('portal.cockpit') }}" 
                            class="{{ request()->routeIs('portal.cockpit*') ? 'bg-purple-900/60 text-purple-200 border border-purple-500/30' : 'text-slate-300 hover:text-white hover:bg-slate-800/60' }} px-3 py-2 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition">
