@@ -99,7 +99,6 @@ return new class extends Migration
             ['name' => 'Printers & Imaging', 'code' => 'PRINTER', 'icon' => '🖨️', 'description' => 'Network multi-function printers, thermal receipt printers, barcode label printers', 'is_active' => true, 'created_at' => $now, 'updated_at' => $now],
             ['name' => 'Meeting & Display Equipment', 'code' => 'MEETING', 'icon' => '📽️', 'description' => 'Meeting room slide projectors, presentation screens, conference cams and speakers', 'is_active' => true, 'created_at' => $now, 'updated_at' => $now],
             ['name' => 'Network & Infrastructure', 'code' => 'NETWORK', 'icon' => '🌐', 'description' => 'Switches, routers, firewalls, wireless access points, UPS batteries, servers', 'is_active' => true, 'created_at' => $now, 'updated_at' => $now],
-            ['name' => 'Spare Components & Parts', 'code' => 'COMPONENT', 'icon' => '⚙️', 'description' => 'Loose internal components: RAM sticks, SSDs, HDDs, power supplies, cables', 'is_active' => true, 'created_at' => $now, 'updated_at' => $now],
         ]);
     }
 
