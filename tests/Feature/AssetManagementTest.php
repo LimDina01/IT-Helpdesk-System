@@ -312,5 +312,34 @@ class AssetManagementTest extends TestCase
             'component_id' => $spareRam->id,
             'action' => 'installed',
         ]);
+
+        // Attempt to double-claim the same component on another ticket must fail cleanly
+        $overlapTicketResponse = $this->post(route('portal.tickets.assets.parts', $oldTicket->id), [
+            'asset_id' => $asset->id,
+            'action' => 'replaced',
+            'component_id' => $spareRam->id,
+            'description' => 'Overlap attempt',
+        ]);
+        $overlapTicketResponse->assertSessionHasErrors('error');
+
+        // Attempt to assign the same already-installed component from asset detail must fail cleanly
+        $otherAsset = Asset::create([
+            'asset_tag' => 'CBVH-PC-0089',
+            'name' => 'Another PC',
+            'category_id' => $cat->id,
+            'ownership_type' => 'personal',
+            'branch_id' => $this->hqBranch->id,
+            'status' => 'in_use',
+        ]);
+        $overlapAssetResponse = $this->post(route('portal.assets.components.store', $otherAsset->id), [
+            'source_mode' => 'from_stock',
+            'spare_component_id' => $spareRam->id,
+        ]);
+        $overlapAssetResponse->assertSessionHasErrors('error');
+
+        // Confirm the original PC still owns the RAM exclusively
+        $spareRam->refresh();
+        $this->assertEquals($asset->id, $spareRam->asset_id);
+        $this->assertEquals('installed', $spareRam->status);
     }
 }

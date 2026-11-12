@@ -1110,28 +1110,32 @@ class PortalTicketController extends Controller
             'component_id' => 'nullable|exists:asset_components,id',
         ]);
 
-        $component = null;
-        if (! empty($validated['component_id'])) {
-            $component = AssetComponent::findOrFail($validated['component_id']);
-            if ($component->status !== 'in_stock') {
-                return back()->withErrors(['error' => 'Selected spare component is no longer in stock.']);
-            }
-        }
-
-        $description = trim($validated['description'] ?? '');
-        if ($description === '' && $component) {
-            $specs = $component->capacity_or_specs ? " ({$component->capacity_or_specs})" : '';
-            $actionLabel = ucfirst($validated['action']);
-            $description = "{$actionLabel} {$component->brand_model}{$specs} from IT Spare Stock";
-        }
-
-        if ($description === '') {
-            return back()->withErrors(['error' => 'Please enter a part description or select a component from IT Spare Stock.']);
-        }
-
         $asset = Asset::findOrFail($validated['asset_id']);
+        $rawDescription = trim($validated['description'] ?? '');
 
-        DB::transaction(function () use ($ticket, $asset, $component, $validated, $description) {
+        $result = DB::transaction(function () use ($ticket, $asset, $validated, $rawDescription) {
+            $component = null;
+            if (! empty($validated['component_id'])) {
+                $component = AssetComponent::whereKey($validated['component_id'])
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                if ($component->status !== 'in_stock') {
+                    return ['error' => "Selected spare component '{$component->brand_model}' is no longer in stock (currently {$component->status})."];
+                }
+            }
+
+            $description = $rawDescription;
+            if ($description === '' && $component) {
+                $specs = $component->capacity_or_specs ? " ({$component->capacity_or_specs})" : '';
+                $actionLabel = ucfirst($validated['action']);
+                $description = "{$actionLabel} {$component->brand_model}{$specs} from IT Spare Stock";
+            }
+
+            if ($description === '') {
+                return ['error' => 'Please enter a part description or select a component from IT Spare Stock.'];
+            }
+
             if ($component && in_array($validated['action'], ['replaced', 'installed'])) {
                 $component->update([
                     'asset_id' => $asset->id,
@@ -1164,10 +1168,18 @@ class PortalTicketController extends Controller
                 ],
                 'created_at' => now(),
             ]);
+
+            return [
+                'status' => $component
+                    ? "Installed '{$component->brand_model}' from IT stock and logged to {$asset->asset_tag} maintenance history."
+                    : 'Component service action recorded in asset maintenance history.',
+            ];
         });
 
-        return back()->with('status', $component
-            ? "Installed '{$component->brand_model}' from IT stock and logged to {$asset->asset_tag} maintenance history."
-            : 'Component service action recorded in asset maintenance history.');
+        if (isset($result['error'])) {
+            return back()->withErrors(['error' => $result['error']]);
+        }
+
+        return back()->with('status', $result['status']);
     }
 }

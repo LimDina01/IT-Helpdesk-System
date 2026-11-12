@@ -11,6 +11,7 @@ use App\Models\Department;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class PortalAssetController extends Controller
@@ -345,13 +346,30 @@ class PortalAssetController extends Controller
         ]);
 
         if ($validated['source_mode'] === 'from_stock' && ! empty($validated['spare_component_id'])) {
-            $comp = AssetComponent::findOrFail($validated['spare_component_id']);
-            $comp->update([
-                'asset_id' => $asset->id,
-                'status' => 'installed',
-                'installed_at' => now(),
-            ]);
-            $msg = "Component '{$comp->brand_model}' assigned to asset.";
+            $result = DB::transaction(function () use ($validated, $asset) {
+                $comp = AssetComponent::whereKey($validated['spare_component_id'])
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                if ($comp->status !== 'in_stock') {
+                    return ['error' => "Spare component '{$comp->brand_model}' is no longer in stock (currently {$comp->status})."];
+                }
+
+                $comp->update([
+                    'asset_id' => $asset->id,
+                    'branch_id' => $asset->branch_id,
+                    'status' => 'installed',
+                    'installed_at' => now(),
+                ]);
+
+                return ['status' => "Component '{$comp->brand_model}' assigned to asset."];
+            });
+
+            if (isset($result['error'])) {
+                return back()->withErrors(['error' => $result['error']]);
+            }
+
+            return back()->with('status', $result['status']);
         } else {
             AssetComponent::create([
                 'asset_id' => $asset->id,
