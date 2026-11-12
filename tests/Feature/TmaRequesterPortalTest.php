@@ -3,16 +3,19 @@
 namespace Tests\Feature;
 
 use App\Models\Branch;
-use App\Models\Employee;
-use App\Models\TelegramLinkRequest;
+use App\Models\DepartmentApprover;
+use App\Models\Role;
 use App\Models\Ticket;
 use App\Models\TicketCategory;
 use App\Models\TicketMessage;
 use App\Models\User;
 use App\Services\TelegramAuthService;
+use App\Services\TicketApprovalService;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -32,11 +35,13 @@ class TmaRequesterPortalTest extends TestCase
         $response = $this->get('/tma');
         $response->assertStatus(200);
         $response->assertSee('CBVH Help Desk');
+        $response->assertSee('disableVerticalSwipes()', false);
+        $response->assertSee('overscroll-behavior-y: none', false);
     }
 
     public function test_telegram_auth_service_validates_authentic_init_data(): void
     {
-        $service = new TelegramAuthService();
+        $service = new TelegramAuthService;
         $initData = $service->generateTestInitData([
             'id' => 123456789,
             'first_name' => 'Sokha',
@@ -62,9 +67,9 @@ class TmaRequesterPortalTest extends TestCase
 
     public function test_telegram_auth_rejects_tampered_signature(): void
     {
-        $service = new TelegramAuthService();
+        $service = new TelegramAuthService;
         $initData = $service->generateTestInitData(['id' => 123456789]);
-        $tamperedData = $initData . '&extra_param=hacked';
+        $tamperedData = $initData.'&extra_param=hacked';
 
         $response = $this->postJson('/tma/api/auth', [
             'init_data' => $tamperedData,
@@ -323,7 +328,7 @@ class TmaRequesterPortalTest extends TestCase
             'description' => 'Screen turns off every few minutes.',
         ]);
 
-        \App\Models\TicketMessage::create([
+        TicketMessage::create([
             'ticket_id' => $ticket->id,
             'sender_id' => $staff->id,
             'visibility' => 'requester_visible',
@@ -363,7 +368,7 @@ class TmaRequesterPortalTest extends TestCase
 
         // When requester opens ticket, presence is set
         $this->actingAs($requester, 'tma')->getJson("/tma/api/tickets/{$ticket->id}");
-        $this->assertTrue(\Illuminate\Support\Facades\Cache::has("ticket_presence_{$ticket->id}_{$requester->id}"));
+        $this->assertTrue(Cache::has("ticket_presence_{$ticket->id}_{$requester->id}"));
 
         // When requester closes modal, leave endpoint is called
         $leaveResponse = $this->actingAs($requester, 'tma')->postJson("/tma/api/tickets/{$ticket->id}/leave");
@@ -371,7 +376,7 @@ class TmaRequesterPortalTest extends TestCase
         $leaveResponse->assertJson(['status' => 'left']);
 
         // Presence must be gone immediately
-        $this->assertFalse(\Illuminate\Support\Facades\Cache::has("ticket_presence_{$ticket->id}_{$requester->id}"));
+        $this->assertFalse(Cache::has("ticket_presence_{$ticket->id}_{$requester->id}"));
     }
 
     public function test_suspended_user_cannot_authenticate_via_tma_init_data(): void
@@ -379,7 +384,7 @@ class TmaRequesterPortalTest extends TestCase
         $user = User::where('email', 'sokha.chan@cbvh.com.kh')->first();
         $user->update(['is_active' => false]);
 
-        $service = new TelegramAuthService();
+        $service = new TelegramAuthService;
         $initData = $service->generateTestInitData([
             'id' => 123456789,
             'first_name' => 'Sokha',
@@ -438,7 +443,7 @@ class TmaRequesterPortalTest extends TestCase
         $user = User::where('email', 'sokha.chan@cbvh.com.kh')->first();
 
         // Create a dummy session record in the sessions table
-        \Illuminate\Support\Facades\DB::table('sessions')->insert([
+        DB::table('sessions')->insert([
             'id' => 'dummy_session_id_123',
             'user_id' => $user->id,
             'ip_address' => '127.0.0.1',
@@ -464,7 +469,7 @@ class TmaRequesterPortalTest extends TestCase
         $admin = User::where('email', 'admin@cbvh.com.kh')->first();
         $user = User::where('email', 'sokha.chan@cbvh.com.kh')->first();
 
-        \Illuminate\Support\Facades\DB::table('sessions')->insert([
+        DB::table('sessions')->insert([
             'id' => 'dummy_session_id_456',
             'user_id' => $user->id,
             'ip_address' => '127.0.0.1',
@@ -477,7 +482,7 @@ class TmaRequesterPortalTest extends TestCase
         $response->assertRedirect();
 
         $user->refresh();
-        $this->assertFalse((bool)$user->is_active);
+        $this->assertFalse((bool) $user->is_active);
         $this->assertDatabaseMissing('sessions', ['user_id' => $user->id]);
     }
 
@@ -564,9 +569,9 @@ class TmaRequesterPortalTest extends TestCase
             'email' => 'ops.tl@cbvh.com.kh',
             'is_active' => true,
         ]);
-        $approver->roles()->attach(\App\Models\Role::where('name', 'hod')->firstOrFail());
+        $approver->roles()->attach(Role::where('name', 'hod')->firstOrFail());
 
-        \App\Models\DepartmentApprover::create([
+        DepartmentApprover::create([
             'department_id' => $dept->id,
             'branch_id' => $branch->id,
             'user_id' => $approver->id,
@@ -589,7 +594,7 @@ class TmaRequesterPortalTest extends TestCase
             'priority' => 'medium',
         ]);
 
-        $approvalService = app(\App\Services\TicketApprovalService::class);
+        $approvalService = app(TicketApprovalService::class);
         $approvalService->createApprovalChain($ticket);
         $step1 = $ticket->approvals()->where('step_number', 1)->firstOrFail();
 
@@ -616,5 +621,3 @@ class TmaRequesterPortalTest extends TestCase
         $this->assertStringContainsString('Escalated', $step2->step_name);
     }
 }
-
-

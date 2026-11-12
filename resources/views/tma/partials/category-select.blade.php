@@ -33,7 +33,7 @@
             </div>
 
             <!-- Category Cards List (Matching Image 2) -->
-            <div class="flex-1 p-4 space-y-2.5 overflow-y-auto">
+            <div class="flex-1 p-4 space-y-2.5 overflow-y-auto overscroll-y-none">
                 <template x-for="cat in filteredCategoryList" :key="cat.id">
                     <div @click="selectCategory(cat)"
                          class="bg-white border border-slate-200/80 hover:border-blue-400 rounded-2xl p-3.5 shadow-xs flex items-center space-x-3.5 cursor-pointer active:scale-[0.97] active:bg-slate-50 transition-all duration-150 ease-out">

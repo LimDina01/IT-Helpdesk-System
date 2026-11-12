@@ -20,7 +20,7 @@
             </header>
 
             <!-- Form Body -->
-            <form @submit.prevent="submitNewTicket()" class="flex-1 p-5 space-y-4 overflow-y-auto"
+            <form @submit.prevent="submitNewTicket()" class="flex-1 p-5 space-y-4 overflow-y-auto overscroll-y-none"
                   @touchstart.passive="handleTimelineTouchStart($event)"
                   @touchmove.passive="handleTimelineTouchMove($event)">
                 

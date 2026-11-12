@@ -283,7 +283,7 @@
             </div>
 
             <!-- Conversation Timeline (Executive Luxury Theme) -->
-            <div class="flex-1 overflow-y-auto px-3.5 py-4 space-y-3 relative" id="timelineContainer"
+            <div class="flex-1 overflow-y-auto overscroll-y-none px-3.5 py-4 space-y-3 relative" id="timelineContainer"
                  style="background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);"
                  @scroll.passive="onTimelineScroll($event)"
                  @touchstart.passive="handleTimelineTouchStart($event)"

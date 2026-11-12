@@ -42,6 +42,7 @@
             color-scheme: light only !important;
             -webkit-tap-highlight-color: transparent;
             -webkit-text-size-adjust: 100%;
+            overscroll-behavior-y: none;
         }
 
         /* 100% Solid Light Mode Override - Neutralizes iPhone / WebKit Dark Mode */

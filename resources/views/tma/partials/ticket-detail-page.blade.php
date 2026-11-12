@@ -33,7 +33,7 @@
             </div>
 
             <!-- Scrollable Details & Workflow Content -->
-            <div class="flex-1 overflow-y-auto p-4 space-y-4">
+            <div class="flex-1 overflow-y-auto overscroll-y-none p-4 space-y-4">
                 
                 <!-- Hero Summary Card -->
                 <div class="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-2xs space-y-3">

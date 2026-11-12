@@ -533,6 +533,11 @@ function tmaApp() {
                 tg.expand();
                 tg.enableClosingConfirmation();
                 try {
+                    if (typeof tg.disableVerticalSwipes === 'function' && (!tg.isVersionAtLeast || tg.isVersionAtLeast('7.7'))) {
+                        tg.disableVerticalSwipes();
+                    }
+                } catch (e) {}
+                try {
                     tg.setHeaderColor('#ffffff');
                     tg.setBackgroundColor('#f8fafc');
                     tg.onEvent('themeChanged', () => {
