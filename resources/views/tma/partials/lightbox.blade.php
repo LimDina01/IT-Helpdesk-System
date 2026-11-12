@@ -7,7 +7,7 @@
          x-transition:leave-start="opacity-100"
          x-transition:leave-end="opacity-0"
          @click.self="showLightbox = false"
-         class="fixed inset-0 z-[100] bg-black/95 backdrop-blur-md flex flex-col p-4" x-cloak>
+         class="fixed inset-0 z-[100] bg-black/95 backdrop-blur-md flex flex-col px-4 pb-4 tma-safe-header tma-safe-bottom" x-cloak>
         <div class="flex items-center justify-between text-white pb-3 max-w-md mx-auto w-full">
             <span class="text-xs font-semibold truncate max-w-[200px]" x-text="lightboxFilename"></span>
             <div class="flex items-center space-x-2">

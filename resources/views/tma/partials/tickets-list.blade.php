@@ -5,10 +5,9 @@
              x-transition:enter="transition ease-out duration-200"
              x-transition:enter-start="opacity-0 translate-y-2"
              x-transition:enter-end="opacity-100 translate-y-0"
-             class="flex-1 flex flex-col"
-             style="padding-bottom: max(env(safe-area-inset-bottom, 28px), 24px) !important;">
+             class="flex-1 flex flex-col tma-safe-bottom">
             <!-- Header Bar with Back Button -->
-            <header class="bg-white border-b border-slate-200/80 px-4 py-3 sticky top-0 z-20 shadow-xs flex items-center justify-between">
+            <header class="tma-safe-header bg-white border-b border-slate-200/80 px-4 pb-3 sticky top-0 z-20 shadow-xs flex items-center justify-between">
                 <button @click="currentView = 'home'; updateBackButton()" class="flex items-center space-x-1 text-blue-600 font-bold text-xs hover:text-blue-700 active:scale-95 active:opacity-75 transition-all duration-150 py-1 px-1.5 rounded-lg -ml-1">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
                     <span x-text="t('back')">Back</span>

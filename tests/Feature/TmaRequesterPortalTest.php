@@ -36,6 +36,9 @@ class TmaRequesterPortalTest extends TestCase
         $response->assertStatus(200);
         $response->assertSee('CBVH Help Desk');
         $response->assertSee('disableVerticalSwipes()', false);
+        $response->assertSee('requestFullscreen()', false);
+        $response->assertSee('tma-safe-header', false);
+        $response->assertSee('tma-safe-bottom', false);
         $response->assertSee('overscroll-behavior-y: none', false);
     }
 

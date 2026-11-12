@@ -13,7 +13,7 @@
              style="background-color: #f8fafc !important;">
             
             <!-- Details Page Header -->
-            <div class="bg-white px-3.5 py-3 border-b border-slate-200/90 flex items-center justify-between shrink-0 shadow-2xs select-none">
+            <div class="tma-safe-header bg-white px-3.5 pb-3 border-b border-slate-200/90 flex items-center justify-between shrink-0 shadow-2xs select-none">
                 <div class="flex items-center space-x-2">
                     <button type="button" @click="showTicketInfo = false"
                             class="w-9 h-9 rounded-full text-slate-700 hover:text-blue-600 hover:bg-slate-100 active:bg-slate-200 active:scale-95 transition flex items-center justify-center -ml-1"
@@ -33,7 +33,7 @@
             </div>
 
             <!-- Scrollable Details & Workflow Content -->
-            <div class="flex-1 overflow-y-auto overscroll-y-none p-4 space-y-4">
+            <div class="flex-1 overflow-y-auto overscroll-y-none p-4 tma-safe-bottom space-y-4">
                 
                 <!-- Hero Summary Card -->
                 <div class="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-2xs space-y-3">

@@ -3,7 +3,7 @@
          x-transition:enter="transition ease-out duration-200"
          x-transition:enter-start="opacity-0 translate-y-2"
          x-transition:enter-end="opacity-100 translate-y-0"
-         class="flex-1 flex flex-col justify-center p-5">
+         class="flex-1 flex flex-col justify-center p-5 tma-safe-screen">
         <div class="tg-theme-card rounded-3xl shadow-xl border border-slate-200/80 p-6 space-y-6 relative">
             <!-- Language Switcher in Auth Card Top Right -->
             <div class="absolute top-4 right-4">
@@ -67,7 +67,7 @@
          x-transition:enter="transition ease-out duration-200"
          x-transition:enter-start="opacity-0 translate-y-2"
          x-transition:enter-end="opacity-100 translate-y-0"
-         class="flex-1 flex flex-col justify-center p-5">
+         class="flex-1 flex flex-col justify-center p-5 tma-safe-screen">
         <div class="tg-theme-card rounded-3xl shadow-xl border border-rose-200/80 p-6 space-y-6 relative text-center">
             <!-- Language Switcher in Card Top Right -->
             <div class="absolute top-4 right-4">
@@ -125,7 +125,7 @@
          x-transition:enter="transition ease-out duration-200"
          x-transition:enter-start="opacity-0 translate-y-2"
          x-transition:enter-end="opacity-100 translate-y-0"
-         class="flex-1 flex flex-col justify-center p-5">
+         class="flex-1 flex flex-col justify-center p-5 tma-safe-screen">
         <div class="tg-theme-card rounded-2xl shadow-sm border border-slate-200/60 p-6 space-y-6 relative">
             <!-- Language Switcher in Link Card Top Right -->
             <div class="absolute top-4 right-4">

@@ -537,6 +537,42 @@ function tmaApp() {
                         tg.disableVerticalSwipes();
                     }
                 } catch (e) {}
+
+                // Edge-to-edge fullscreen on mobile Telegram (Bot API 8.0+) with safe-area syncing
+                const syncSafeAreas = () => {
+                    try {
+                        const root = document.documentElement.style;
+                        if (tg.safeAreaInset) {
+                            root.setProperty('--cbvh-safe-top', (tg.safeAreaInset.top || 0) + 'px');
+                            root.setProperty('--cbvh-safe-bottom', (tg.safeAreaInset.bottom || 0) + 'px');
+                        }
+                        if (tg.contentSafeAreaInset) {
+                            root.setProperty('--cbvh-content-safe-top', (tg.contentSafeAreaInset.top || 0) + 'px');
+                        }
+                    } catch (e) {}
+                };
+                syncSafeAreas();
+
+                try {
+                    if (typeof tg.onEvent === 'function') {
+                        tg.onEvent('safeAreaChanged', syncSafeAreas);
+                        tg.onEvent('contentSafeAreaChanged', syncSafeAreas);
+                        tg.onEvent('fullscreenChanged', syncSafeAreas);
+                        tg.onEvent('viewportChanged', syncSafeAreas);
+                    }
+                } catch (e) {}
+
+                try {
+                    if (typeof tg.isVersionAtLeast === 'function' && tg.isVersionAtLeast('8.0') && typeof tg.requestFullscreen === 'function') {
+                        const mobilePlatforms = ['ios', 'android', 'android_x'];
+                        if (mobilePlatforms.includes(tg.platform)) {
+                            if (!tg.isFullscreen) {
+                                tg.requestFullscreen();
+                                setTimeout(syncSafeAreas, 150);
+                            }
+                        }
+                    }
+                } catch (e) {}
                 try {
                     tg.setHeaderColor('#ffffff');
                     tg.setBackgroundColor('#f8fafc');
@@ -2040,7 +2076,7 @@ function tmaApp() {
             try {
                 const tgPlatform = window.Telegram?.WebApp?.platform;
                 if (tgPlatform) {
-                    return ['ios', 'android'].includes(tgPlatform);
+                    return ['ios', 'android', 'android_x'].includes(tgPlatform);
                 }
                 return ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || window.matchMedia('(hover: none) and (pointer: coarse)').matches;
             } catch (e) {

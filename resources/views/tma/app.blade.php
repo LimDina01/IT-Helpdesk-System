@@ -157,6 +157,38 @@
             }
         }
 
+        /* Telegram Fullscreen (Bot API 8.0+) safe-area header & bottom bar spacing */
+        .tma-safe-header {
+            padding-top: calc(
+                12px
+                + max(var(--cbvh-safe-top, 0px), var(--tg-safe-area-inset-top, 0px))
+                + max(var(--cbvh-content-safe-top, 0px), var(--tg-content-safe-area-inset-top, 0px))
+            ) !important;
+        }
+
+        .tma-safe-bottom {
+            padding-bottom: max(
+                24px,
+                var(--cbvh-safe-bottom, 0px),
+                var(--tg-safe-area-inset-bottom, 0px),
+                env(safe-area-inset-bottom, 24px)
+            ) !important;
+        }
+
+        .tma-safe-screen {
+            padding-top: calc(
+                20px
+                + max(var(--cbvh-safe-top, 0px), var(--tg-safe-area-inset-top, 0px))
+                + max(var(--cbvh-content-safe-top, 0px), var(--tg-content-safe-area-inset-top, 0px))
+            );
+            padding-bottom: max(
+                20px,
+                var(--cbvh-safe-bottom, 0px),
+                var(--tg-safe-area-inset-bottom, 0px),
+                env(safe-area-inset-bottom, 20px)
+            );
+        }
+
         [x-cloak] { display: none !important; }
     </style>
 </head>

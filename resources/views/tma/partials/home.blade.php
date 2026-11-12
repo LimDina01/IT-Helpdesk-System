@@ -5,10 +5,9 @@
              x-transition:enter="transition ease-out duration-200"
              x-transition:enter-start="opacity-0 translate-y-2"
              x-transition:enter-end="opacity-100 translate-y-0"
-             class="flex-1 flex flex-col"
-             style="padding-bottom: max(env(safe-area-inset-bottom, 28px), 24px) !important;">
+             class="flex-1 flex flex-col tma-safe-bottom">
             <!-- App Bar Header -->
-            <header class="bg-white border-b border-slate-100 px-4 py-2.5 flex items-center justify-between sticky top-0 z-20 shadow-xs">
+            <header class="tma-safe-header bg-white border-b border-slate-100 px-4 pb-2.5 flex items-center justify-between sticky top-0 z-20 shadow-xs">
                 <div class="flex items-center space-x-2 min-w-0 pr-2">
                     <div class="w-8 h-8 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs shadow-xs shrink-0"
                          x-text="currentUser.name ? currentUser.name.charAt(0) : 'U'"></div>

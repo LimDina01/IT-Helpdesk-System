@@ -13,7 +13,7 @@
              style="background-color: #f8fafc !important;">
             
             <!-- Top Navigation Bar (Minimal Messenger Header - Spacious & Clean) -->
-            <div class="bg-white px-3.5 py-2.5 border-b border-slate-200/90 flex items-center justify-between shrink-0 z-10 shadow-2xs select-none"
+            <div class="tma-safe-header bg-white px-3.5 pb-2.5 border-b border-slate-200/90 flex items-center justify-between shrink-0 z-10 shadow-2xs select-none"
                  @click="if (isMobileDevice()) dismissKeyboard()">
                 <div class="flex items-center space-x-2.5 min-w-0 flex-1 pr-2">
                     <!-- Native Back Button (Returns to Ticket List) -->
@@ -284,6 +284,7 @@
 
             <!-- Conversation Timeline (Executive Luxury Theme) -->
             <div class="flex-1 overflow-y-auto overscroll-y-none px-3.5 py-4 space-y-3 relative" id="timelineContainer"
+                 :class="{ 'tma-safe-bottom': selectedTicket?.is_closed }"
                  style="background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);"
                  @scroll.passive="onTimelineScroll($event)"
                  @touchstart.passive="handleTimelineTouchStart($event)"
@@ -523,7 +524,7 @@
             <!-- Executive Floating Studio Reply Dock (Squeezed & Tucked in away from iPhone rounded corners & home indicator) -->
             <div x-show="!selectedTicket?.is_closed"
                  class="bg-white/95 backdrop-blur-md border-t border-slate-200/80 shrink-0 z-10 shadow-lg transition-all"
-                 :style="isReplyFocused ? 'padding: 8px 16px 10px 16px !important;' : 'padding: 10px max(env(safe-area-inset-right, 18px), 18px) max(env(safe-area-inset-bottom, 28px), 24px) max(env(safe-area-inset-left, 18px), 18px) !important;'">
+                 :style="isReplyFocused ? 'padding: 8px 16px 10px 16px !important;' : 'padding: 10px max(env(safe-area-inset-right, 18px), 18px) max(24px, var(--cbvh-safe-bottom, 0px), var(--tg-safe-area-inset-bottom, 0px), env(safe-area-inset-bottom, 24px)) max(env(safe-area-inset-left, 18px), 18px) !important;'">
                 <form @submit.prevent="sendReply()" class="space-y-2 max-w-md mx-auto">
                     <div x-show="replyError" class="text-xs text-rose-600 bg-rose-50 border border-rose-200 p-2 rounded-xl font-medium" x-text="replyError"></div>
 
