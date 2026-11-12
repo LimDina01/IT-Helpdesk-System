@@ -3,15 +3,25 @@
 namespace Tests\Feature;
 
 use App\Models\Branch;
+use App\Models\Department;
 use App\Models\Employee;
+use App\Models\NotificationLog;
+use App\Models\Role;
 use App\Models\TelegramLinkRequest;
 use App\Models\Ticket;
 use App\Models\TicketAssignment;
+use App\Models\TicketAuditLog;
 use App\Models\TicketCategory;
 use App\Models\TicketMessage;
 use App\Models\User;
+use App\Services\LdapAuthService;
+use Carbon\Carbon;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class PortalOperationsTest extends TestCase
@@ -64,12 +74,12 @@ class PortalOperationsTest extends TestCase
 
     public function test_staff_can_login_with_employee_code(): void
     {
-        $employee = \App\Models\Employee::create([
+        $employee = Employee::create([
             'employee_code' => 'EMP-9001',
             'full_name' => 'Kosal Meng',
             'email' => 'helpdesk@cbvh.com.kh',
-            'branch_id' => \App\Models\Branch::first()->id,
-            'department_id' => \App\Models\Department::first()->id,
+            'branch_id' => Branch::first()->id,
+            'department_id' => Department::first()->id,
             'is_active' => true,
         ]);
         $staff = User::where('email', 'helpdesk@cbvh.com.kh')->first();
@@ -90,18 +100,18 @@ class PortalOperationsTest extends TestCase
         $adUser = User::create([
             'name' => 'New AD Employee',
             'email' => 'new.ad.emp@cbvh.com.kh',
-            'password' => \Illuminate\Support\Facades\Hash::make('Temporary123!'),
+            'password' => Hash::make('Temporary123!'),
             'can_access_portal' => false,
             'is_active' => true,
         ]);
 
-        $mockLdap = $this->createMock(\App\Services\LdapAuthService::class);
+        $mockLdap = $this->createMock(LdapAuthService::class);
         $mockLdap->method('isEnabled')->willReturn(true);
         $mockLdap->expects($this->once())
             ->method('authenticate')
             ->willReturn($adUser);
 
-        $this->app->instance(\App\Services\LdapAuthService::class, $mockLdap);
+        $this->app->instance(LdapAuthService::class, $mockLdap);
 
         $response = $this->post('/portal/login', [
             'email' => 'new.ad.emp@cbvh.com.kh',
@@ -119,20 +129,20 @@ class PortalOperationsTest extends TestCase
         $adUser = User::create([
             'name' => 'Permitted AD Helpdesk',
             'email' => 'permitted.ad@cbvh.com.kh',
-            'password' => \Illuminate\Support\Facades\Hash::make('Temporary123!'),
+            'password' => Hash::make('Temporary123!'),
             'can_access_portal' => true,
             'is_active' => true,
         ]);
-        $helpdeskRole = \App\Models\Role::where('name', 'helpdesk')->first();
+        $helpdeskRole = Role::where('name', 'helpdesk')->first();
         $adUser->roles()->attach($helpdeskRole->id);
 
-        $mockLdap = $this->createMock(\App\Services\LdapAuthService::class);
+        $mockLdap = $this->createMock(LdapAuthService::class);
         $mockLdap->method('isEnabled')->willReturn(true);
         $mockLdap->expects($this->once())
             ->method('authenticate')
             ->willReturn($adUser);
 
-        $this->app->instance(\App\Services\LdapAuthService::class, $mockLdap);
+        $this->app->instance(LdapAuthService::class, $mockLdap);
 
         $response = $this->post('/portal/login', [
             'email' => 'permitted.ad@cbvh.com.kh',
@@ -147,13 +157,13 @@ class PortalOperationsTest extends TestCase
 
     public function test_ad_ldap_login_assigns_technician_role_and_portal_access_without_requester(): void
     {
-        $techRole = \App\Models\Role::firstOrCreate(['name' => 'technician'], ['label' => 'IT Technician']);
-        $requesterRole = \App\Models\Role::firstOrCreate(['name' => 'requester'], ['label' => 'Requester']);
+        $techRole = Role::firstOrCreate(['name' => 'technician'], ['label' => 'IT Technician']);
+        $requesterRole = Role::firstOrCreate(['name' => 'requester'], ['label' => 'Requester']);
 
         $adUser = User::create([
             'name' => 'New AD Tech',
             'email' => 'new.tech@cbvh66.com',
-            'password' => \Illuminate\Support\Facades\Hash::make('Pass123!'),
+            'password' => Hash::make('Pass123!'),
             'can_access_portal' => true,
             'is_active' => true,
         ]);
@@ -398,9 +408,9 @@ class PortalOperationsTest extends TestCase
         $ticket = $this->createSampleTicket($requester, $tech);
 
         // Simulate requester is actively looking at the ticket chat (heartbeat in cache)
-        \Illuminate\Support\Facades\Cache::put("ticket_presence_{$ticket->id}_{$requester->id}", now()->timestamp, 45);
+        Cache::put("ticket_presence_{$ticket->id}_{$requester->id}", now()->timestamp, 45);
 
-        $initialLogsCount = \App\Models\NotificationLog::where('ticket_id', $ticket->id)->count();
+        $initialLogsCount = NotificationLog::where('ticket_id', $ticket->id)->count();
 
         // Staff posts a public message
         $response = $this->actingAs($tech)->post("/portal/tickets/{$ticket->id}/messages", [
@@ -410,7 +420,7 @@ class PortalOperationsTest extends TestCase
         $response->assertSessionHas('status', 'Reply sent to requester.');
 
         // Verify Telegram notification was suppressed (no new notification logged)
-        $newLogsCount = \App\Models\NotificationLog::where('ticket_id', $ticket->id)->count();
+        $newLogsCount = NotificationLog::where('ticket_id', $ticket->id)->count();
         $this->assertEquals($initialLogsCount, $newLogsCount);
     }
 
@@ -421,9 +431,9 @@ class PortalOperationsTest extends TestCase
         $ticket = $this->createSampleTicket($requester, $tech);
 
         // Ensure requester is NOT active in chat (no cache presence)
-        \Illuminate\Support\Facades\Cache::forget("ticket_presence_{$ticket->id}_{$requester->id}");
+        Cache::forget("ticket_presence_{$ticket->id}_{$requester->id}");
 
-        $initialLogsCount = \App\Models\NotificationLog::where('ticket_id', $ticket->id)->count();
+        $initialLogsCount = NotificationLog::where('ticket_id', $ticket->id)->count();
 
         // Staff posts a public message
         $response = $this->actingAs($tech)->post("/portal/tickets/{$ticket->id}/messages", [
@@ -433,7 +443,7 @@ class PortalOperationsTest extends TestCase
         $response->assertSessionHas('status', 'Reply sent to requester.');
 
         // Verify Telegram notification was dispatched
-        $newLogsCount = \App\Models\NotificationLog::where('ticket_id', $ticket->id)->count();
+        $newLogsCount = NotificationLog::where('ticket_id', $ticket->id)->count();
         $this->assertEquals($initialLogsCount + 1, $newLogsCount);
     }
 
@@ -444,7 +454,7 @@ class PortalOperationsTest extends TestCase
         $ticket = $this->createSampleTicket($requester, $staff);
 
         // Set presence in cache
-        \Illuminate\Support\Facades\Cache::put("ticket_presence_{$ticket->id}_{$requester->id}", now()->timestamp, 45);
+        Cache::put("ticket_presence_{$ticket->id}_{$requester->id}", now()->timestamp, 45);
 
         $response = $this->actingAs($staff)->getJson("/portal/tickets/{$ticket->id}/poll");
         $response->assertStatus(200);
@@ -485,8 +495,8 @@ class PortalOperationsTest extends TestCase
         $requester = User::where('email', 'sokha.chan@cbvh.com.kh')->first();
         $ticket = $this->createSampleTicket($requester, $tech);
 
-        \Illuminate\Support\Facades\Storage::fake('attachments');
-        $file = \Illuminate\Http\UploadedFile::fake()->create('network_diagram.pdf', 500, 'application/pdf');
+        Storage::fake('attachments');
+        $file = UploadedFile::fake()->create('network_diagram.pdf', 500, 'application/pdf');
 
         $response = $this->actingAs($tech)->postJson("/portal/tickets/{$ticket->id}/messages", [
             'visibility' => 'requester_visible',
@@ -516,7 +526,7 @@ class PortalOperationsTest extends TestCase
     public function test_sla_pause_tracking_pauses_clock_and_accumulates_duration_on_resume(): void
     {
         // Fix test time to Monday 08:00 AM so 4 hours falls squarely in the 08:00 - 12:00 morning shift
-        \Carbon\Carbon::setTestNow(\Carbon\Carbon::parse('2026-10-26 08:00:00'));
+        Carbon::setTestNow(Carbon::parse('2026-10-26 08:00:00'));
 
         $tech = User::where('email', 'tech1@cbvh.com.kh')->first();
         $admin = User::where('email', 'admin@cbvh.com.kh')->first();
@@ -543,7 +553,7 @@ class PortalOperationsTest extends TestCase
         $dashboardResponse->assertDontSee('Overdue');
 
         // 2. Simulate 4 hours passing while on hold
-        \Carbon\Carbon::setTestNow(now()->addHours(4));
+        Carbon::setTestNow(now()->addHours(4));
 
         // 3. Resume work
         $this->actingAs($tech)->post("/portal/tickets/{$ticket->id}/accept")
@@ -557,7 +567,46 @@ class PortalOperationsTest extends TestCase
         $this->assertFalse($ticket->isSlaPaused());
 
         // Restore real time
-        \Carbon\Carbon::setTestNow();
+        Carbon::setTestNow();
+    }
+
+    public function test_ticket_detail_workspace_renders_tabbed_inspector_and_consistent_poll_timestamps(): void
+    {
+        $tech = User::where('email', 'tech1@cbvh.com.kh')->first();
+        $requester = User::where('email', 'sokha.chan@cbvh.com.kh')->first();
+        $ticket = $this->createSampleTicket($requester, $tech);
+
+        $msg = TicketMessage::create([
+            'ticket_id' => $ticket->id,
+            'sender_id' => $tech->id,
+            'visibility' => 'requester_visible',
+            'message_type' => 'text',
+            'body' => 'Checking your printer settings now.',
+        ]);
+
+        TicketAuditLog::create([
+            'ticket_id' => $ticket->id,
+            'actor_id' => $tech->id,
+            'action' => 'PRIORITY_CHANGED',
+            'old_value' => 'medium',
+            'new_value' => 'high',
+            'created_at' => now(),
+        ]);
+
+        $showResponse = $this->actingAs($tech)->get(route('portal.tickets.show', $ticket->id));
+        $showResponse->assertStatus(200);
+        $showResponse->assertSee('Info &amp; SLA', false);
+        $showResponse->assertSee('Assets');
+        $showResponse->assertSee('History');
+        $showResponse->assertSee('Activity Audit Log');
+        $showResponse->assertSee('PRIORITY CHANGED');
+
+        // Confirm poll endpoint formats timestamps consistently with initial Blade JSON
+        $pollResponse = $this->actingAs($tech)->getJson(route('portal.tickets.poll', $ticket->id));
+        $pollResponse->assertStatus(200);
+        $pollResponse->assertJsonFragment([
+            'id' => $msg->id,
+            'created_at_full' => $msg->created_at->format('M d, H:i'),
+        ]);
     }
 }
-

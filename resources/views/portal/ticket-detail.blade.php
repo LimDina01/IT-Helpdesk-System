@@ -3,7 +3,16 @@
 @section('title', 'Ticket ' . $ticket->ticket_code)
 
 @section('content')
+@php
+    $defaultInspectorTab = \Illuminate\Support\Str::contains((string) session('status', ''), ['Equipment', 'stock', 'Component', 'asset', 'maintenance'])
+        || $errors->hasAny(['asset_id', 'component_id', 'description'])
+        ? 'equipment'
+        : 'overview';
+@endphp
 <div x-data="{
+    inspectorTab: '{{ $defaultInspectorTab }}',
+    chatFilter: 'all',
+    showJumpToBottom: false,
     clarifyModal: false,
     blockModal: false,
     rejectHoldModal: false,
@@ -68,7 +77,7 @@
         'visibility' => $m->visibility,
         'body' => $m->body,
         'created_at_human' => $m->created_at->diffForHumans(),
-        'created_at_full' => $m->created_at->format('H:i'),
+        'created_at_full' => $m->created_at->format('M d, H:i'),
         'attachments' => $m->attachments->map(fn($a) => [
             'id' => $a->id,
             'original_filename' => $a->original_filename,
@@ -79,10 +88,35 @@
         ]),
     ])) }},
     pollTimer: null,
+    getFilteredMessages() {
+        if (this.chatFilter === 'conversation') {
+            return this.chatMessages.filter(m => m.visibility !== 'system_event');
+        }
+        if (this.chatFilter === 'notes') {
+            return this.chatMessages.filter(m => m.visibility === 'internal_staff_only');
+        }
+        return this.chatMessages;
+    },
+    getInternalNotesCount() {
+        return this.chatMessages.filter(m => m.visibility === 'internal_staff_only').length;
+    },
+    handleChatScroll(el) {
+        if (!el) return;
+        this.showJumpToBottom = (el.scrollHeight - el.scrollTop - el.clientHeight) > 120;
+    },
+    jumpToAttachAsset() {
+        this.inspectorTab = 'equipment';
+        this.$nextTick(() => {
+            window.dispatchEvent(new CustomEvent('open-attach-asset'));
+        });
+    },
     scrollToBottom() {
         this.$nextTick(() => {
             const el = document.getElementById('portalChatStream');
-            if (el) el.scrollTop = el.scrollHeight;
+            if (el) {
+                el.scrollTop = el.scrollHeight;
+                this.showJumpToBottom = false;
+            }
         });
     },
     showToast(msg) {
@@ -205,6 +239,9 @@
             if (res.ok) {
                 const data = await res.json().catch(() => ({}));
                 this.showToast(data.message || (this.messageTab === 'internal_staff_only' ? 'Internal note added.' : 'Reply sent to employee.'));
+                if (this.chatFilter === 'notes' && this.messageTab === 'requester_visible') {
+                    this.chatFilter = 'all';
+                }
                 await this.fetchLiveMessages();
                 this.scrollToBottom();
                 if (inputEl) {
@@ -235,10 +272,10 @@
             this.fetchLiveMessages();
         }, 3500);
     }
-}" x-init="initLivePoll()" class="space-y-6">
+}" x-init="initLivePoll()" class="space-y-4">
 
     <!-- Top Ticket Header & Action Command Center -->
-    <div class="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs space-y-4">
+    <div class="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200/80 shadow-xs space-y-3">
         
         <!-- Row 1: Breadcrumbs, Badges, Priority Switcher & Live Presence -->
         <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3.5">
@@ -483,13 +520,13 @@
             </div>
         </div>
 
-        <!-- Integrated Problem Description Callout (Cleanly embedded, replaces redundant card) -->
+        <!-- Integrated Problem Description Callout (Cleanly embedded, bounded height for long logs) -->
         @if($ticket->description)
-            <div class="mt-2 pt-3 border-t border-slate-100 text-xs bg-slate-50/70 border border-slate-200/60 rounded-2xl p-3.5 flex items-start space-x-3">
-                <span class="text-base leading-none select-none text-slate-400">📝</span>
+            <div class="mt-1 pt-2.5 border-t border-slate-100 text-xs bg-slate-50/70 border border-slate-200/60 rounded-2xl p-3 flex items-start space-x-2.5">
+                <span class="text-sm leading-none select-none text-slate-400 mt-0.5">📝</span>
                 <div class="flex-1 min-w-0">
                     <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">Initial Problem Statement</span>
-                    <p class="leading-relaxed whitespace-pre-wrap text-slate-800 font-medium text-xs">{{ $ticket->description }}</p>
+                    <p class="leading-relaxed whitespace-pre-wrap text-slate-800 font-medium text-xs max-h-32 overflow-y-auto pr-1">{{ $ticket->description }}</p>
                 </div>
             </div>
         @endif
@@ -622,35 +659,49 @@
         </div>
     @endif
 
-    <!-- Multi-Stage Approval Workflow Card (For Service Requests) -->
+    <!-- Multi-Stage Approval Workflow Card (Auto-collapsed once completed to keep chat above the fold) -->
     @if($ticket->approvals->isNotEmpty())
-        <div class="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs space-y-4">
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
-                <div class="flex items-center space-x-2">
-                    <span class="text-xl">📋</span>
-                    <div>
-                        <h2 class="text-sm font-extrabold text-slate-900 uppercase tracking-wide">Multi-Step Service Approval Workflow</h2>
-                        <p class="text-xs text-slate-500">Requires formal administrative sign-offs before IT team starts work.</p>
+        <div x-data="{ approvalsExpanded: {{ ($ticket->isPendingApproval() || $ticket->isRejected() || $canApproveCurrent) ? 'true' : 'false' }} }"
+             class="bg-white rounded-3xl px-4 sm:px-5 border border-slate-200/80 shadow-xs transition-all"
+             :class="approvalsExpanded ? 'py-4 sm:py-5 space-y-4' : 'py-3'">
+            <div @click="approvalsExpanded = !approvalsExpanded"
+                 class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 cursor-pointer select-none"
+                 :class="approvalsExpanded ? 'border-b border-slate-100 pb-3' : ''">
+                <div class="flex items-center space-x-2.5 min-w-0">
+                    <span class="text-lg">📋</span>
+                    <div class="min-w-0">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <h2 class="text-xs sm:text-sm font-extrabold text-slate-900 uppercase tracking-wide">Multi-Step Service Approval Workflow</h2>
+                            <span class="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                                {{ $ticket->approvals->where('status', 'approved')->count() }}/{{ $ticket->approvals->count() }} Steps
+                            </span>
+                        </div>
+                        <p x-show="approvalsExpanded" class="text-xs text-slate-500">Requires formal administrative sign-offs before IT team starts work.</p>
                     </div>
                 </div>
 
-                @if($ticket->isPendingApproval() && $currentApproval)
-                    <span class="bg-purple-100 text-purple-800 font-bold text-xs px-3 py-1 rounded-full border border-purple-200">
-                        Waiting on: {{ $currentApproval->step_name }}
-                    </span>
-                @elseif($ticket->isRejected())
-                    <span class="bg-rose-100 text-rose-800 font-bold text-xs px-3 py-1 rounded-full border border-rose-200">
-                        ✖ Request Rejected
-                    </span>
-                @else
-                    <span class="bg-emerald-100 text-emerald-800 font-bold text-xs px-3 py-1 rounded-full border border-emerald-200">
-                        ✔ All Approvals Completed
-                    </span>
-                @endif
+                <div class="flex items-center space-x-2 shrink-0">
+                    @if($ticket->isPendingApproval() && $currentApproval)
+                        <span class="bg-purple-100 text-purple-800 font-bold text-xs px-3 py-1 rounded-full border border-purple-200">
+                            Waiting on: {{ $currentApproval->step_name }}
+                        </span>
+                    @elseif($ticket->isRejected())
+                        <span class="bg-rose-100 text-rose-800 font-bold text-xs px-3 py-1 rounded-full border border-rose-200">
+                            ✖ Request Rejected
+                        </span>
+                    @else
+                        <span class="bg-emerald-100 text-emerald-800 font-bold text-xs px-3 py-1 rounded-full border border-emerald-200">
+                            ✔ All Approvals Completed
+                        </span>
+                    @endif
+                    <button type="button" class="text-[11px] font-bold text-slate-500 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded-lg transition cursor-pointer">
+                        <span x-text="approvalsExpanded ? 'Hide ▲' : 'Details ▾'"></span>
+                    </button>
+                </div>
             </div>
 
             <!-- Approval Steps Visual Cards -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div x-show="approvalsExpanded" x-transition class="grid grid-cols-1 md:grid-cols-2 gap-4" x-cloak>
                 @foreach($ticket->approvals as $approval)
                     <div class="p-4 rounded-2xl border transition {{ $approval->status === 'approved' ? 'bg-emerald-50/60 border-emerald-200' : ($approval->status === 'rejected' ? 'bg-rose-50/60 border-rose-200' : ($currentApproval && $currentApproval->id === $approval->id ? 'bg-purple-50/70 border-purple-300 ring-2 ring-purple-400' : 'bg-slate-50 border-slate-200 opacity-60')) }}">
                         <div class="flex items-center justify-between mb-2">
@@ -708,7 +759,7 @@
 
             <!-- Action Prompt for Authorized Approver -->
             @if($canApproveCurrent && $currentApproval && $ticket->isPendingApproval())
-                <div class="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-2xl p-4 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-md">
+                <div x-show="approvalsExpanded" class="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-2xl p-4 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-md">
                     <div class="space-y-0.5">
                         <div class="font-extrabold text-sm flex items-center space-x-1.5">
                             <span>⚡</span>
@@ -740,574 +791,712 @@
         </div>
     @endif
 
-    <!-- 2-Column Operational Grid -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    @php
+        $hasRepeatAssetIssue = $ticket->assets->contains(function ($linkedAsset) use ($ticket) {
+            return $linkedAsset->tickets
+                ->where('id', '!=', $ticket->id)
+                ->where('created_at', '>=', now()->subDays(90))
+                ->count() >= 1;
+        });
+        $historyCount = $ticket->assignments->count() + $ticket->auditLogs->count();
+    @endphp
 
-        <!-- Left Column: Details, Assignee, Requester & Audit History -->
-        <div class="space-y-6">
-            
-            <!-- Assigned Technician & Delegation Card -->
-            <div class="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs space-y-4">
-                <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-                    <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Current Assignee</span>
-                    @if($ticket->technician && Auth::user()->hasAnyRole(['helpdesk', 'system_admin', 'hod']))
-                        <button type="button" @click="reassignDrawer = true" class="text-xs text-blue-600 hover:underline font-semibold cursor-pointer">
-                            Reassign
+    <!-- 2-Column Operational Workspace (Compact Tabbed Inspector + Sticky Full-Height Chat) -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+
+        <!-- Left Column: Compact Summary + Tabbed Details Inspector -->
+        <div class="lg:col-span-5 xl:col-span-4 space-y-4 order-2 lg:order-1">
+
+            <!-- Compact Triage & At-a-Glance Summary Card -->
+            <div class="bg-white rounded-3xl p-4 border border-slate-200/80 shadow-xs space-y-3">
+
+                <!-- 1. Current Assignee (Compact) -->
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Current Assignee</span>
+                        @if($ticket->technician && Auth::user()->hasAnyRole(['helpdesk', 'system_admin', 'hod']))
+                            <button type="button" @click="reassignDrawer = true" class="text-[11px] text-blue-600 hover:underline font-semibold cursor-pointer">
+                                Reassign
+                            </button>
+                        @endif
+                    </div>
+
+                    @if($ticket->technician)
+                        <div class="flex items-center justify-between gap-2.5 bg-slate-50/80 rounded-2xl p-2.5 border border-slate-100">
+                            <div class="flex items-center space-x-2.5 min-w-0">
+                                <div class="w-8 h-8 rounded-full bg-blue-100 text-blue-700 font-bold flex items-center justify-center text-xs shrink-0">
+                                    {{ substr($ticket->technician->name, 0, 1) }}
+                                </div>
+                                <div class="min-w-0">
+                                    <div class="text-xs font-bold text-slate-800 truncate">{{ $ticket->technician->name }}</div>
+                                    <div class="text-[10px] text-slate-500 truncate">{{ $ticket->technician->email }}</div>
+                                </div>
+                            </div>
+                            <div class="text-right shrink-0">
+                                @if($ticket->acknowledged_at)
+                                    <span class="inline-block text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-lg">
+                                        ✔ Accepted
+                                    </span>
+                                @else
+                                    <span class="inline-block text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-lg">
+                                        ⏳ Pending
+                                    </span>
+                                @endif
+                                <div class="text-[9px] text-slate-400 mt-0.5">
+                                    {{ $ticket->assigned_at ? $ticket->assigned_at->format('M d, H:i') : 'N/A' }}
+                                </div>
+                            </div>
+                        </div>
+                    @else
+                        <!-- High-Visibility Unassigned Triage Card -->
+                        <div class="p-3.5 bg-amber-50/70 border border-amber-200/80 rounded-2xl space-y-2.5">
+                            <div class="flex items-center space-x-2 text-amber-800 text-xs font-bold">
+                                <span>⚠️</span>
+                                <span>Awaiting Assignment</span>
+                            </div>
+                            <p class="text-[11px] text-amber-900/80">This ticket has not been assigned to any technician yet.</p>
+
+                            <form method="POST" action="{{ route('portal.tickets.assign-me', $ticket->id) }}">
+                                @csrf
+                                <button type="submit" class="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center space-x-1.5 cursor-pointer">
+                                    <span>⚡</span>
+                                    <span>Assign to Myself</span>
+                                </button>
+                            </form>
+
+                            @if(Auth::user()->hasAnyRole(['helpdesk', 'system_admin', 'hod']))
+                                <div class="pt-2 border-t border-amber-200/60">
+                                    <form method="POST" action="{{ route('portal.tickets.assign', $ticket->id) }}" class="flex items-center gap-1.5">
+                                        @csrf
+                                        <select name="technician_id" required class="flex-1 min-w-0 text-xs px-2.5 py-1.5 rounded-xl border border-slate-300 bg-white font-medium focus:ring-2 focus:ring-blue-500">
+                                            <option value="">Assign teammate...</option>
+                                            @foreach($technicians as $tech)
+                                                <option value="{{ $tech->id }}">{{ $tech->name }}</option>
+                                            @endforeach
+                                        </select>
+                                        <button type="submit" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-xl transition cursor-pointer shrink-0">
+                                            Assign
+                                        </button>
+                                    </form>
+                                </div>
+                            @endif
+                        </div>
+                    @endif
+                </div>
+
+                <!-- 2. SLA Live Health Strip -->
+                <div class="flex items-center justify-between gap-2 px-3 py-2 rounded-2xl bg-slate-50/90 border border-slate-200/60 text-xs">
+                    <div class="flex items-center space-x-2 min-w-0">
+                        @if($ticket->isSlaPaused())
+                            <span class="bg-amber-100 text-amber-800 font-extrabold text-[10px] uppercase px-2 py-0.5 rounded-full shrink-0">⏸️ SLA Paused</span>
+                        @elseif($ticket->isLunchBreak() && !in_array($ticket->status, ['resolved_confirmed', 'resolved_auto_closed', 'closed']))
+                            <span class="bg-amber-100 text-amber-800 font-extrabold text-[10px] uppercase px-2 py-0.5 rounded-full shrink-0">🍽️ Lunch Break</span>
+                        @elseif($ticket->isSlaOverdue())
+                            <span class="bg-rose-100 text-rose-800 font-extrabold text-[10px] uppercase px-2 py-0.5 rounded-full animate-pulse shrink-0">⚠️ Overdue</span>
+                        @else
+                            <span class="bg-emerald-100 text-emerald-800 font-extrabold text-[10px] uppercase px-2 py-0.5 rounded-full shrink-0">✔ On Track</span>
+                        @endif
+
+                        <span class="text-[11px] font-semibold text-slate-700 truncate">
+                            @if($ticket->getSlaRemainingHours() !== null)
+                                @if($ticket->getSlaRemainingHours() < 0)
+                                    <span class="text-rose-600">+{{ abs($ticket->getSlaRemainingHours()) }}h over</span>
+                                @else
+                                    <span class="text-emerald-700">{{ $ticket->getSlaRemainingHours() }}h left</span>
+                                @endif
+                            @else
+                                {{ $ticket->getActiveHoursElapsed() }}h elapsed
+                            @endif
+                        </span>
+                    </div>
+
+                    <button type="button" @click="inspectorTab = 'overview'" class="text-[11px] font-semibold text-slate-500 hover:text-blue-600 shrink-0 cursor-pointer">
+                        Target: {{ $ticket->category?->target_resolve_hours ? "{$ticket->category->target_resolve_hours}h" : 'N/A' }}
+                    </button>
+                </div>
+
+                <!-- 3. Quick Linked Equipment Strip (Always glanceable; 1-click jumps to Assets tab) -->
+                <div class="flex items-center justify-between gap-2 pt-1 border-t border-slate-100 text-xs">
+                    @if($ticket->assets->isNotEmpty())
+                        <div class="flex items-center flex-wrap gap-1.5 min-w-0">
+                            @foreach($ticket->assets as $quickAsset)
+                                <button type="button" @click="inspectorTab = 'equipment'"
+                                        class="inline-flex items-center space-x-1 px-2 py-0.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200/80 text-[11px] font-bold transition cursor-pointer max-w-full">
+                                    <span>{{ $quickAsset->category?->icon ?? '🖥️' }}</span>
+                                    <span class="font-mono truncate">{{ $quickAsset->asset_tag }}</span>
+                                </button>
+                            @endforeach
+                        </div>
+                        <button type="button" @click="inspectorTab = 'equipment'" class="text-[11px] font-bold text-blue-600 hover:underline shrink-0 cursor-pointer">
+                            Manage &rarr;
+                        </button>
+                    @else
+                        <span class="text-[11px] text-slate-400">🖥️ No hardware linked</span>
+                        <button type="button" @click="jumpToAttachAsset()" class="text-[11px] font-bold text-blue-600 hover:text-blue-800 hover:underline shrink-0 cursor-pointer">
+                            + Link Machine
                         </button>
                     @endif
                 </div>
+            </div>
 
-                @if($ticket->technician)
-                    <div class="flex items-center space-x-3">
-                        <div class="w-10 h-10 rounded-full bg-blue-100 text-blue-700 font-bold flex items-center justify-center text-sm">
-                            {{ substr($ticket->technician->name, 0, 1) }}
-                        </div>
-                        <div>
-                            <div class="text-sm font-bold text-slate-800">{{ $ticket->technician->name }}</div>
-                            <div class="text-xs text-slate-500">{{ $ticket->technician->email }}</div>
-                        </div>
-                    </div>
+            <!-- Modular Tabbed Inspector Card (Prevents endless downward column growth) -->
+            <div class="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
 
-                    <div class="bg-slate-50 rounded-xl p-3 text-xs space-y-1.5 text-slate-600">
-                        <div class="flex justify-between">
-                            <span class="text-slate-400">Assigned:</span>
-                            <span class="font-medium">{{ $ticket->assigned_at ? $ticket->assigned_at->format('M d, H:i') : 'N/A' }}</span>
+                <!-- Inspector Tab Bar -->
+                <div class="grid grid-cols-3 bg-slate-100/80 p-1.5 gap-1 border-b border-slate-200/80">
+                    <button type="button" @click="inspectorTab = 'overview'"
+                            :class="inspectorTab === 'overview' ? 'bg-white text-slate-900 shadow-xs font-bold' : 'text-slate-600 hover:text-slate-900 font-semibold'"
+                            class="py-2 px-2 rounded-xl text-[11px] transition flex items-center justify-center space-x-1 cursor-pointer">
+                        <span>📋</span>
+                        <span>Info &amp; SLA</span>
+                    </button>
+
+                    <button type="button" @click="inspectorTab = 'equipment'"
+                            :class="inspectorTab === 'equipment' ? 'bg-white text-slate-900 shadow-xs font-bold' : 'text-slate-600 hover:text-slate-900 font-semibold'"
+                            class="py-2 px-2 rounded-xl text-[11px] transition flex items-center justify-center space-x-1 cursor-pointer relative">
+                        <span>🖥️</span>
+                        <span>Assets</span>
+                        <span class="px-1.5 py-0.2 rounded-full text-[10px] font-bold {{ $ticket->assets->isNotEmpty() ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600' }}">
+                            {{ $ticket->assets->count() }}
+                        </span>
+                        @if($hasRepeatAssetIssue)
+                            <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse" title="Repeat issue detected in last 90 days"></span>
+                        @endif
+                    </button>
+
+                    <button type="button" @click="inspectorTab = 'history'"
+                            :class="inspectorTab === 'history' ? 'bg-white text-slate-900 shadow-xs font-bold' : 'text-slate-600 hover:text-slate-900 font-semibold'"
+                            class="py-2 px-2 rounded-xl text-[11px] transition flex items-center justify-center space-x-1 cursor-pointer">
+                        <span>🕘</span>
+                        <span>History</span>
+                        <span class="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-slate-200 text-slate-600">
+                            {{ $historyCount }}
+                        </span>
+                    </button>
+                </div>
+
+                <!-- Tab 1: SLA Commitments & Requester Info -->
+                <div x-show="inspectorTab === 'overview'" class="p-4 space-y-4">
+                    <!-- SLA Breakdown (Compact 2x2 Grid) -->
+                    <div class="space-y-2.5">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500">SLA Commitments</span>
+                            @if($ticket->isSlaPaused())
+                                <span class="bg-amber-100 text-amber-800 font-extrabold text-[9px] uppercase px-2 py-0.5 rounded-full">⏸️ SLA Paused</span>
+                            @elseif($ticket->isLunchBreak() && !in_array($ticket->status, ['resolved_confirmed', 'resolved_auto_closed', 'closed']))
+                                <span class="bg-amber-100 text-amber-800 font-extrabold text-[9px] uppercase px-2 py-0.5 rounded-full">🍽️ Lunch Break</span>
+                            @elseif($ticket->isSlaOverdue())
+                                <span class="bg-rose-100 text-rose-800 font-extrabold text-[9px] uppercase px-2 py-0.5 rounded-full">⚠️ Overdue</span>
+                            @else
+                                <span class="bg-emerald-100 text-emerald-800 font-extrabold text-[9px] uppercase px-2 py-0.5 rounded-full">✔ On Track</span>
+                            @endif
                         </div>
-                        <div class="flex justify-between">
-                            <span class="text-slate-400">Accepted:</span>
-                            <span class="font-medium">
-                                @if($ticket->acknowledged_at)
-                                    <span class="text-emerald-600 font-bold">✔ {{ $ticket->acknowledged_at->format('M d, H:i') }}</span>
+
+                        <div class="grid grid-cols-2 gap-2 text-xs">
+                            <div class="bg-slate-50 rounded-xl p-2.5 border border-slate-100">
+                                <div class="text-[10px] text-slate-400 font-medium">Target Resolution</div>
+                                <div class="font-bold text-slate-800 mt-0.5">{{ $ticket->category?->target_resolve_hours ? "{$ticket->category->target_resolve_hours} hours" : 'N/A' }}</div>
+                            </div>
+                            <div class="bg-slate-50 rounded-xl p-2.5 border border-slate-100">
+                                <div class="text-[10px] text-slate-400 font-medium">Active IT Time</div>
+                                <div class="font-bold text-blue-700 mt-0.5">{{ $ticket->getActiveHoursElapsed() }} hours</div>
+                            </div>
+                            <div class="bg-slate-50 rounded-xl p-2.5 border border-slate-100">
+                                <div class="text-[10px] text-slate-400 font-medium">Wall-Clock Age</div>
+                                <div class="font-semibold text-slate-700 mt-0.5">{{ $ticket->created_at->diffForHumans(null, true) }}</div>
+                            </div>
+                            <div class="bg-slate-50 rounded-xl p-2.5 border border-slate-100">
+                                <div class="text-[10px] text-slate-400 font-medium">Target Deadline</div>
+                                <div class="font-bold text-slate-800 mt-0.5 text-[11px]">{{ $ticket->getSlaDeadline() ? $ticket->getSlaDeadline()->format('D, d-M h:i A') : 'N/A' }}</div>
+                            </div>
+                        </div>
+
+                        @if($ticket->getPausedMinutes() > 0)
+                            <div class="flex justify-between items-center text-amber-800 bg-amber-50 px-3 py-2 rounded-xl text-xs border border-amber-200/60">
+                                <span class="font-medium">⏸️ On-Hold Time:</span>
+                                <span class="font-bold">{{ $ticket->getPausedHours() }}h ({{ $ticket->getPausedMinutes() }}m)</span>
+                            </div>
+                        @endif
+
+                        <div class="pt-1 flex justify-between items-center text-xs">
+                            <span class="text-slate-400">SLA Status:</span>
+                            @if($ticket->isSlaPaused())
+                                <span class="font-bold text-amber-600">Clock Frozen (Vendor Hold)</span>
+                            @elseif($ticket->isLunchBreak() && !in_array($ticket->status, ['resolved_confirmed', 'resolved_auto_closed', 'closed']))
+                                <span class="font-bold text-amber-600">🍽️ Lunch Break (Frozen until 01:00 PM)</span>
+                            @elseif($ticket->isOutsideBusinessHours() && !in_array($ticket->status, ['resolved_confirmed', 'resolved_auto_closed', 'closed']))
+                                <span class="font-bold text-indigo-600">🌙 Off-Hours (Frozen until 08:00 AM)</span>
+                            @elseif($ticket->getSlaRemainingHours() !== null)
+                                @if($ticket->getSlaRemainingHours() < 0)
+                                    <span class="font-bold text-rose-600">Overdue (+{{ abs($ticket->getSlaRemainingHours()) }}h)</span>
                                 @else
-                                    <span class="text-amber-600 font-semibold">Pending Acceptance</span>
+                                    <span class="font-bold text-emerald-600">{{ $ticket->getSlaRemainingHours() }}h remaining</span>
                                 @endif
-                            </span>
+                            @else
+                                <span class="text-slate-400">No Target Defined</span>
+                            @endif
                         </div>
                     </div>
-                @else
-                    <!-- High-Visibility Unassigned Triage Card -->
-                    <div class="p-4 bg-amber-50/70 border border-amber-200/80 rounded-2xl space-y-3">
-                        <div class="flex items-center space-x-2 text-amber-800 text-xs font-bold">
-                            <span>⚠️</span>
-                            <span>Awaiting Assignment</span>
-                        </div>
-                        <p class="text-[11px] text-amber-900/80">This ticket has not been assigned to any technician yet.</p>
-                        
-                        <form method="POST" action="{{ route('portal.tickets.assign-me', $ticket->id) }}">
-                            @csrf
-                            <button type="submit" class="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center space-x-1.5">
-                                <span>⚡</span>
-                                <span>Assign to Myself</span>
-                            </button>
-                        </form>
 
-                        @if(Auth::user()->hasAnyRole(['helpdesk', 'system_admin', 'hod']))
-                        <div class="pt-2 border-t border-amber-200/60">
-                            <div class="text-[11px] font-bold text-slate-600 mb-1.5">Or assign to a teammate:</div>
-                            <form method="POST" action="{{ route('portal.tickets.assign', $ticket->id) }}" class="space-y-2">
+                    <!-- Requester Profile -->
+                    <div class="pt-3 border-t border-slate-100 space-y-2.5 text-xs">
+                        <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">Requester Info</span>
+
+                        <div class="flex items-center space-x-2.5">
+                            <div class="w-8 h-8 rounded-full bg-slate-100 text-slate-700 font-bold flex items-center justify-center text-xs border border-slate-200 shrink-0">
+                                {{ substr($ticket->requester->name, 0, 1) }}
+                            </div>
+                            <div class="min-w-0">
+                                <div class="font-bold text-xs text-slate-800 truncate">{{ $ticket->requester->name }}</div>
+                                <div class="text-blue-600 font-mono font-medium text-[10px]">{{ $ticket->requester->employee?->employee_code ?? 'EMP' }}</div>
+                            </div>
+                        </div>
+
+                        <div class="space-y-1.5 text-slate-600 bg-slate-50/70 rounded-2xl p-3 border border-slate-100">
+                            <div class="flex items-center space-x-2">
+                                <span>🏢</span>
+                                <span class="truncate"><strong>Branch:</strong> {{ $ticket->branch->name }} ({{ $ticket->branch->code }})</span>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <span>📂</span>
+                                <span class="truncate"><strong>Dept:</strong> {{ $ticket->requester->employee?->department?->name ?? 'General' }}</span>
+                            </div>
+                            <div class="flex items-center justify-between gap-2">
+                                <div class="flex items-center space-x-2 truncate min-w-0">
+                                    <span>📧</span>
+                                    <a href="mailto:{{ $ticket->requester->email }}" class="text-blue-600 hover:underline truncate">{{ $ticket->requester->email ?? 'N/A' }}</a>
+                                </div>
+                                @if($ticket->requester->email)
+                                    <button type="button" @click="copyEmail('{{ $ticket->requester->email }}')" class="text-slate-400 hover:text-slate-700 text-[10px] font-semibold shrink-0 cursor-pointer">
+                                        <span x-show="!copiedEmail">Copy</span>
+                                        <span x-show="copiedEmail" class="text-emerald-600">Copied!</span>
+                                    </button>
+                                @endif
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <span>📱</span>
+                                <span class="truncate"><strong>Telegram:</strong>
+                                    @if($ticket->requester->telegram_username)
+                                        <a href="https://t.me/{{ ltrim($ticket->requester->telegram_username, '@') }}" target="_blank" class="text-blue-600 font-mono hover:underline font-bold">
+                                            {{ Str::start($ticket->requester->telegram_username, '@') }} &nearr;
+                                        </a>
+                                    @else
+                                        <span class="text-slate-400">ID: {{ $ticket->requester->telegram_id ?? 'Not linked' }}</span>
+                                    @endif
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 2: Linked Equipment & Asset -->
+                <div x-show="inspectorTab === 'equipment'" class="p-4 space-y-3" x-cloak>
+                    <div class="flex items-center justify-between">
+                        <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Linked Equipment / Asset</div>
+                        @if($ticket->assets->isNotEmpty())
+                            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                {{ $ticket->assets->count() }} Linked
+                            </span>
+                        @endif
+                    </div>
+
+                    @if($ticket->assets->isNotEmpty())
+                        <div class="space-y-3">
+                            @foreach($ticket->assets as $linkedAsset)
+                                @php
+                                    $priorTickets = $linkedAsset->tickets->where('id', '!=', $ticket->id);
+                                    $priorCount = $priorTickets->count();
+                                    $recent90Count = $priorTickets->where('created_at', '>=', now()->subDays(90))->count();
+                                    $parts = $ticket->assetParts->where('asset_id', $linkedAsset->id);
+                                @endphp
+                                <div class="p-3 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-2">
+                                    <div class="flex items-start justify-between gap-2">
+                                        <div class="flex items-center space-x-2.5 min-w-0">
+                                            <div class="w-8 h-8 rounded-xl bg-blue-50 text-blue-700 border border-blue-200/60 flex items-center justify-center text-sm font-black shrink-0">
+                                                {{ $linkedAsset->category?->icon ?? '🖥️' }}
+                                            </div>
+                                            <div class="min-w-0">
+                                                <a href="{{ route('portal.assets.show', $linkedAsset->id) }}" class="font-bold text-xs text-blue-600 hover:text-blue-800 hover:underline block truncate">
+                                                    {{ $linkedAsset->asset_tag }}
+                                                </a>
+                                                <div class="text-[11px] text-slate-800 font-semibold leading-snug">{{ $linkedAsset->name }}</div>
+                                            </div>
+                                        </div>
+                                        <form method="POST" action="{{ route('portal.tickets.assets.detach', [$ticket->id, $linkedAsset->id]) }}" onsubmit="return confirm('Detach equipment {{ $linkedAsset->asset_tag }} from this ticket?');" class="shrink-0">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="text-slate-400 hover:text-rose-600 text-xs font-bold p-1 cursor-pointer" title="Detach Asset">✕</button>
+                                        </form>
+                                    </div>
+
+                                    <div class="text-[10px] text-slate-500 flex flex-wrap gap-x-2 gap-y-0.5">
+                                        <span>📍 {{ $linkedAsset->branch?->name ?? 'HQ' }}</span>
+                                        @if($linkedAsset->ownership_type === 'personal' && $linkedAsset->assignedUser)
+                                            <span>&bull; 👤 {{ $linkedAsset->assignedUser->name }}</span>
+                                        @elseif($linkedAsset->location_details)
+                                            <span>&bull; {{ $linkedAsset->location_details }}</span>
+                                        @endif
+                                    </div>
+
+                                    <!-- Prior Service History / Repeat Issue Indicator -->
+                                    <div class="pt-0.5">
+                                        @if($recent90Count >= 1)
+                                            <a href="{{ route('portal.assets.show', $linkedAsset->id) }}" class="inline-flex items-center space-x-1 text-[10px] font-bold px-2 py-0.5 rounded-lg bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100 transition">
+                                                <span>⚠️ {{ $priorCount }} prior {{ \Illuminate\Support\Str::plural('ticket', $priorCount) }} ({{ $recent90Count }} in 90d)</span>
+                                                <span>&rarr;</span>
+                                            </a>
+                                        @elseif($priorCount > 0)
+                                            <a href="{{ route('portal.assets.show', $linkedAsset->id) }}" class="inline-flex items-center space-x-1 text-[10px] font-semibold px-2 py-0.5 rounded-lg bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition">
+                                                <span>🕘 {{ $priorCount }} prior {{ \Illuminate\Support\Str::plural('ticket', $priorCount) }}</span>
+                                                <span>&rarr;</span>
+                                            </a>
+                                        @else
+                                            <a href="{{ route('portal.assets.show', $linkedAsset->id) }}" class="inline-flex items-center space-x-1 text-[10px] font-medium px-2 py-0.5 rounded-lg bg-white text-slate-500 border border-slate-200/80 hover:text-blue-600 transition">
+                                                <span>✨ First logged ticket &bull; View Asset</span>
+                                            </a>
+                                        @endif
+                                    </div>
+
+                                    <!-- Parts replaced on this asset for this ticket -->
+                                    @if($parts->isNotEmpty())
+                                        <div class="pt-2 border-t border-slate-200/60 space-y-1">
+                                            <div class="text-[10px] font-bold text-amber-800 uppercase tracking-wider">Parts Service Log:</div>
+                                            @foreach($parts as $part)
+                                                <div class="text-[11px] text-slate-700 bg-amber-50/80 border border-amber-200/60 rounded-lg p-1.5 flex items-start justify-between gap-2">
+                                                    <div class="leading-snug">
+                                                        <span>⚙️ {{ $part->description }}</span>
+                                                        @if($part->component_id)
+                                                            <span class="inline-block ml-1 text-[9px] font-bold px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 border border-emerald-200">From Stock</span>
+                                                        @endif
+                                                    </div>
+                                                    <span class="text-[9px] text-amber-700 font-bold uppercase shrink-0">{{ $part->action }}</span>
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    @endif
+                                </div>
+                            @endforeach
+
+                            <!-- Quick Action: Record Part Replacement / Service -->
+                            <div x-data="{ recordPartOpen: false, selectedSpareId: '', partAction: 'replaced' }" class="pt-1">
+                                <button type="button" @click="recordPartOpen = !recordPartOpen"
+                                        :class="recordPartOpen ? 'bg-slate-100 text-slate-700 border-slate-300' : 'bg-amber-50 hover:bg-amber-100 text-amber-800 border-amber-200'"
+                                        class="w-full py-1.5 px-2.5 border rounded-xl text-xs font-bold transition flex items-center justify-center space-x-1.5 cursor-pointer">
+                                    <span x-text="recordPartOpen ? '✕' : '⚙️'"></span>
+                                    <span x-text="recordPartOpen ? 'Close Part Entry' : 'Record Part Replaced (RAM/SSD)'"></span>
+                                </button>
+
+                                <div x-show="recordPartOpen" class="mt-2.5 p-3 bg-amber-50/50 border border-amber-200 rounded-2xl space-y-2.5" x-cloak>
+                                    <form method="POST" action="{{ route('portal.tickets.assets.parts', $ticket->id) }}" class="space-y-2.5">
+                                        @csrf
+                                        <div>
+                                            <label class="block text-[10px] font-bold text-amber-900 uppercase mb-0.5">Target Asset</label>
+                                            <select name="asset_id" required class="w-full text-xs p-1.5 rounded-lg border border-amber-300 bg-white">
+                                                @foreach($ticket->assets as $la)
+                                                    <option value="{{ $la->id }}">{{ $la->asset_tag }} &bull; {{ $la->name }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-[10px] font-bold text-amber-900 uppercase mb-0.5">Action Taken</label>
+                                            <select name="action" x-model="partAction" class="w-full text-xs p-1.5 rounded-lg border border-amber-300 bg-white">
+                                                <option value="replaced">Replaced Component (Faulty &rarr; New)</option>
+                                                <option value="installed">Installed New Upgrade Component</option>
+                                                <option value="removed">Removed Component</option>
+                                                <option value="serviced">Cleaned / Serviced Existing Component</option>
+                                            </select>
+                                        </div>
+                                        @if(isset($spareComponents) && $spareComponents->isNotEmpty())
+                                            <div x-show="['replaced', 'installed'].includes(partAction)">
+                                                <label class="block text-[10px] font-bold text-amber-900 uppercase mb-0.5">Use Part from IT Spare Stock (Optional)</label>
+                                                <select name="component_id" x-model="selectedSpareId" class="w-full text-xs p-1.5 rounded-lg border border-amber-300 bg-white">
+                                                    <option value="">-- Custom / No Stock Deduction --</option>
+                                                    @foreach($spareComponents as $sp)
+                                                        <option value="{{ $sp->id }}">
+                                                            [{{ strtoupper($sp->component_type) }}] {{ $sp->brand_model }}{{ $sp->capacity_or_specs ? ' (' . $sp->capacity_or_specs . ')' : '' }} &bull; {{ $sp->branch?->code ?? 'HQ' }}
+                                                        </option>
+                                                    @endforeach
+                                                </select>
+                                                <p x-show="selectedSpareId" class="text-[10px] text-emerald-700 font-semibold mt-1 leading-snug">
+                                                    ✓ Will install this stock unit into the machine and deduct 1 from IT Spare Stock.
+                                                </p>
+                                            </div>
+                                        @endif
+                                        <div>
+                                            <label class="block text-[10px] font-bold text-amber-900 uppercase mb-0.5">
+                                                <span x-text="selectedSpareId ? 'Notes (Optional - Auto-filled from stock)' : 'Description / Specs Replaced'"></span>
+                                            </label>
+                                            <input type="text" name="description" :required="!selectedSpareId"
+                                                   :placeholder="selectedSpareId ? 'Optional e.g. Installed in RAM Slot 1' : 'e.g. Replaced 8GB DDR4 RAM or cleaned tray roller'"
+                                                   class="w-full text-xs p-1.5 rounded-lg border border-amber-300 bg-white">
+                                        </div>
+                                        <button type="submit" class="w-full py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-lg transition cursor-pointer">
+                                            Log Part to Asset History
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    @else
+                        <div class="text-xs text-slate-400 py-1">
+                            No equipment linked yet. Only IT can link hardware.
+                        </div>
+                    @endif
+
+                    <!-- Attach Equipment / Machine (Smart Searchable Asset Combobox) -->
+                    <div x-data="{
+                        attachOpen: false,
+                        assetSearch: '',
+                        assetDropdownOpen: false,
+                        assetScope: '{{ $availableAssetsJson->contains(fn ($a) => $a['is_requester_asset'] || $a['is_same_branch']) ? 'same' : 'all' }}',
+                        selectedAssetId: '',
+                        assets: {{ $availableAssetsJson->toJson() }},
+                        getSelectedAsset() {
+                            if (!this.selectedAssetId) return null;
+                            return this.assets.find(a => a.id == this.selectedAssetId) || null;
+                        },
+                        getSameScopeCount() {
+                            return this.assets.filter(a => a.is_requester_asset || a.is_same_branch).length;
+                        },
+                        getFilteredAssets() {
+                            let q = (this.assetSearch || '').toLowerCase().trim();
+                            let list = this.assets;
+                            if (this.assetScope === 'same') {
+                                list = list.filter(a => a.is_requester_asset || a.is_same_branch);
+                            }
+                            if (q) {
+                                list = list.filter(a =>
+                                    (a.asset_tag && a.asset_tag.toLowerCase().includes(q)) ||
+                                    (a.name && a.name.toLowerCase().includes(q)) ||
+                                    (a.category_name && a.category_name.toLowerCase().includes(q)) ||
+                                    (a.owner_name && a.owner_name.toLowerCase().includes(q)) ||
+                                    (a.location_details && a.location_details.toLowerCase().includes(q)) ||
+                                    (a.branch_name && a.branch_name.toLowerCase().includes(q))
+                                );
+                            }
+                            return [...list].sort((a, b) => {
+                                let scoreA = (a.is_requester_asset ? 10 : 0) + (a.is_same_branch ? 3 : 0) + (a.prior_tickets_count > 0 ? 1 : 0);
+                                let scoreB = (b.is_requester_asset ? 10 : 0) + (b.is_same_branch ? 3 : 0) + (b.prior_tickets_count > 0 ? 1 : 0);
+                                if (scoreB !== scoreA) return scoreB - scoreA;
+                                return a.name.localeCompare(b.name);
+                            });
+                        }
+                    }" @open-attach-asset.window="attachOpen = true; assetDropdownOpen = true" class="pt-2 border-t border-slate-100">
+                        <button type="button"
+                                @click="attachOpen = !attachOpen; if (attachOpen && !selectedAssetId) { assetDropdownOpen = true; } else if (!attachOpen) { assetDropdownOpen = false; }"
+                                :class="attachOpen ? 'bg-slate-100 text-slate-700 border-slate-300' : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'"
+                                class="w-full py-1.5 px-2.5 border rounded-xl text-xs font-bold transition flex items-center justify-center space-x-1.5 cursor-pointer">
+                            <span x-text="attachOpen ? '✕' : '➕'"></span>
+                            <span x-text="attachOpen ? 'Cancel' : 'Attach Equipment / Machine'"></span>
+                        </button>
+
+                        <div x-show="attachOpen" class="mt-2.5 p-3 bg-slate-50 border border-slate-200 rounded-2xl space-y-2.5" x-cloak>
+                            <form method="POST" action="{{ route('portal.tickets.assets.attach', $ticket->id) }}" class="space-y-2.5">
                                 @csrf
-                                <select name="technician_id" required class="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 bg-white font-medium focus:ring-2 focus:ring-blue-500">
-                                    <option value="">Select Technician...</option>
-                                    @foreach($technicians as $tech)
-                                        <option value="{{ $tech->id }}">{{ $tech->name }}</option>
-                                    @endforeach
-                                </select>
-                                <button type="submit" class="w-full py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-xl transition cursor-pointer">
-                                    Assign Technician
+                                <input type="hidden" name="asset_id" :value="selectedAssetId">
+
+                                <div class="flex items-center justify-between gap-1 flex-wrap">
+                                    <label class="block text-[10px] font-bold text-slate-700 uppercase">Select Machine / Asset</label>
+                                    <div class="inline-flex bg-slate-200/70 p-0.5 rounded-lg text-[10px]">
+                                        <button type="button" @click="assetScope = 'same'; assetDropdownOpen = true"
+                                                :class="assetScope === 'same' ? 'bg-white text-blue-700 font-bold shadow-2xs' : 'text-slate-600 font-medium hover:text-slate-800'"
+                                                class="px-2 py-0.5 rounded-md transition cursor-pointer">
+                                            Branch (<span x-text="getSameScopeCount()"></span>)
+                                        </button>
+                                        <button type="button" @click="assetScope = 'all'; assetDropdownOpen = true"
+                                                :class="assetScope === 'all' ? 'bg-white text-blue-700 font-bold shadow-2xs' : 'text-slate-600 font-medium hover:text-slate-800'"
+                                                class="px-2 py-0.5 rounded-md transition cursor-pointer">
+                                            All (<span x-text="assets.length"></span>)
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Selected Asset Summary Card -->
+                                <template x-if="getSelectedAsset()">
+                                    <div class="p-2.5 rounded-xl border border-blue-300 bg-blue-50/70 flex items-start justify-between gap-2">
+                                        <div class="flex items-start space-x-2 min-w-0">
+                                            <span class="text-sm shrink-0 mt-0.5" x-text="getSelectedAsset().category_icon"></span>
+                                            <div class="min-w-0">
+                                                <div class="flex items-center flex-wrap gap-1">
+                                                    <span class="text-[11px] font-mono font-bold text-blue-700" x-text="getSelectedAsset().asset_tag"></span>
+                                                    <template x-if="getSelectedAsset().is_requester_asset">
+                                                        <span class="text-[9px] font-bold px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 border border-emerald-200">⭐ Requester's</span>
+                                                    </template>
+                                                </div>
+                                                <div class="text-xs font-bold text-slate-900 leading-snug break-words" x-text="getSelectedAsset().name"></div>
+                                                <div class="text-[10px] text-slate-500 mt-0.5 break-words" x-text="getSelectedAsset().owner_name ? ('👤 ' + getSelectedAsset().owner_name) : (getSelectedAsset().location_details || getSelectedAsset().branch_name)"></div>
+                                            </div>
+                                        </div>
+                                        <button type="button" @click="selectedAssetId = ''; assetDropdownOpen = true"
+                                                class="text-[10px] text-rose-600 hover:text-rose-800 font-bold px-1.5 py-0.5 rounded hover:bg-rose-50 shrink-0 cursor-pointer">
+                                            ✕
+                                        </button>
+                                    </div>
+                                </template>
+
+                                <!-- Searchable Trigger & Inline Combobox -->
+                                <template x-if="!getSelectedAsset()">
+                                    <div @click="assetDropdownOpen = !assetDropdownOpen"
+                                         class="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 bg-white hover:border-blue-400 cursor-pointer flex items-center justify-between shadow-2xs">
+                                        <span class="text-slate-500 truncate">🔍 Search tag, owner, room, printer...</span>
+                                        <span class="text-slate-400 text-[10px] ml-1 shrink-0" x-text="assetDropdownOpen ? '▲' : '▼'"></span>
+                                    </div>
+                                </template>
+
+                                <!-- Contained Dropdown List (Stays 100% Inside Card Width) -->
+                                <div x-show="assetDropdownOpen" class="w-full bg-white rounded-xl border border-slate-200 shadow-md overflow-hidden" x-cloak>
+                                    <div class="p-2 border-b border-slate-100 bg-slate-50/70">
+                                        <div class="relative">
+                                            <span class="absolute left-2.5 top-1.5 text-slate-400 text-xs">🔍</span>
+                                            <input type="text" x-model="assetSearch"
+                                                   placeholder="Filter by tag, staff, room, category..."
+                                                   class="w-full text-xs pl-7 pr-6 py-1.5 rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                            <button type="button" x-show="assetSearch" @click="assetSearch = ''" class="absolute right-2 top-1.5 text-xs text-slate-400 hover:text-slate-600 cursor-pointer">✕</button>
+                                        </div>
+                                    </div>
+
+                                    <div class="max-h-56 overflow-y-auto divide-y divide-slate-100 p-1">
+                                        <template x-for="item in getFilteredAssets()" :key="item.id">
+                                            <div @click="selectedAssetId = item.id; assetDropdownOpen = false; assetSearch = ''"
+                                                 class="p-2 hover:bg-blue-50/80 rounded-lg cursor-pointer transition space-y-1">
+                                                <div class="flex items-center justify-between gap-1 flex-wrap">
+                                                    <div class="flex items-center space-x-1.5 min-w-0">
+                                                        <span class="text-xs shrink-0" x-text="item.category_icon"></span>
+                                                        <span class="text-[11px] font-mono font-bold text-blue-700" x-text="item.asset_tag"></span>
+                                                    </div>
+                                                    <div class="flex items-center gap-1 flex-wrap">
+                                                        <template x-if="item.is_requester_asset">
+                                                            <span class="text-[9px] font-bold px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 border border-emerald-200">⭐ Requester</span>
+                                                        </template>
+                                                        <template x-if="!item.is_requester_asset && item.ownership_type === 'shared'">
+                                                            <span class="text-[9px] font-semibold px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700 border border-indigo-200">Shared</span>
+                                                        </template>
+                                                        <template x-if="item.recent_90d_count >= 1">
+                                                            <span class="text-[9px] font-bold px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 border border-amber-200" x-text="'⚠️ ' + item.prior_tickets_count + ' prev'"></span>
+                                                        </template>
+                                                        <template x-if="item.recent_90d_count === 0 && item.prior_tickets_count > 0">
+                                                            <span class="text-[9px] font-semibold px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 border border-slate-200" x-text="'🕘 ' + item.prior_tickets_count + ' prev'"></span>
+                                                        </template>
+                                                    </div>
+                                                </div>
+                                                <div class="text-xs font-semibold text-slate-800 leading-snug break-words" x-text="item.name"></div>
+                                                <div class="text-[10px] text-slate-500 leading-snug break-words">
+                                                    <span x-text="item.owner_name ? ('👤 ' + item.owner_name) : ('📍 ' + (item.location_details || item.branch_name))"></span>
+                                                    <span class="text-slate-300 mx-1">&bull;</span>
+                                                    <span x-text="item.category_name"></span>
+                                                </div>
+                                            </div>
+                                        </template>
+
+                                        <div x-show="getFilteredAssets().length === 0" class="py-4 px-2 text-center text-xs text-slate-400 space-y-1.5">
+                                            <div>No matching equipment found.</div>
+                                            <template x-if="assetScope === 'same'">
+                                                <button type="button" @click="assetScope = 'all'; assetSearch = ''" class="text-blue-600 font-bold hover:underline text-[11px] cursor-pointer">
+                                                    🌐 Show All Branches (<span x-text="assets.length"></span>)
+                                                </button>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <button type="submit" :disabled="!selectedAssetId"
+                                        class="w-full py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold text-xs rounded-xl transition cursor-pointer shadow-xs">
+                                    Confirm &amp; Attach
                                 </button>
                             </form>
                         </div>
-                        @endif
-                    </div>
-                @endif
-            </div>
-
-            <!-- SLA & Resolution Commitment Card -->
-            <div class="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs space-y-3">
-                <div class="flex items-center justify-between border-b border-slate-100 pb-2">
-                    <span class="text-xs font-bold uppercase tracking-wider text-slate-500">SLA Commitments</span>
-                    @if($ticket->isSlaPaused())
-                        <span class="bg-amber-100 text-amber-800 font-extrabold text-[9px] uppercase px-2 py-0.5 rounded-full flex items-center space-x-1">
-                            <span>⏸️</span> <span>SLA Paused</span>
-                        </span>
-                    @elseif($ticket->isLunchBreak() && !in_array($ticket->status, ['resolved_confirmed', 'resolved_auto_closed', 'closed']))
-                        <span class="bg-amber-100 text-amber-800 font-extrabold text-[9px] uppercase px-2 py-0.5 rounded-full flex items-center space-x-1">
-                            <span>🍽️</span> <span>Lunch Break</span>
-                        </span>
-                    @elseif($ticket->isSlaOverdue())
-                        <span class="bg-rose-100 text-rose-800 font-extrabold text-[9px] uppercase px-2 py-0.5 rounded-full animate-pulse">
-                            ⚠️ Overdue
-                        </span>
-                    @else
-                        <span class="bg-emerald-100 text-emerald-800 font-extrabold text-[9px] uppercase px-2 py-0.5 rounded-full">
-                            ✔ On Track
-                        </span>
-                    @endif
-                </div>
-
-                <div class="space-y-2 text-xs">
-                    <div class="flex justify-between items-center text-slate-600">
-                        <span class="text-slate-400">Target Resolution:</span>
-                        <span class="font-bold text-slate-800">{{ $ticket->category?->target_resolve_hours ? "{$ticket->category->target_resolve_hours} hours" : 'N/A' }}</span>
-                    </div>
-
-                    <div class="flex justify-between items-center text-slate-600">
-                        <span class="text-slate-400">Wall-Clock Age:</span>
-                        <span class="font-medium text-slate-700">{{ $ticket->created_at->diffForHumans(null, true) }}</span>
-                    </div>
-
-                    @if($ticket->getPausedMinutes() > 0)
-                        <div class="flex justify-between items-center text-amber-800 bg-amber-50 p-2 rounded-xl">
-                            <span class="font-medium">⏸️ On-Hold Time:</span>
-                            <span class="font-bold">{{ $ticket->getPausedHours() }}h ({{ $ticket->getPausedMinutes() }}m)</span>
-                        </div>
-                    @endif
-
-                    <div class="flex justify-between items-center text-slate-600">
-                        <span class="text-slate-400">Active IT Time:</span>
-                        <span class="font-bold text-blue-700">{{ $ticket->getActiveHoursElapsed() }} hours</span>
-                    </div>
-
-                    @if($ticket->getSlaDeadline())
-                        <div class="flex justify-between items-center text-slate-600">
-                            <span class="text-slate-400">Target Deadline:</span>
-                            <span class="font-bold text-slate-800">{{ $ticket->getSlaDeadline()->format('D, d-M h:i A') }}</span>
-                        </div>
-                    @endif
-
-                    <div class="pt-2 border-t border-slate-100 flex justify-between items-center">
-                        <span class="text-slate-400">SLA Status:</span>
-                        @if($ticket->isSlaPaused())
-                            <span class="font-bold text-amber-600">Clock Frozen (Vendor Hold)</span>
-                        @elseif($ticket->isLunchBreak() && !in_array($ticket->status, ['resolved_confirmed', 'resolved_auto_closed', 'closed']))
-                            <span class="font-bold text-amber-600">🍽️ Lunch Break (Frozen until 01:00 PM)</span>
-                        @elseif($ticket->isOutsideBusinessHours() && !in_array($ticket->status, ['resolved_confirmed', 'resolved_auto_closed', 'closed']))
-                            <span class="font-bold text-indigo-600">🌙 Off-Hours (Frozen until 08:00 AM)</span>
-                        @elseif($ticket->getSlaRemainingHours() !== null)
-                            @if($ticket->getSlaRemainingHours() < 0)
-                                <span class="font-bold text-rose-600">Overdue (+{{ abs($ticket->getSlaRemainingHours()) }}h)</span>
-                            @else
-                                <span class="font-bold text-emerald-600">{{ $ticket->getSlaRemainingHours() }}h remaining</span>
-                            @endif
-                        @else
-                            <span class="text-slate-400">No Target Defined</span>
-                        @endif
                     </div>
                 </div>
-            </div>
 
-            <!-- Requester Profile Card -->
-            <div class="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs space-y-3">
-                <span class="text-xs font-bold uppercase tracking-wider text-slate-500 block border-b border-slate-100 pb-2">Requester Info</span>
-                
-                <div class="space-y-3 text-xs">
-                    <div class="flex items-center space-x-3">
-                        <div class="w-9 h-9 rounded-full bg-slate-100 text-slate-700 font-bold flex items-center justify-center text-sm border border-slate-200">
-                            {{ substr($ticket->requester->name, 0, 1) }}
-                        </div>
-                        <div>
-                            <div class="font-bold text-sm text-slate-800">{{ $ticket->requester->name }}</div>
-                            <div class="text-blue-600 font-mono font-medium text-[11px]">{{ $ticket->requester->employee?->employee_code ?? 'EMP' }}</div>
-                        </div>
-                    </div>
-
-                    <div class="pt-2 border-t border-slate-100 space-y-2 text-slate-600">
-                        <div class="flex items-center space-x-2">
-                            <span class="text-sm">🏢</span>
-                            <span><strong>Branch:</strong> {{ $ticket->branch->name }} ({{ $ticket->branch->code }})</span>
-                        </div>
-                        <div class="flex items-center space-x-2">
-                            <span class="text-sm">📂</span>
-                            <span><strong>Department:</strong> {{ $ticket->requester->employee?->department?->name ?? 'General' }}</span>
-                        </div>
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center space-x-2 truncate">
-                                <span class="text-sm">📧</span>
-                                <a href="mailto:{{ $ticket->requester->email }}" class="text-blue-600 hover:underline truncate">{{ $ticket->requester->email ?? 'N/A' }}</a>
-                            </div>
-                            @if($ticket->requester->email)
-                                <button type="button" @click="copyEmail('{{ $ticket->requester->email }}')" class="text-slate-400 hover:text-slate-600 text-[10px] ml-2 font-semibold">
-                                    <span x-show="!copiedEmail">Copy</span>
-                                    <span x-show="copiedEmail" class="text-emerald-600">Copied!</span>
-                                </button>
-                            @endif
-                        </div>
-                        <div class="flex items-center space-x-2">
-                            <span class="text-sm">📱</span>
-                            <span><strong>Telegram:</strong>
-                                @if($ticket->requester->telegram_username)
-                                    <a href="https://t.me/{{ ltrim($ticket->requester->telegram_username, '@') }}" target="_blank" class="text-blue-600 font-mono hover:underline font-bold">
-                                        {{ Str::start($ticket->requester->telegram_username, '@') }} &nearr;
-                                    </a>
-                                @else
-                                    <span class="text-slate-400">ID: {{ $ticket->requester->telegram_id ?? 'Not linked' }}</span>
-                                @endif
-                            </span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Linked Equipment & Asset Card -->
-            <div class="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs space-y-3">
-                <div class="flex items-center justify-between border-b border-slate-100 pb-2.5">
-                    <div class="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center space-x-1.5">
-                        <span>🖥️</span>
-                        <span>Linked Equipment / Asset</span>
-                    </div>
-                    @if($ticket->assets->isNotEmpty())
-                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-                            {{ $ticket->assets->count() }} Linked
-                        </span>
-                    @endif
-                </div>
-
-                @if($ticket->assets->isNotEmpty())
-                    <div class="space-y-3">
-                        @foreach($ticket->assets as $linkedAsset)
-                            @php
-                                $priorTickets = $linkedAsset->tickets->where('id', '!=', $ticket->id);
-                                $priorCount = $priorTickets->count();
-                                $recent90Count = $priorTickets->where('created_at', '>=', now()->subDays(90))->count();
-                                $parts = $ticket->assetParts->where('asset_id', $linkedAsset->id);
-                            @endphp
-                            <div class="p-3 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-2">
-                                <div class="flex items-start justify-between gap-2">
-                                    <div class="flex items-center space-x-2.5 min-w-0">
-                                        <div class="w-8 h-8 rounded-xl bg-blue-50 text-blue-700 border border-blue-200/60 flex items-center justify-center text-sm font-black shrink-0">
-                                            {{ $linkedAsset->category?->icon ?? '🖥️' }}
-                                        </div>
-                                        <div class="min-w-0">
-                                            <a href="{{ route('portal.assets.show', $linkedAsset->id) }}" class="font-bold text-xs text-blue-600 hover:text-blue-800 hover:underline block truncate">
-                                                {{ $linkedAsset->asset_tag }}
-                                            </a>
-                                            <div class="text-[11px] text-slate-800 font-semibold leading-snug">{{ $linkedAsset->name }}</div>
-                                        </div>
+                <!-- Tab 3: Assignment History & Audit Trail -->
+                <div x-show="inspectorTab === 'history'" class="p-4 space-y-4" x-cloak>
+                    <!-- Assignment History -->
+                    <div class="space-y-2">
+                        <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">Assignment History</span>
+                        <div class="space-y-2 max-h-52 overflow-y-auto pr-1 text-xs">
+                            @forelse($ticket->assignments as $assign)
+                                <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-[11px] space-y-0.5">
+                                    <div class="font-semibold text-slate-700">
+                                        Assigned to <strong>{{ $assign->technician?->name ?? 'Technician' }}</strong>
                                     </div>
-                                    <form method="POST" action="{{ route('portal.tickets.assets.detach', [$ticket->id, $linkedAsset->id]) }}" onsubmit="return confirm('Detach equipment {{ $linkedAsset->asset_tag }} from this ticket?');" class="shrink-0">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="text-slate-400 hover:text-rose-600 text-xs font-bold p-1 cursor-pointer" title="Detach Asset">✕</button>
-                                    </form>
-                                </div>
-
-                                <div class="text-[10px] text-slate-500 flex flex-wrap gap-x-2 gap-y-0.5">
-                                    <span>📍 {{ $linkedAsset->branch?->name ?? 'HQ' }}</span>
-                                    @if($linkedAsset->ownership_type === 'personal' && $linkedAsset->assignedUser)
-                                        <span>&bull; 👤 {{ $linkedAsset->assignedUser->name }}</span>
-                                    @elseif($linkedAsset->location_details)
-                                        <span>&bull; {{ $linkedAsset->location_details }}</span>
-                                    @endif
-                                </div>
-
-                                <!-- Prior Service History / Repeat Issue Indicator -->
-                                <div class="pt-0.5">
-                                    @if($recent90Count >= 1)
-                                        <a href="{{ route('portal.assets.show', $linkedAsset->id) }}" class="inline-flex items-center space-x-1 text-[10px] font-bold px-2 py-0.5 rounded-lg bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100 transition">
-                                            <span>⚠️ {{ $priorCount }} prior {{ \Illuminate\Support\Str::plural('ticket', $priorCount) }} ({{ $recent90Count }} in 90d)</span>
-                                            <span>&rarr;</span>
-                                        </a>
-                                    @elseif($priorCount > 0)
-                                        <a href="{{ route('portal.assets.show', $linkedAsset->id) }}" class="inline-flex items-center space-x-1 text-[10px] font-semibold px-2 py-0.5 rounded-lg bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition">
-                                            <span>🕘 {{ $priorCount }} prior {{ \Illuminate\Support\Str::plural('ticket', $priorCount) }}</span>
-                                            <span>&rarr;</span>
-                                        </a>
-                                    @else
-                                        <a href="{{ route('portal.assets.show', $linkedAsset->id) }}" class="inline-flex items-center space-x-1 text-[10px] font-medium px-2 py-0.5 rounded-lg bg-white text-slate-500 border border-slate-200/80 hover:text-blue-600 transition">
-                                            <span>✨ First logged ticket &bull; View Asset</span>
-                                        </a>
-                                    @endif
-                                </div>
-
-                                <!-- Parts replaced on this asset for this ticket -->
-                                @if($parts->isNotEmpty())
-                                    <div class="pt-2 border-t border-slate-200/60 space-y-1">
-                                        <div class="text-[10px] font-bold text-amber-800 uppercase tracking-wider">Parts Service Log:</div>
-                                        @foreach($parts as $part)
-                                            <div class="text-[11px] text-slate-700 bg-amber-50/80 border border-amber-200/60 rounded-lg p-1.5 flex items-start justify-between gap-2">
-                                                <div class="leading-snug">
-                                                    <span>⚙️ {{ $part->description }}</span>
-                                                    @if($part->component_id)
-                                                        <span class="inline-block ml-1 text-[9px] font-bold px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 border border-emerald-200">From Stock</span>
-                                                    @endif
-                                                </div>
-                                                <span class="text-[9px] text-amber-700 font-bold uppercase shrink-0">{{ $part->action }}</span>
-                                            </div>
-                                        @endforeach
+                                    <div class="text-slate-400 text-[10px]">
+                                        by {{ $assign->assignedBy?->name ?? 'System' }} • {{ $assign->assigned_at ? $assign->assigned_at->diffForHumans() : '' }}
                                     </div>
-                                @endif
-                            </div>
-                        @endforeach
-
-                        <!-- Quick Action: Record Part Replacement / Service -->
-                        <div x-data="{ recordPartOpen: false, selectedSpareId: '', partAction: 'replaced' }" class="pt-1">
-                            <button type="button" @click="recordPartOpen = !recordPartOpen"
-                                    :class="recordPartOpen ? 'bg-slate-100 text-slate-700 border-slate-300' : 'bg-amber-50 hover:bg-amber-100 text-amber-800 border-amber-200'"
-                                    class="w-full py-1.5 px-2.5 border rounded-xl text-xs font-bold transition flex items-center justify-center space-x-1.5 cursor-pointer">
-                                <span x-text="recordPartOpen ? '✕' : '⚙️'"></span>
-                                <span x-text="recordPartOpen ? 'Close Part Entry' : 'Record Part Replaced (RAM/SSD)'"></span>
-                            </button>
-
-                            <div x-show="recordPartOpen" class="mt-2.5 p-3 bg-amber-50/50 border border-amber-200 rounded-2xl space-y-2.5" x-cloak>
-                                <form method="POST" action="{{ route('portal.tickets.assets.parts', $ticket->id) }}" class="space-y-2.5">
-                                    @csrf
-                                    <div>
-                                        <label class="block text-[10px] font-bold text-amber-900 uppercase mb-0.5">Target Asset</label>
-                                        <select name="asset_id" required class="w-full text-xs p-1.5 rounded-lg border border-amber-300 bg-white">
-                                            @foreach($ticket->assets as $la)
-                                                <option value="{{ $la->id }}">{{ $la->asset_tag }} &bull; {{ $la->name }}</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label class="block text-[10px] font-bold text-amber-900 uppercase mb-0.5">Action Taken</label>
-                                        <select name="action" x-model="partAction" class="w-full text-xs p-1.5 rounded-lg border border-amber-300 bg-white">
-                                            <option value="replaced">Replaced Component (Faulty &rarr; New)</option>
-                                            <option value="installed">Installed New Upgrade Component</option>
-                                            <option value="removed">Removed Component</option>
-                                            <option value="serviced">Cleaned / Serviced Existing Component</option>
-                                        </select>
-                                    </div>
-                                    @if(isset($spareComponents) && $spareComponents->isNotEmpty())
-                                        <div x-show="['replaced', 'installed'].includes(partAction)">
-                                            <label class="block text-[10px] font-bold text-amber-900 uppercase mb-0.5">Use Part from IT Spare Stock (Optional)</label>
-                                            <select name="component_id" x-model="selectedSpareId" class="w-full text-xs p-1.5 rounded-lg border border-amber-300 bg-white">
-                                                <option value="">-- Custom / No Stock Deduction --</option>
-                                                @foreach($spareComponents as $sp)
-                                                    <option value="{{ $sp->id }}">
-                                                        [{{ strtoupper($sp->component_type) }}] {{ $sp->brand_model }}{{ $sp->capacity_or_specs ? ' (' . $sp->capacity_or_specs . ')' : '' }} &bull; {{ $sp->branch?->code ?? 'HQ' }}
-                                                    </option>
-                                                @endforeach
-                                            </select>
-                                            <p x-show="selectedSpareId" class="text-[10px] text-emerald-700 font-semibold mt-1 leading-snug">
-                                                ✓ Will install this stock unit into the machine and deduct 1 from IT Spare Stock.
-                                            </p>
+                                    @if($assign->reassignment_reason)
+                                        <div class="text-slate-500 italic text-[10px] bg-white p-1 rounded border border-slate-100">
+                                            "{{ $assign->reassignment_reason }}"
                                         </div>
                                     @endif
-                                    <div>
-                                        <label class="block text-[10px] font-bold text-amber-900 uppercase mb-0.5">
-                                            <span x-text="selectedSpareId ? 'Notes (Optional - Auto-filled from stock)' : 'Description / Specs Replaced'"></span>
-                                        </label>
-                                        <input type="text" name="description" :required="!selectedSpareId"
-                                               :placeholder="selectedSpareId ? 'Optional e.g. Installed in RAM Slot 1' : 'e.g. Replaced 8GB DDR4 RAM or cleaned tray roller'"
-                                               class="w-full text-xs p-1.5 rounded-lg border border-amber-300 bg-white">
-                                    </div>
-                                    <button type="submit" class="w-full py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-lg transition cursor-pointer">
-                                        Log Part to Asset History
-                                    </button>
-                                </form>
-                            </div>
+                                </div>
+                            @empty
+                                <div class="text-slate-400 text-xs py-2 text-center">No assignment history.</div>
+                            @endforelse
                         </div>
                     </div>
-                @else
-                    <div class="text-xs text-slate-400 py-1">
-                        No equipment linked yet. Only IT can link hardware.
-                    </div>
-                @endif
 
-                <!-- Attach Equipment / Machine (Smart Searchable Asset Combobox) -->
-                <div x-data="{
-                    attachOpen: false,
-                    assetSearch: '',
-                    assetDropdownOpen: false,
-                    assetScope: '{{ $availableAssetsJson->contains(fn ($a) => $a['is_requester_asset'] || $a['is_same_branch']) ? 'same' : 'all' }}',
-                    selectedAssetId: '',
-                    assets: {{ $availableAssetsJson->toJson() }},
-                    getSelectedAsset() {
-                        if (!this.selectedAssetId) return null;
-                        return this.assets.find(a => a.id == this.selectedAssetId) || null;
-                    },
-                    getSameScopeCount() {
-                        return this.assets.filter(a => a.is_requester_asset || a.is_same_branch).length;
-                    },
-                    getFilteredAssets() {
-                        let q = (this.assetSearch || '').toLowerCase().trim();
-                        let list = this.assets;
-                        if (this.assetScope === 'same') {
-                            list = list.filter(a => a.is_requester_asset || a.is_same_branch);
-                        }
-                        if (q) {
-                            list = list.filter(a =>
-                                (a.asset_tag && a.asset_tag.toLowerCase().includes(q)) ||
-                                (a.name && a.name.toLowerCase().includes(q)) ||
-                                (a.category_name && a.category_name.toLowerCase().includes(q)) ||
-                                (a.owner_name && a.owner_name.toLowerCase().includes(q)) ||
-                                (a.location_details && a.location_details.toLowerCase().includes(q)) ||
-                                (a.branch_name && a.branch_name.toLowerCase().includes(q))
-                            );
-                        }
-                        return [...list].sort((a, b) => {
-                            let scoreA = (a.is_requester_asset ? 10 : 0) + (a.is_same_branch ? 3 : 0) + (a.prior_tickets_count > 0 ? 1 : 0);
-                            let scoreB = (b.is_requester_asset ? 10 : 0) + (b.is_same_branch ? 3 : 0) + (b.prior_tickets_count > 0 ? 1 : 0);
-                            if (scoreB !== scoreA) return scoreB - scoreA;
-                            return a.name.localeCompare(b.name);
-                        });
-                    }
-                }" class="pt-2 border-t border-slate-100">
-                    <button type="button"
-                            @click="attachOpen = !attachOpen; if (attachOpen && !selectedAssetId) { assetDropdownOpen = true; } else if (!attachOpen) { assetDropdownOpen = false; }"
-                            :class="attachOpen ? 'bg-slate-100 text-slate-700 border-slate-300' : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'"
-                            class="w-full py-1.5 px-2.5 border rounded-xl text-xs font-bold transition flex items-center justify-center space-x-1.5 cursor-pointer">
-                        <span x-text="attachOpen ? '✕' : '➕'"></span>
-                        <span x-text="attachOpen ? 'Cancel' : 'Attach Equipment / Machine'"></span>
-                    </button>
-
-                    <div x-show="attachOpen" class="mt-2.5 p-3 bg-slate-50 border border-slate-200 rounded-2xl space-y-2.5" x-cloak>
-                        <form method="POST" action="{{ route('portal.tickets.assets.attach', $ticket->id) }}" class="space-y-2.5">
-                            @csrf
-                            <input type="hidden" name="asset_id" :value="selectedAssetId">
-
-                            <div class="flex items-center justify-between gap-1 flex-wrap">
-                                <label class="block text-[10px] font-bold text-slate-700 uppercase">Select Machine / Asset</label>
-                                <div class="inline-flex bg-slate-200/70 p-0.5 rounded-lg text-[10px]">
-                                    <button type="button" @click="assetScope = 'same'; assetDropdownOpen = true"
-                                            :class="assetScope === 'same' ? 'bg-white text-blue-700 font-bold shadow-2xs' : 'text-slate-600 font-medium hover:text-slate-800'"
-                                            class="px-2 py-0.5 rounded-md transition cursor-pointer">
-                                        Branch (<span x-text="getSameScopeCount()"></span>)
-                                    </button>
-                                    <button type="button" @click="assetScope = 'all'; assetDropdownOpen = true"
-                                            :class="assetScope === 'all' ? 'bg-white text-blue-700 font-bold shadow-2xs' : 'text-slate-600 font-medium hover:text-slate-800'"
-                                            class="px-2 py-0.5 rounded-md transition cursor-pointer">
-                                        All (<span x-text="assets.length"></span>)
-                                    </button>
-                                </div>
-                            </div>
-
-                            <!-- Selected Asset Summary Card -->
-                            <template x-if="getSelectedAsset()">
-                                <div class="p-2.5 rounded-xl border border-blue-300 bg-blue-50/70 flex items-start justify-between gap-2">
-                                    <div class="flex items-start space-x-2 min-w-0">
-                                        <span class="text-sm shrink-0 mt-0.5" x-text="getSelectedAsset().category_icon"></span>
-                                        <div class="min-w-0">
-                                            <div class="flex items-center flex-wrap gap-1">
-                                                <span class="text-[11px] font-mono font-bold text-blue-700" x-text="getSelectedAsset().asset_tag"></span>
-                                                <template x-if="getSelectedAsset().is_requester_asset">
-                                                    <span class="text-[9px] font-bold px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 border border-emerald-200">⭐ Requester's</span>
-                                                </template>
-                                            </div>
-                                            <div class="text-xs font-bold text-slate-900 leading-snug break-words" x-text="getSelectedAsset().name"></div>
-                                            <div class="text-[10px] text-slate-500 mt-0.5 break-words" x-text="getSelectedAsset().owner_name ? ('👤 ' + getSelectedAsset().owner_name) : (getSelectedAsset().location_details || getSelectedAsset().branch_name)"></div>
+                    <!-- System Audit Trail -->
+                    <div class="pt-3 border-t border-slate-100 space-y-2">
+                        <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">Activity Audit Log</span>
+                        <div class="space-y-1.5 max-h-56 overflow-y-auto pr-1 text-xs">
+                            @forelse($ticket->auditLogs->sortByDesc('id') as $log)
+                                <div class="p-2 rounded-xl bg-slate-50/70 border border-slate-100 text-[11px] flex items-start justify-between gap-2">
+                                    <div class="min-w-0 space-y-0.5">
+                                        <div class="flex items-center flex-wrap gap-1.5">
+                                            <span class="font-mono font-bold text-[9px] px-1.5 py-0.5 rounded bg-slate-200/80 text-slate-700">
+                                                {{ str_replace('_', ' ', $log->action) }}
+                                            </span>
+                                            <span class="text-slate-600 font-medium truncate">{{ $log->actor?->name ?? 'System' }}</span>
                                         </div>
+                                        @if($log->new_value)
+                                            <div class="text-[10px] text-slate-500 truncate">{{ $log->new_value }}</div>
+                                        @endif
                                     </div>
-                                    <button type="button" @click="selectedAssetId = ''; assetDropdownOpen = true"
-                                            class="text-[10px] text-rose-600 hover:text-rose-800 font-bold px-1.5 py-0.5 rounded hover:bg-rose-50 shrink-0 cursor-pointer">
-                                        ✕
-                                    </button>
+                                    <span class="text-[10px] text-slate-400 shrink-0 font-mono">
+                                        {{ $log->created_at?->format('M d, H:i') ?? '' }}
+                                    </span>
                                 </div>
-                            </template>
-
-                            <!-- Searchable Trigger & Inline Combobox -->
-                            <template x-if="!getSelectedAsset()">
-                                <div @click="assetDropdownOpen = !assetDropdownOpen"
-                                     class="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 bg-white hover:border-blue-400 cursor-pointer flex items-center justify-between shadow-2xs">
-                                    <span class="text-slate-500 truncate">🔍 Search tag, owner, room, printer...</span>
-                                    <span class="text-slate-400 text-[10px] ml-1 shrink-0" x-text="assetDropdownOpen ? '▲' : '▼'"></span>
-                                </div>
-                            </template>
-
-                            <!-- Contained Dropdown List (Stays 100% Inside Card Width) -->
-                            <div x-show="assetDropdownOpen" class="w-full bg-white rounded-xl border border-slate-200 shadow-md overflow-hidden" x-cloak>
-                                <div class="p-2 border-b border-slate-100 bg-slate-50/70">
-                                    <div class="relative">
-                                        <span class="absolute left-2.5 top-1.5 text-slate-400 text-xs">🔍</span>
-                                        <input type="text" x-model="assetSearch"
-                                               placeholder="Filter by tag, staff, room, category..."
-                                               class="w-full text-xs pl-7 pr-6 py-1.5 rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                        <button type="button" x-show="assetSearch" @click="assetSearch = ''" class="absolute right-2 top-1.5 text-xs text-slate-400 hover:text-slate-600 cursor-pointer">✕</button>
-                                    </div>
-                                </div>
-
-                                <div class="max-h-60 overflow-y-auto divide-y divide-slate-100 p-1">
-                                    <template x-for="item in getFilteredAssets()" :key="item.id">
-                                        <div @click="selectedAssetId = item.id; assetDropdownOpen = false; assetSearch = ''"
-                                             class="p-2 hover:bg-blue-50/80 rounded-lg cursor-pointer transition space-y-1">
-                                            <div class="flex items-center justify-between gap-1 flex-wrap">
-                                                <div class="flex items-center space-x-1.5 min-w-0">
-                                                    <span class="text-xs shrink-0" x-text="item.category_icon"></span>
-                                                    <span class="text-[11px] font-mono font-bold text-blue-700" x-text="item.asset_tag"></span>
-                                                </div>
-                                                <div class="flex items-center gap-1 flex-wrap">
-                                                    <template x-if="item.is_requester_asset">
-                                                        <span class="text-[9px] font-bold px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 border border-emerald-200">⭐ Requester</span>
-                                                    </template>
-                                                    <template x-if="!item.is_requester_asset && item.ownership_type === 'shared'">
-                                                        <span class="text-[9px] font-semibold px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700 border border-indigo-200">Shared</span>
-                                                    </template>
-                                                    <template x-if="item.recent_90d_count >= 1">
-                                                        <span class="text-[9px] font-bold px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 border border-amber-200" x-text="'⚠️ ' + item.prior_tickets_count + ' prev'"></span>
-                                                    </template>
-                                                    <template x-if="item.recent_90d_count === 0 && item.prior_tickets_count > 0">
-                                                        <span class="text-[9px] font-semibold px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 border border-slate-200" x-text="'🕘 ' + item.prior_tickets_count + ' prev'"></span>
-                                                    </template>
-                                                </div>
-                                            </div>
-                                            <div class="text-xs font-semibold text-slate-800 leading-snug break-words" x-text="item.name"></div>
-                                            <div class="text-[10px] text-slate-500 leading-snug break-words">
-                                                <span x-text="item.owner_name ? ('👤 ' + item.owner_name) : ('📍 ' + (item.location_details || item.branch_name))"></span>
-                                                <span class="text-slate-300 mx-1">&bull;</span>
-                                                <span x-text="item.category_name"></span>
-                                            </div>
-                                        </div>
-                                    </template>
-
-                                    <div x-show="getFilteredAssets().length === 0" class="py-4 px-2 text-center text-xs text-slate-400 space-y-1.5">
-                                        <div>No matching equipment found.</div>
-                                        <template x-if="assetScope === 'same'">
-                                            <button type="button" @click="assetScope = 'all'; assetSearch = ''" class="text-blue-600 font-bold hover:underline text-[11px] cursor-pointer">
-                                                🌐 Show All Branches (<span x-text="assets.length"></span>)
-                                            </button>
-                                        </template>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <button type="submit" :disabled="!selectedAssetId"
-                                    class="w-full py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold text-xs rounded-xl transition cursor-pointer shadow-xs">
-                                Confirm &amp; Attach
-                            </button>
-                        </form>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Audit Trail & Assignment History -->
-            <div class="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs space-y-3">
-                <span class="text-xs font-bold uppercase tracking-wider text-slate-500 block border-b border-slate-100 pb-2">Assignment History</span>
-                <div class="space-y-2 max-h-56 overflow-y-auto pr-1 text-xs">
-                    @forelse($ticket->assignments as $assign)
-                        <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-[11px] space-y-0.5">
-                            <div class="font-semibold text-slate-700">
-                                Assigned to <strong>{{ $assign->technician?->name ?? 'Technician' }}</strong>
-                            </div>
-                            <div class="text-slate-400 text-[10px]">
-                                by {{ $assign->assignedBy?->name ?? 'System' }} • {{ $assign->assigned_at ? $assign->assigned_at->diffForHumans() : '' }}
-                            </div>
-                            @if($assign->reassignment_reason)
-                                <div class="text-slate-500 italic text-[10px] bg-white p-1 rounded border border-slate-100">
-                                    "{{ $assign->reassignment_reason }}"
-                                </div>
-                            @endif
+                            @empty
+                                <div class="text-slate-400 text-xs py-2 text-center">No audit events recorded yet.</div>
+                            @endforelse
                         </div>
-                    @empty
-                        <div class="text-slate-400 text-xs py-2 text-center">No assignment history.</div>
-                    @endforelse
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- Right Column: Conversation, Internal Notes & Reply Workspace -->
-        <div class="lg:col-span-2 space-y-6">
+        <!-- Right Column: Sticky Full-Height Conversation, Internal Notes & Reply Workspace -->
+        <div class="lg:col-span-7 xl:col-span-8 lg:sticky lg:top-20 order-1 lg:order-2">
 
-            <!-- Unified Modern Chat Panel (Starts directly at top of column) -->
-            <div id="chatPanel" class="bg-white rounded-3xl border border-slate-200/80 shadow-xs flex flex-col overflow-hidden">
+            <!-- Unified Modern Chat Panel (Viewport-locked & sticky alongside left inspector) -->
+            <div id="chatPanel" class="bg-white rounded-3xl border border-slate-200/80 shadow-xs flex flex-col overflow-hidden h-[540px] sm:h-[600px] lg:h-[calc(100vh-6.25rem)] lg:min-h-[480px] lg:max-h-[820px]">
                 
                 <!-- Chat Panel Header -->
-                <div class="px-5 py-3.5 bg-slate-50/90 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
-                    <div class="flex items-center space-x-2.5">
-                        <span class="w-2.5 h-2.5 rounded-full" :class="requesterActive ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'"></span>
+                <div class="px-4 sm:px-5 py-3 bg-slate-50/90 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 shrink-0">
+                    <div class="flex flex-wrap items-center gap-2.5">
+                        <span class="w-2.5 h-2.5 rounded-full shrink-0" :class="requesterActive ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'"></span>
                         <div class="text-xs font-bold text-slate-800 flex items-center gap-2">
-                            <span>Ticket Discussion & Notes</span>
+                            <span>Ticket Discussion &amp; Notes</span>
                             <span class="bg-slate-200/80 text-slate-600 font-semibold px-2 py-0.5 rounded-full text-[10px]" x-text="chatMessages.length + ' messages'"></span>
+                        </div>
+
+                        <!-- Stream Filter Pills -->
+                        <div class="inline-flex bg-slate-200/70 p-0.5 rounded-lg text-[10px]">
+                            <button type="button" @click="chatFilter = 'all'; scrollToBottom()"
+                                    :class="chatFilter === 'all' ? 'bg-white text-slate-800 font-bold shadow-2xs' : 'text-slate-600 font-medium hover:text-slate-900'"
+                                    class="px-2 py-0.5 rounded-md transition cursor-pointer">
+                                All
+                            </button>
+                            <button type="button" @click="chatFilter = 'conversation'; scrollToBottom()"
+                                    :class="chatFilter === 'conversation' ? 'bg-white text-blue-700 font-bold shadow-2xs' : 'text-slate-600 font-medium hover:text-slate-900'"
+                                    class="px-2 py-0.5 rounded-md transition cursor-pointer">
+                                💬 Chat
+                            </button>
+                            <button type="button" @click="chatFilter = 'notes'; scrollToBottom()"
+                                    :class="chatFilter === 'notes' ? 'bg-white text-amber-800 font-bold shadow-2xs' : 'text-slate-600 font-medium hover:text-slate-900'"
+                                    class="px-2 py-0.5 rounded-md transition cursor-pointer inline-flex items-center gap-1">
+                                <span>🔒 Notes</span>
+                                <span x-show="getInternalNotesCount() > 0" class="px-1 rounded bg-amber-100 text-amber-800 text-[9px] font-bold" x-text="getInternalNotesCount()" x-cloak></span>
+                            </button>
                         </div>
                     </div>
 
@@ -1336,10 +1525,13 @@
                     </div>
                 </div>
 
-                <!-- Contained Scrollable Chat Viewport (Modern Messenger Layout) -->
-                <div id="portalChatStream" class="flex-1 max-h-[560px] min-h-[380px] overflow-y-auto p-4 sm:p-5 space-y-3"
-                     style="background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);">
-                    <template x-for="msg in chatMessages" :key="msg.id">
+                <!-- Contained Scrollable Chat Viewport (Fills remaining panel height) -->
+                <div class="relative flex-1 min-h-0 flex flex-col">
+                    <div id="portalChatStream"
+                         @scroll="handleChatScroll($event.target)"
+                         class="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3"
+                         style="background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);">
+                        <template x-for="msg in getFilteredMessages()" :key="msg.id">
                         <div>
                             <!-- System Event: Compact Centered Pill -->
                             <template x-if="msg.visibility === 'system_event'">
@@ -1550,41 +1742,54 @@
                         </div>
                     </template>
 
-                    <div x-show="chatMessages.length === 0" class="text-center py-12 text-xs text-slate-400">
-                        💬 No conversation messages yet. Send a reply or post a note below.
+                    <div x-show="getFilteredMessages().length === 0" class="text-center py-12 text-xs text-slate-400" x-cloak>
+                        <span x-show="chatFilter === 'notes'">🔒 No internal staff notes yet on this ticket.</span>
+                        <span x-show="chatFilter === 'conversation'">💬 No staff/employee chat messages yet (system events hidden).</span>
+                        <span x-show="chatFilter === 'all'">💬 No conversation messages yet. Send a reply or post a note below.</span>
                     </div>
                 </div>
 
+                <!-- Floating Jump-to-Latest Pill -->
+                <button type="button"
+                        x-show="showJumpToBottom"
+                        x-transition
+                        @click="scrollToBottom()"
+                        class="absolute bottom-3 right-4 z-10 bg-slate-900/85 hover:bg-slate-900 text-white text-[11px] font-bold px-3 py-1.5 rounded-full shadow-md backdrop-blur-xs transition cursor-pointer" x-cloak>
+                    &darr; Latest
+                </button>
+                </div>
+
                 <!-- Modern Bottom Composer -->
-                <div class="p-4 bg-white border-t border-slate-200 space-y-3">
+                <div class="p-3.5 sm:p-4 bg-white border-t border-slate-200 space-y-2.5 shrink-0">
                     
                     <!-- Mode Toggle: Reply vs Internal Note -->
                     <div class="flex items-center space-x-2">
                         <button type="button" @click="messageTab = 'requester_visible'"
                                 :class="messageTab === 'requester_visible' ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-100 text-slate-600 hover:text-slate-900'"
-                                class="px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center space-x-1.5">
+                                class="px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 cursor-pointer">
                             <span>💬</span>
                             <span>Reply to Employee</span>
                         </button>
 
                         <button type="button" @click="messageTab = 'internal_staff_only'"
                                 :class="messageTab === 'internal_staff_only' ? 'bg-amber-400 text-amber-950 font-extrabold shadow-xs' : 'bg-slate-100 text-slate-600 hover:text-slate-900'"
-                                class="px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center space-x-1.5">
+                                class="px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 cursor-pointer">
                             <span>🔒</span>
                             <span>Internal Note (IT Staff Only)</span>
                         </button>
                     </div>
 
-                    <form @submit.prevent="submitChatMessage()" class="space-y-3">
+                    <form @submit.prevent="submitChatMessage()" class="space-y-2.5">
                         <div>
                             <textarea id="chatMessageInput"
                                       x-model="messageBody"
                                       rows="2"
+                                      @input="$el.style.height = 'auto'; $el.style.height = Math.min($el.scrollHeight, 128) + 'px'"
                                       @keydown.enter.exact.prevent="submitChatMessage()"
                                       @paste="handlePaste($event)"
                                       :placeholder="messageTab === 'internal_staff_only' ? 'Write confidential internal note (Press Enter to post, Shift+Enter for newline, Ctrl+V to paste screenshot)...' : 'Type reply that the employee will see on their Telegram Mini App (Press Enter to send, Shift+Enter for newline, Ctrl+V to paste screenshot)...'"
                                       :class="messageTab === 'internal_staff_only' ? 'bg-amber-50/40 border-amber-300 focus:ring-amber-500' : 'bg-slate-50/70 border-slate-300 focus:bg-white focus:ring-blue-600'"
-                                      class="w-full text-xs p-3 rounded-xl border focus:outline-none focus:ring-2"></textarea>
+                                      class="w-full text-xs p-2.5 sm:p-3 rounded-xl border focus:outline-none focus:ring-2 resize-none max-h-32 overflow-y-auto"></textarea>
                         </div>
 
                         <!-- Staged Attachment Chips -->

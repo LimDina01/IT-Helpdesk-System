@@ -1023,7 +1023,7 @@ class PortalTicketController extends Controller
                 'visibility' => $m->visibility,
                 'body' => $m->body,
                 'created_at_human' => $m->created_at->diffForHumans(),
-                'created_at_full' => $m->created_at->format('d-M-Y, H:i:s'),
+                'created_at_full' => $m->created_at->format('M d, H:i'),
                 'attachments' => $m->attachments->map(fn ($a) => [
                     'id' => $a->id,
                     'original_filename' => $a->original_filename,
