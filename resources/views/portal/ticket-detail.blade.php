@@ -965,20 +965,26 @@
                 @if($ticket->assets->isNotEmpty())
                     <div class="space-y-3">
                         @foreach($ticket->assets as $linkedAsset)
+                            @php
+                                $priorTickets = $linkedAsset->tickets->where('id', '!=', $ticket->id);
+                                $priorCount = $priorTickets->count();
+                                $recent90Count = $priorTickets->where('created_at', '>=', now()->subDays(90))->count();
+                                $parts = $ticket->assetParts->where('asset_id', $linkedAsset->id);
+                            @endphp
                             <div class="p-3 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-2">
                                 <div class="flex items-start justify-between gap-2">
-                                    <div class="flex items-center space-x-2.5">
+                                    <div class="flex items-center space-x-2.5 min-w-0">
                                         <div class="w-8 h-8 rounded-xl bg-blue-50 text-blue-700 border border-blue-200/60 flex items-center justify-center text-sm font-black shrink-0">
                                             {{ $linkedAsset->category?->icon ?? '🖥️' }}
                                         </div>
-                                        <div>
-                                            <a href="{{ route('portal.assets.show', $linkedAsset->id) }}" class="font-bold text-xs text-blue-600 hover:text-blue-800 hover:underline">
+                                        <div class="min-w-0">
+                                            <a href="{{ route('portal.assets.show', $linkedAsset->id) }}" class="font-bold text-xs text-blue-600 hover:text-blue-800 hover:underline block truncate">
                                                 {{ $linkedAsset->asset_tag }}
                                             </a>
-                                            <div class="text-[11px] text-slate-800 font-semibold">{{ $linkedAsset->name }}</div>
+                                            <div class="text-[11px] text-slate-800 font-semibold leading-snug">{{ $linkedAsset->name }}</div>
                                         </div>
                                     </div>
-                                    <form method="POST" action="{{ route('portal.tickets.assets.detach', [$ticket->id, $linkedAsset->id]) }}" onsubmit="return confirm('Detach equipment {{ $linkedAsset->asset_tag }} from this ticket?');">
+                                    <form method="POST" action="{{ route('portal.tickets.assets.detach', [$ticket->id, $linkedAsset->id]) }}" onsubmit="return confirm('Detach equipment {{ $linkedAsset->asset_tag }} from this ticket?');" class="shrink-0">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit" class="text-slate-400 hover:text-rose-600 text-xs font-bold p-1 cursor-pointer" title="Detach Asset">✕</button>
@@ -987,22 +993,45 @@
 
                                 <div class="text-[10px] text-slate-500 flex flex-wrap gap-x-2 gap-y-0.5">
                                     <span>📍 {{ $linkedAsset->branch?->name ?? 'HQ' }}</span>
-                                    @if($linkedAsset->location_details)
+                                    @if($linkedAsset->ownership_type === 'personal' && $linkedAsset->assignedUser)
+                                        <span>&bull; 👤 {{ $linkedAsset->assignedUser->name }}</span>
+                                    @elseif($linkedAsset->location_details)
                                         <span>&bull; {{ $linkedAsset->location_details }}</span>
                                     @endif
                                 </div>
 
+                                <!-- Prior Service History / Repeat Issue Indicator -->
+                                <div class="pt-0.5">
+                                    @if($recent90Count >= 1)
+                                        <a href="{{ route('portal.assets.show', $linkedAsset->id) }}" class="inline-flex items-center space-x-1 text-[10px] font-bold px-2 py-0.5 rounded-lg bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100 transition">
+                                            <span>⚠️ {{ $priorCount }} prior {{ \Illuminate\Support\Str::plural('ticket', $priorCount) }} ({{ $recent90Count }} in 90d)</span>
+                                            <span>&rarr;</span>
+                                        </a>
+                                    @elseif($priorCount > 0)
+                                        <a href="{{ route('portal.assets.show', $linkedAsset->id) }}" class="inline-flex items-center space-x-1 text-[10px] font-semibold px-2 py-0.5 rounded-lg bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition">
+                                            <span>🕘 {{ $priorCount }} prior {{ \Illuminate\Support\Str::plural('ticket', $priorCount) }}</span>
+                                            <span>&rarr;</span>
+                                        </a>
+                                    @else
+                                        <a href="{{ route('portal.assets.show', $linkedAsset->id) }}" class="inline-flex items-center space-x-1 text-[10px] font-medium px-2 py-0.5 rounded-lg bg-white text-slate-500 border border-slate-200/80 hover:text-blue-600 transition">
+                                            <span>✨ First logged ticket &bull; View Asset</span>
+                                        </a>
+                                    @endif
+                                </div>
+
                                 <!-- Parts replaced on this asset for this ticket -->
-                                @php
-                                    $parts = $ticket->assetParts->where('asset_id', $linkedAsset->id);
-                                @endphp
                                 @if($parts->isNotEmpty())
                                     <div class="pt-2 border-t border-slate-200/60 space-y-1">
                                         <div class="text-[10px] font-bold text-amber-800 uppercase tracking-wider">Parts Service Log:</div>
                                         @foreach($parts as $part)
-                                            <div class="text-[11px] text-slate-700 bg-amber-50/80 border border-amber-200/60 rounded-lg p-1.5 flex items-center justify-between">
-                                                <span>⚙️ {{ $part->description }}</span>
-                                                <span class="text-[9px] text-amber-700 font-bold uppercase">{{ $part->action }}</span>
+                                            <div class="text-[11px] text-slate-700 bg-amber-50/80 border border-amber-200/60 rounded-lg p-1.5 flex items-start justify-between gap-2">
+                                                <div class="leading-snug">
+                                                    <span>⚙️ {{ $part->description }}</span>
+                                                    @if($part->component_id)
+                                                        <span class="inline-block ml-1 text-[9px] font-bold px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 border border-emerald-200">From Stock</span>
+                                                    @endif
+                                                </div>
+                                                <span class="text-[9px] text-amber-700 font-bold uppercase shrink-0">{{ $part->action }}</span>
                                             </div>
                                         @endforeach
                                     </div>
@@ -1011,35 +1040,57 @@
                         @endforeach
 
                         <!-- Quick Action: Record Part Replacement / Service -->
-                        <div x-data="{ recordPartOpen: false }" class="pt-1">
-                            <button type="button" @click="recordPartOpen = !recordPartOpen" class="w-full py-1.5 px-2 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-1 cursor-pointer">
-                                <span>⚙️</span>
-                                <span x-text="recordPartOpen ? 'Close Part Entry' : '+ Record Part Replaced (RAM/SSD)'"></span>
+                        <div x-data="{ recordPartOpen: false, selectedSpareId: '', partAction: 'replaced' }" class="pt-1">
+                            <button type="button" @click="recordPartOpen = !recordPartOpen"
+                                    :class="recordPartOpen ? 'bg-slate-100 text-slate-700 border-slate-300' : 'bg-amber-50 hover:bg-amber-100 text-amber-800 border-amber-200'"
+                                    class="w-full py-1.5 px-2.5 border rounded-xl text-xs font-bold transition flex items-center justify-center space-x-1.5 cursor-pointer">
+                                <span x-text="recordPartOpen ? '✕' : '⚙️'"></span>
+                                <span x-text="recordPartOpen ? 'Close Part Entry' : 'Record Part Replaced (RAM/SSD)'"></span>
                             </button>
 
-                            <div x-show="recordPartOpen" class="mt-2.5 p-3 bg-amber-50/50 border border-amber-200 rounded-xl space-y-2.5" x-cloak>
-                                <form method="POST" action="{{ route('portal.tickets.assets.parts', $ticket->id) }}" class="space-y-2">
+                            <div x-show="recordPartOpen" class="mt-2.5 p-3 bg-amber-50/50 border border-amber-200 rounded-2xl space-y-2.5" x-cloak>
+                                <form method="POST" action="{{ route('portal.tickets.assets.parts', $ticket->id) }}" class="space-y-2.5">
                                     @csrf
                                     <div>
                                         <label class="block text-[10px] font-bold text-amber-900 uppercase mb-0.5">Target Asset</label>
                                         <select name="asset_id" required class="w-full text-xs p-1.5 rounded-lg border border-amber-300 bg-white">
                                             @foreach($ticket->assets as $la)
-                                                <option value="{{ $la->id }}">{{ $la->asset_tag }} - {{ $la->name }}</option>
+                                                <option value="{{ $la->id }}">{{ $la->asset_tag }} &bull; {{ $la->name }}</option>
                                             @endforeach
                                         </select>
                                     </div>
                                     <div>
                                         <label class="block text-[10px] font-bold text-amber-900 uppercase mb-0.5">Action Taken</label>
-                                        <select name="action" class="w-full text-xs p-1.5 rounded-lg border border-amber-300 bg-white">
+                                        <select name="action" x-model="partAction" class="w-full text-xs p-1.5 rounded-lg border border-amber-300 bg-white">
                                             <option value="replaced">Replaced Component (Faulty &rarr; New)</option>
                                             <option value="installed">Installed New Upgrade Component</option>
                                             <option value="removed">Removed Component</option>
                                             <option value="serviced">Cleaned / Serviced Existing Component</option>
                                         </select>
                                     </div>
+                                    @if(isset($spareComponents) && $spareComponents->isNotEmpty())
+                                        <div x-show="['replaced', 'installed'].includes(partAction)">
+                                            <label class="block text-[10px] font-bold text-amber-900 uppercase mb-0.5">Use Part from IT Spare Stock (Optional)</label>
+                                            <select name="component_id" x-model="selectedSpareId" class="w-full text-xs p-1.5 rounded-lg border border-amber-300 bg-white">
+                                                <option value="">-- Custom / No Stock Deduction --</option>
+                                                @foreach($spareComponents as $sp)
+                                                    <option value="{{ $sp->id }}">
+                                                        [{{ strtoupper($sp->component_type) }}] {{ $sp->brand_model }}{{ $sp->capacity_or_specs ? ' (' . $sp->capacity_or_specs . ')' : '' }} &bull; {{ $sp->branch?->code ?? 'HQ' }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                            <p x-show="selectedSpareId" class="text-[10px] text-emerald-700 font-semibold mt-1 leading-snug">
+                                                ✓ Will install this stock unit into the machine and deduct 1 from IT Spare Stock.
+                                            </p>
+                                        </div>
+                                    @endif
                                     <div>
-                                        <label class="block text-[10px] font-bold text-amber-900 uppercase mb-0.5">Description / Specs Replaced</label>
-                                        <input type="text" name="description" required placeholder="e.g. Replaced 8GB DDR4 RAM stick with new Kingston from stock" class="w-full text-xs p-1.5 rounded-lg border border-amber-300 bg-white">
+                                        <label class="block text-[10px] font-bold text-amber-900 uppercase mb-0.5">
+                                            <span x-text="selectedSpareId ? 'Notes (Optional - Auto-filled from stock)' : 'Description / Specs Replaced'"></span>
+                                        </label>
+                                        <input type="text" name="description" :required="!selectedSpareId"
+                                               :placeholder="selectedSpareId ? 'Optional e.g. Installed in RAM Slot 1' : 'e.g. Replaced 8GB DDR4 RAM or cleaned tray roller'"
+                                               class="w-full text-xs p-1.5 rounded-lg border border-amber-300 bg-white">
                                     </div>
                                     <button type="submit" class="w-full py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-lg transition cursor-pointer">
                                         Log Part to Asset History
@@ -1054,41 +1105,164 @@
                     </div>
                 @endif
 
-                <!-- Attach Another Equipment Form -->
-                <div x-data="{ attachOpen: false }" class="pt-2 border-t border-slate-100">
-                    <button type="button" @click="attachOpen = !attachOpen" class="w-full py-1.5 px-2 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-1 cursor-pointer">
-                        <span>➕</span>
-                        <span x-text="attachOpen ? 'Cancel' : '+ Attach Equipment / Machine'"></span>
+                <!-- Attach Equipment / Machine (Smart Searchable Asset Combobox) -->
+                <div x-data="{
+                    attachOpen: false,
+                    assetSearch: '',
+                    assetDropdownOpen: false,
+                    assetScope: '{{ $availableAssetsJson->contains(fn ($a) => $a['is_requester_asset'] || $a['is_same_branch']) ? 'same' : 'all' }}',
+                    selectedAssetId: '',
+                    assets: {{ $availableAssetsJson->toJson() }},
+                    getSelectedAsset() {
+                        if (!this.selectedAssetId) return null;
+                        return this.assets.find(a => a.id == this.selectedAssetId) || null;
+                    },
+                    getSameScopeCount() {
+                        return this.assets.filter(a => a.is_requester_asset || a.is_same_branch).length;
+                    },
+                    getFilteredAssets() {
+                        let q = (this.assetSearch || '').toLowerCase().trim();
+                        let list = this.assets;
+                        if (this.assetScope === 'same') {
+                            list = list.filter(a => a.is_requester_asset || a.is_same_branch);
+                        }
+                        if (q) {
+                            list = list.filter(a =>
+                                (a.asset_tag && a.asset_tag.toLowerCase().includes(q)) ||
+                                (a.name && a.name.toLowerCase().includes(q)) ||
+                                (a.category_name && a.category_name.toLowerCase().includes(q)) ||
+                                (a.owner_name && a.owner_name.toLowerCase().includes(q)) ||
+                                (a.location_details && a.location_details.toLowerCase().includes(q)) ||
+                                (a.branch_name && a.branch_name.toLowerCase().includes(q))
+                            );
+                        }
+                        return [...list].sort((a, b) => {
+                            let scoreA = (a.is_requester_asset ? 10 : 0) + (a.is_same_branch ? 3 : 0) + (a.prior_tickets_count > 0 ? 1 : 0);
+                            let scoreB = (b.is_requester_asset ? 10 : 0) + (b.is_same_branch ? 3 : 0) + (b.prior_tickets_count > 0 ? 1 : 0);
+                            if (scoreB !== scoreA) return scoreB - scoreA;
+                            return a.name.localeCompare(b.name);
+                        });
+                    }
+                }" class="pt-2 border-t border-slate-100">
+                    <button type="button"
+                            @click="attachOpen = !attachOpen; if (attachOpen && !selectedAssetId) { assetDropdownOpen = true; } else if (!attachOpen) { assetDropdownOpen = false; }"
+                            :class="attachOpen ? 'bg-slate-100 text-slate-700 border-slate-300' : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'"
+                            class="w-full py-1.5 px-2.5 border rounded-xl text-xs font-bold transition flex items-center justify-center space-x-1.5 cursor-pointer">
+                        <span x-text="attachOpen ? '✕' : '➕'"></span>
+                        <span x-text="attachOpen ? 'Cancel' : 'Attach Equipment / Machine'"></span>
                     </button>
 
-                    <div x-show="attachOpen" class="mt-2.5 p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2" x-cloak>
-                        <form method="POST" action="{{ route('portal.tickets.assets.attach', $ticket->id) }}" class="space-y-2">
+                    <div x-show="attachOpen" class="mt-2.5 p-3 bg-slate-50 border border-slate-200 rounded-2xl space-y-2.5" x-cloak>
+                        <form method="POST" action="{{ route('portal.tickets.assets.attach', $ticket->id) }}" class="space-y-2.5">
                             @csrf
-                            <div>
-                                <label class="block text-[10px] font-bold text-slate-700 uppercase mb-0.5">Select Machine / Asset</label>
-                                <select name="asset_id" required class="w-full text-xs p-2 rounded-lg border border-slate-300 bg-white">
-                                    <option value="">-- Choose Equipment --</option>
-                                    @php
-                                        $sameBranchAssets = $availableAssets->where('branch_id', $ticket->branch_id);
-                                        $otherAssets = $availableAssets->where('branch_id', '!=', $ticket->branch_id);
-                                    @endphp
-                                    @if($sameBranchAssets->isNotEmpty())
-                                        <optgroup label="📍 Same Branch ({{ $ticket->branch->name }})">
-                                            @foreach($sameBranchAssets as $av)
-                                                <option value="{{ $av->id }}">{{ $av->asset_tag }} &bull; {{ $av->name }} ({{ $av->category?->name }})</option>
-                                            @endforeach
-                                        </optgroup>
-                                    @endif
-                                    @if($otherAssets->isNotEmpty())
-                                        <optgroup label="🌐 Other Branches & HQ">
-                                            @foreach($otherAssets as $av)
-                                                <option value="{{ $av->id }}">{{ $av->asset_tag }} &bull; {{ $av->name }} ({{ $av->branch?->name }})</option>
-                                            @endforeach
-                                        </optgroup>
-                                    @endif
-                                </select>
+                            <input type="hidden" name="asset_id" :value="selectedAssetId">
+
+                            <div class="flex items-center justify-between gap-1 flex-wrap">
+                                <label class="block text-[10px] font-bold text-slate-700 uppercase">Select Machine / Asset</label>
+                                <div class="inline-flex bg-slate-200/70 p-0.5 rounded-lg text-[10px]">
+                                    <button type="button" @click="assetScope = 'same'; assetDropdownOpen = true"
+                                            :class="assetScope === 'same' ? 'bg-white text-blue-700 font-bold shadow-2xs' : 'text-slate-600 font-medium hover:text-slate-800'"
+                                            class="px-2 py-0.5 rounded-md transition cursor-pointer">
+                                        Branch (<span x-text="getSameScopeCount()"></span>)
+                                    </button>
+                                    <button type="button" @click="assetScope = 'all'; assetDropdownOpen = true"
+                                            :class="assetScope === 'all' ? 'bg-white text-blue-700 font-bold shadow-2xs' : 'text-slate-600 font-medium hover:text-slate-800'"
+                                            class="px-2 py-0.5 rounded-md transition cursor-pointer">
+                                        All (<span x-text="assets.length"></span>)
+                                    </button>
+                                </div>
                             </div>
-                            <button type="submit" class="w-full py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg transition cursor-pointer">
+
+                            <!-- Selected Asset Summary Card -->
+                            <template x-if="getSelectedAsset()">
+                                <div class="p-2.5 rounded-xl border border-blue-300 bg-blue-50/70 flex items-start justify-between gap-2">
+                                    <div class="flex items-start space-x-2 min-w-0">
+                                        <span class="text-sm shrink-0 mt-0.5" x-text="getSelectedAsset().category_icon"></span>
+                                        <div class="min-w-0">
+                                            <div class="flex items-center flex-wrap gap-1">
+                                                <span class="text-[11px] font-mono font-bold text-blue-700" x-text="getSelectedAsset().asset_tag"></span>
+                                                <template x-if="getSelectedAsset().is_requester_asset">
+                                                    <span class="text-[9px] font-bold px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 border border-emerald-200">⭐ Requester's</span>
+                                                </template>
+                                            </div>
+                                            <div class="text-xs font-bold text-slate-900 leading-snug break-words" x-text="getSelectedAsset().name"></div>
+                                            <div class="text-[10px] text-slate-500 mt-0.5 break-words" x-text="getSelectedAsset().owner_name ? ('👤 ' + getSelectedAsset().owner_name) : (getSelectedAsset().location_details || getSelectedAsset().branch_name)"></div>
+                                        </div>
+                                    </div>
+                                    <button type="button" @click="selectedAssetId = ''; assetDropdownOpen = true"
+                                            class="text-[10px] text-rose-600 hover:text-rose-800 font-bold px-1.5 py-0.5 rounded hover:bg-rose-50 shrink-0 cursor-pointer">
+                                        ✕
+                                    </button>
+                                </div>
+                            </template>
+
+                            <!-- Searchable Trigger & Inline Combobox -->
+                            <template x-if="!getSelectedAsset()">
+                                <div @click="assetDropdownOpen = !assetDropdownOpen"
+                                     class="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 bg-white hover:border-blue-400 cursor-pointer flex items-center justify-between shadow-2xs">
+                                    <span class="text-slate-500 truncate">🔍 Search tag, owner, room, printer...</span>
+                                    <span class="text-slate-400 text-[10px] ml-1 shrink-0" x-text="assetDropdownOpen ? '▲' : '▼'"></span>
+                                </div>
+                            </template>
+
+                            <!-- Contained Dropdown List (Stays 100% Inside Card Width) -->
+                            <div x-show="assetDropdownOpen" class="w-full bg-white rounded-xl border border-slate-200 shadow-md overflow-hidden" x-cloak>
+                                <div class="p-2 border-b border-slate-100 bg-slate-50/70">
+                                    <div class="relative">
+                                        <span class="absolute left-2.5 top-1.5 text-slate-400 text-xs">🔍</span>
+                                        <input type="text" x-model="assetSearch"
+                                               placeholder="Filter by tag, staff, room, category..."
+                                               class="w-full text-xs pl-7 pr-6 py-1.5 rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                        <button type="button" x-show="assetSearch" @click="assetSearch = ''" class="absolute right-2 top-1.5 text-xs text-slate-400 hover:text-slate-600 cursor-pointer">✕</button>
+                                    </div>
+                                </div>
+
+                                <div class="max-h-60 overflow-y-auto divide-y divide-slate-100 p-1">
+                                    <template x-for="item in getFilteredAssets()" :key="item.id">
+                                        <div @click="selectedAssetId = item.id; assetDropdownOpen = false; assetSearch = ''"
+                                             class="p-2 hover:bg-blue-50/80 rounded-lg cursor-pointer transition space-y-1">
+                                            <div class="flex items-center justify-between gap-1 flex-wrap">
+                                                <div class="flex items-center space-x-1.5 min-w-0">
+                                                    <span class="text-xs shrink-0" x-text="item.category_icon"></span>
+                                                    <span class="text-[11px] font-mono font-bold text-blue-700" x-text="item.asset_tag"></span>
+                                                </div>
+                                                <div class="flex items-center gap-1 flex-wrap">
+                                                    <template x-if="item.is_requester_asset">
+                                                        <span class="text-[9px] font-bold px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 border border-emerald-200">⭐ Requester</span>
+                                                    </template>
+                                                    <template x-if="!item.is_requester_asset && item.ownership_type === 'shared'">
+                                                        <span class="text-[9px] font-semibold px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700 border border-indigo-200">Shared</span>
+                                                    </template>
+                                                    <template x-if="item.recent_90d_count >= 1">
+                                                        <span class="text-[9px] font-bold px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 border border-amber-200" x-text="'⚠️ ' + item.prior_tickets_count + ' prev'"></span>
+                                                    </template>
+                                                    <template x-if="item.recent_90d_count === 0 && item.prior_tickets_count > 0">
+                                                        <span class="text-[9px] font-semibold px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 border border-slate-200" x-text="'🕘 ' + item.prior_tickets_count + ' prev'"></span>
+                                                    </template>
+                                                </div>
+                                            </div>
+                                            <div class="text-xs font-semibold text-slate-800 leading-snug break-words" x-text="item.name"></div>
+                                            <div class="text-[10px] text-slate-500 leading-snug break-words">
+                                                <span x-text="item.owner_name ? ('👤 ' + item.owner_name) : ('📍 ' + (item.location_details || item.branch_name))"></span>
+                                                <span class="text-slate-300 mx-1">&bull;</span>
+                                                <span x-text="item.category_name"></span>
+                                            </div>
+                                        </div>
+                                    </template>
+
+                                    <div x-show="getFilteredAssets().length === 0" class="py-4 px-2 text-center text-xs text-slate-400 space-y-1.5">
+                                        <div>No matching equipment found.</div>
+                                        <template x-if="assetScope === 'same'">
+                                            <button type="button" @click="assetScope = 'all'; assetSearch = ''" class="text-blue-600 font-bold hover:underline text-[11px] cursor-pointer">
+                                                🌐 Show All Branches (<span x-text="assets.length"></span>)
+                                            </button>
+                                        </template>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button type="submit" :disabled="!selectedAssetId"
+                                    class="w-full py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold text-xs rounded-xl transition cursor-pointer shadow-xs">
                                 Confirm &amp; Attach
                             </button>
                         </form>

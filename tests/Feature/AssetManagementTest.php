@@ -234,4 +234,83 @@ class AssetManagementTest extends TestCase
         $showResponse->assertSee('Cashier computer randomly freezing');
         $showResponse->assertSee('Replaced faulty 8GB DDR4 RAM in Slot 1 with new stick from stock');
     }
+
+    public function test_recording_part_from_spare_stock_auto_installs_component_and_shows_prior_ticket_history(): void
+    {
+        $this->actingAs($this->techUser);
+
+        $cat = AssetCategory::where('code', 'WORKSTATION')->firstOrFail();
+        $asset = Asset::create([
+            'asset_tag' => 'CBVH-PC-0088',
+            'name' => 'Staff Requester PC',
+            'category_id' => $cat->id,
+            'ownership_type' => 'personal',
+            'branch_id' => $this->hqBranch->id,
+            'assigned_user_id' => $this->regularUser->id,
+            'status' => 'in_use',
+        ]);
+
+        $spareRam = AssetComponent::create([
+            'branch_id' => $this->hqBranch->id,
+            'component_type' => 'ram',
+            'brand_model' => 'Kingston 16GB DDR4',
+            'capacity_or_specs' => '16GB DDR4 3200MHz',
+            'status' => 'in_stock',
+        ]);
+
+        $ticketCat = TicketCategory::firstOrFail();
+
+        // Older ticket already resolved for this machine
+        $oldTicket = Ticket::create([
+            'ticket_code' => 'IT-202610-8881',
+            'ticket_type' => 'incident',
+            'category_id' => $ticketCat->id,
+            'branch_id' => $this->hqBranch->id,
+            'requester_id' => $this->regularUser->id,
+            'subject' => 'Old screen flicker',
+            'description' => 'Display flickering.',
+            'status' => 'resolved_confirmed',
+        ]);
+        $oldTicket->assets()->attach($asset->id);
+
+        // New ticket opened by same user
+        $newTicket = Ticket::create([
+            'ticket_code' => 'IT-202611-8882',
+            'ticket_type' => 'incident',
+            'category_id' => $ticketCat->id,
+            'branch_id' => $this->hqBranch->id,
+            'requester_id' => $this->regularUser->id,
+            'subject' => 'Needs more memory',
+            'description' => 'Upgrade RAM',
+            'status' => 'in_progress',
+        ]);
+
+        // Attach asset and verify ticket detail displays prior ticket badge and spare component stock option
+        $newTicket->assets()->attach($asset->id);
+
+        $detailResponse = $this->get(route('portal.tickets.show', $newTicket->id));
+        $detailResponse->assertOk();
+        $detailResponse->assertSee('1 prior ticket');
+        $detailResponse->assertSee('Kingston 16GB DDR4');
+
+        // Log part replacement using the stock component without custom text -> auto-generates description & marks installed
+        $partResponse = $this->post(route('portal.tickets.assets.parts', $newTicket->id), [
+            'asset_id' => $asset->id,
+            'action' => 'installed',
+            'component_id' => $spareRam->id,
+            'description' => '',
+        ]);
+        $partResponse->assertRedirect();
+
+        $spareRam->refresh();
+        $this->assertEquals('installed', $spareRam->status);
+        $this->assertEquals($asset->id, $spareRam->asset_id);
+
+        $this->assertDatabaseHas('ticket_asset_parts', [
+            'ticket_id' => $newTicket->id,
+            'asset_id' => $asset->id,
+            'component_id' => $spareRam->id,
+            'action' => 'installed',
+        ]);
+    }
 }

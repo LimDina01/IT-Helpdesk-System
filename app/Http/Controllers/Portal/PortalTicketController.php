@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
 use App\Models\Asset;
+use App\Models\AssetComponent;
 use App\Models\Ticket;
 use App\Models\TicketApproval;
 use App\Models\TicketAssetPart;
@@ -46,6 +47,8 @@ class PortalTicketController extends Controller
             'approvals.approver',
             'assets.category',
             'assets.branch',
+            'assets.assignedUser',
+            'assets.tickets',
             'assetParts.component',
             'assetParts.recordedBy',
         ]);
@@ -96,10 +99,47 @@ class PortalTicketController extends Controller
                 ];
             });
 
-        $availableAssets = Asset::with(['category', 'branch'])
+        $linkedAssetIds = $ticket->assets->pluck('id')->all();
+
+        $availableAssets = Asset::with(['category', 'branch', 'assignedUser'])
+            ->withCount([
+                'tickets as prior_tickets_count' => fn ($q) => $q->where('tickets.id', '!=', $ticket->id),
+                'tickets as recent_90d_count' => fn ($q) => $q->where('tickets.id', '!=', $ticket->id)
+                    ->where('tickets.created_at', '>=', now()->subDays(90)),
+            ])
             ->where('status', '!=', 'decommissioned')
+            ->whereNotIn('id', $linkedAssetIds)
             ->orderBy('name')
-            ->get(['id', 'asset_tag', 'name', 'category_id', 'branch_id', 'ownership_type', 'location_details', 'assigned_user_id']);
+            ->get(['id', 'asset_tag', 'name', 'category_id', 'branch_id', 'ownership_type', 'location_details', 'assigned_user_id', 'status']);
+
+        $availableAssetsJson = $availableAssets->map(function ($a) use ($ticket) {
+            return [
+                'id' => $a->id,
+                'asset_tag' => $a->asset_tag,
+                'name' => $a->name,
+                'ownership_type' => $a->ownership_type,
+                'location_details' => $a->location_details ?? '',
+                'status' => $a->status,
+                'category_name' => $a->category?->name ?? 'Hardware',
+                'category_icon' => $a->category?->icon ?? '🖥️',
+                'branch_id' => $a->branch_id,
+                'branch_name' => $a->branch?->name ?? 'HQ',
+                'branch_code' => $a->branch?->code ?? 'HQ',
+                'assigned_user_id' => $a->assigned_user_id,
+                'owner_name' => $a->assignedUser?->name ?? '',
+                'is_requester_asset' => $a->assigned_user_id && (int) $a->assigned_user_id === (int) $ticket->requester_id,
+                'is_same_branch' => $a->branch_id && (int) $a->branch_id === (int) $ticket->branch_id,
+                'prior_tickets_count' => (int) ($a->prior_tickets_count ?? 0),
+                'recent_90d_count' => (int) ($a->recent_90d_count ?? 0),
+            ];
+        })->values();
+
+        $spareComponents = AssetComponent::with('branch')
+            ->where('status', 'in_stock')
+            ->orderByRaw('CASE WHEN branch_id = ? THEN 0 ELSE 1 END', [$ticket->branch_id ?? 0])
+            ->orderBy('component_type')
+            ->orderBy('brand_model')
+            ->get();
 
         return view('portal.ticket-detail', compact(
             'ticket',
@@ -109,7 +149,9 @@ class PortalTicketController extends Controller
             'currentApproval',
             'canApproveCurrent',
             'categoriesHierarchy',
-            'availableAssets'
+            'availableAssets',
+            'availableAssetsJson',
+            'spareComponents'
         ));
     }
 
@@ -1064,19 +1106,68 @@ class PortalTicketController extends Controller
         $validated = $request->validate([
             'asset_id' => 'required|exists:assets,id',
             'action' => 'required|in:replaced,installed,removed,serviced',
-            'description' => 'required|string|max:255',
+            'description' => 'nullable|string|max:255',
             'component_id' => 'nullable|exists:asset_components,id',
         ]);
 
-        TicketAssetPart::create([
-            'ticket_id' => $ticket->id,
-            'asset_id' => $validated['asset_id'],
-            'component_id' => $validated['component_id'] ?? null,
-            'action' => $validated['action'],
-            'description' => $validated['description'],
-            'recorded_by_user_id' => Auth::id(),
-        ]);
+        $component = null;
+        if (! empty($validated['component_id'])) {
+            $component = AssetComponent::findOrFail($validated['component_id']);
+            if ($component->status !== 'in_stock') {
+                return back()->withErrors(['error' => 'Selected spare component is no longer in stock.']);
+            }
+        }
 
-        return back()->with('status', 'Component service action recorded in asset maintenance history.');
+        $description = trim($validated['description'] ?? '');
+        if ($description === '' && $component) {
+            $specs = $component->capacity_or_specs ? " ({$component->capacity_or_specs})" : '';
+            $actionLabel = ucfirst($validated['action']);
+            $description = "{$actionLabel} {$component->brand_model}{$specs} from IT Spare Stock";
+        }
+
+        if ($description === '') {
+            return back()->withErrors(['error' => 'Please enter a part description or select a component from IT Spare Stock.']);
+        }
+
+        $asset = Asset::findOrFail($validated['asset_id']);
+
+        DB::transaction(function () use ($ticket, $asset, $component, $validated, $description) {
+            if ($component && in_array($validated['action'], ['replaced', 'installed'])) {
+                $component->update([
+                    'asset_id' => $asset->id,
+                    'branch_id' => $asset->branch_id,
+                    'status' => 'installed',
+                    'installed_at' => now(),
+                ]);
+            }
+
+            TicketAssetPart::create([
+                'ticket_id' => $ticket->id,
+                'asset_id' => $asset->id,
+                'component_id' => $component?->id,
+                'action' => $validated['action'],
+                'description' => $description,
+                'recorded_by_user_id' => Auth::id(),
+            ]);
+
+            TicketAuditLog::create([
+                'ticket_id' => $ticket->id,
+                'actor_id' => Auth::id(),
+                'action' => 'ASSET_PART_LOGGED',
+                'old_value' => $asset->asset_tag,
+                'new_value' => strtoupper($validated['action']),
+                'metadata' => [
+                    'asset_tag' => $asset->asset_tag,
+                    'action' => $validated['action'],
+                    'description' => $description,
+                    'component_id' => $component?->id,
+                ],
+                'created_at' => now(),
+            ]);
+        });
+
+        return back()->with('status', $component
+            ? "Installed '{$component->brand_model}' from IT stock and logged to {$asset->asset_tag} maintenance history."
+            : 'Component service action recorded in asset maintenance history.');
     }
 }
