@@ -6,6 +6,7 @@ use App\Http\Controllers\Portal\PortalAuthController;
 use App\Http\Controllers\Portal\PortalCockpitController;
 use App\Http\Controllers\Portal\PortalDashboardController;
 use App\Http\Controllers\Portal\PortalLinkRequestController;
+use App\Http\Controllers\Portal\PortalOverviewController;
 use App\Http\Controllers\Portal\PortalTicketController;
 use App\Http\Controllers\Tma\TmaAuthController;
 use App\Http\Controllers\Tma\TmaTicketController;
@@ -75,6 +76,7 @@ Route::prefix('portal')->group(function () {
     // Protected Staff Routes
     Route::middleware(['auth', 'staff'])->group(function () {
         Route::get('/', [PortalDashboardController::class, 'index'])->name('portal.dashboard');
+        Route::get('/overview', [PortalOverviewController::class, 'index'])->name('portal.overview');
 
         // Ticket Management
         Route::get('/tickets/{ticket}', [PortalTicketController::class, 'show'])->name('portal.tickets.show');
