@@ -62,7 +62,7 @@ class AssetManagementTest extends TestCase
 
         $response = $this->get(route('portal.assets.index'));
         $response->assertOk();
-        $response->assertSee('IT Assets, Equipment & Spare Stock');
+        $response->assertSee('IT Assets, Equipment');
         $response->assertSee('Workstations & Laptops');
         $response->assertSee('Meeting & Display Equipment');
     }

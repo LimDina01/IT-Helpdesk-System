@@ -161,22 +161,18 @@
             <div class="absolute -right-2 -bottom-2 text-6xl opacity-10 font-black pointer-events-none">PRN</div>
         </a>
 
-        <!-- 5. POS & Retail Gear (Indigo / Violet) -->
-        @php
-            $posCat = $categories->first(fn($c) => in_array($c->code, ['POS', 'RETAIL']));
-            $posCount = $posCat ? $posCat->assets_count : 0;
-        @endphp
-        <a href="{{ route('portal.assets.index', array_filter(['category_id' => $posCat?->id, 'branch_id' => $branchFilter])) }}" 
-           class="bg-gradient-to-br from-indigo-500 to-purple-600 text-white p-4 rounded-2xl shadow-sm hover:shadow-md transition transform hover:-translate-y-0.5 block group relative overflow-hidden">
+        <!-- 5. Software & Digital Licenses (Emerald / Teal - Signature GLPI Tile) -->
+        <a href="{{ route('portal.assets.index', ['tab' => 'licenses']) }}" 
+           class="bg-gradient-to-br from-emerald-600 to-teal-700 text-white p-4 rounded-2xl shadow-sm hover:shadow-md transition transform hover:-translate-y-0.5 block group relative overflow-hidden">
             <div class="flex items-center justify-between">
-                <div class="text-3xl font-black tracking-tight">{{ $posCount }}</div>
+                <div class="text-3xl font-black tracking-tight">{{ $totalLicenses }}</div>
                 <div class="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-xs flex items-center justify-center text-xl">
-                    💳
+                    🔑
                 </div>
             </div>
-            <div class="mt-2 text-xs font-bold tracking-wide uppercase text-indigo-100">POS Terminals</div>
-            <div class="text-[10px] text-indigo-200 mt-0.5 truncate">Cashier & Barcode</div>
-            <div class="absolute -right-2 -bottom-2 text-6xl opacity-10 font-black pointer-events-none">POS</div>
+            <div class="mt-2 text-xs font-bold tracking-wide uppercase text-emerald-100">Software &amp; Licenses</div>
+            <div class="text-[10px] text-emerald-200 mt-0.5 truncate">{{ $assignedSoftwareSeats }}/{{ $totalSoftwareSeats }} seats &bull; {{ $totalLicenses }} apps</div>
+            <div class="absolute -right-2 -bottom-2 text-6xl opacity-10 font-black pointer-events-none">LIC</div>
         </a>
 
         <!-- 6. Spare Components & Parts (Green) -->

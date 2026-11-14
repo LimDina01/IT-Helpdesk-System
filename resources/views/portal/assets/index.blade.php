@@ -17,8 +17,20 @@
 <div x-data="{ 
     createAssetModal: false, 
     createSpareModal: false,
+    createLicenseModal: false,
+    editLicenseModal: false,
+    assignSeatModal: false,
+    activeLicense: null,
     assetOwnership: 'personal',
-    currentTab: '{{ $currentTab }}'
+    currentTab: '{{ $currentTab }}',
+    openEditLicense(lic) {
+        this.activeLicense = lic;
+        this.editLicenseModal = true;
+    },
+    openAssignSeat(lic) {
+        this.activeLicense = lic;
+        this.assignSeatModal = true;
+    }
 }" class="space-y-6">
 
     <!-- Top Header -->
@@ -28,11 +40,15 @@
                 <span>🖥️</span>
                 <span>IT Operations &bull; Asset &amp; Inventory Management</span>
             </div>
-            <h1 class="text-xl sm:text-2xl font-black text-slate-900 mt-1">IT Assets, Equipment &amp; Spare Stock</h1>
-            <p class="text-xs text-slate-500 mt-0.5">Track workstations, meeting room projectors, shared printers, retail POS, and spare components (RAM, SSDs, PSUs).</p>
+            <h1 class="text-xl sm:text-2xl font-black text-slate-900 mt-1">IT Assets, Equipment, Spares &amp; Software</h1>
+            <p class="text-xs text-slate-500 mt-0.5">Track workstations, meeting displays, network switches, spare components, and digital software subscriptions.</p>
         </div>
 
-        <div class="flex items-center space-x-2.5">
+        <div class="flex items-center flex-wrap gap-2.5">
+            <button type="button" @click="createLicenseModal = true" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3.5 py-2.5 rounded-xl shadow-xs transition flex items-center space-x-1.5 cursor-pointer">
+                <span>🔑</span>
+                <span>+ Register License</span>
+            </button>
             <button type="button" @click="createSpareModal = true" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs px-3.5 py-2.5 rounded-xl shadow-xs transition flex items-center space-x-1.5 cursor-pointer">
                 <span>⚙️</span>
                 <span>+ Add Spare Stock</span>
@@ -105,6 +121,15 @@
                 <span>Stock &amp; Lifecycle Report</span>
                 <span class="text-[10px] px-2 py-0.5 rounded-full font-black {{ $currentTab === 'report' ? 'bg-white/20 text-white' : 'bg-indigo-100 text-indigo-700' }}">
                     Executive
+                </span>
+            </a>
+
+            <a href="{{ route('portal.assets.index', ['tab' => 'licenses']) }}" 
+               class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center space-x-2 {{ $currentTab === 'licenses' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">
+                <span>🔑</span>
+                <span>Software &amp; Licenses</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full font-black {{ $currentTab === 'licenses' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700' }}">
+                    {{ $totalLicensesCount }}
                 </span>
             </a>
         </div>
@@ -897,6 +922,227 @@
         </div>
     @endif
 
+    @if($currentTab === 'licenses')
+        <!-- TAB 4: SOFTWARE & DIGITAL LICENSES (GLPI LEAN ITAM) -->
+        <div class="space-y-6">
+            
+            <!-- 1. KPI Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+                <div class="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs">
+                    <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                        <span>Software Applications</span>
+                        <span class="text-base">🔑</span>
+                    </div>
+                    <div class="text-2xl font-black text-slate-900 mt-1.5">
+                        {{ $totalLicensesCount }}
+                    </div>
+                    <div class="text-[11px] text-slate-500 mt-1">
+                        Active subscriptions &amp; digital licenses
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs">
+                    <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                        <span>License Seat Utilization</span>
+                        <span class="text-base">👥</span>
+                    </div>
+                    <div class="text-2xl font-black text-emerald-600 mt-1.5">
+                        {{ $assignedSeatsCount }} <span class="text-xs text-slate-400 font-bold">/ {{ $totalSeatsCount }} seats</span>
+                    </div>
+                    <div class="text-[11px] text-slate-500 mt-1">
+                        {{ max(0, $totalSeatsCount - $assignedSeatsCount) }} available unallocated seats
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs {{ $expiringLicensesCount > 0 ? 'border-amber-300 bg-amber-50/20' : '' }}">
+                    <div class="text-[10px] font-bold text-amber-700 uppercase tracking-wider flex items-center justify-between">
+                        <span>Expiring Soon (&lt;30 Days)</span>
+                        <span class="text-base">⏰</span>
+                    </div>
+                    <div class="text-2xl font-black text-amber-700 mt-1.5">
+                        {{ $expiringLicensesCount }} <span class="text-xs font-bold text-amber-600">Subscriptions</span>
+                    </div>
+                    <div class="text-[11px] text-amber-900/80 mt-1">
+                        Require billing renewal review
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs">
+                    <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                        <span>Annual Software Budget</span>
+                        <span class="text-base">💰</span>
+                    </div>
+                    <div class="text-2xl font-black text-slate-900 mt-1.5">
+                        @if($canViewFinancials)
+                            ${{ number_format($totalSoftwareValuation, 2) }}
+                        @else
+                            <span class="text-slate-400 text-sm font-bold">[Management Confidential]</span>
+                        @endif
+                    </div>
+                    <div class="text-[11px] text-slate-500 mt-1">
+                        {{ $canViewFinancials ? 'Total SaaS & software investment' : 'Restricted to HOD & System Admin' }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. Software Licenses Table Card -->
+            <div class="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
+                <div class="px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/60">
+                    <div>
+                        <h3 class="text-sm font-extrabold text-slate-900">Digital Software &amp; SaaS Subscriptions</h3>
+                        <p class="text-xs text-slate-500 mt-0.5">Manage seat quotas, license keys, and track employee allocations.</p>
+                    </div>
+                    <button type="button" @click="createLicenseModal = true" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow-xs transition flex items-center space-x-1.5 shrink-0 cursor-pointer">
+                        <span>+ Register New License</span>
+                    </button>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs border-collapse">
+                        <thead>
+                            <tr class="border-b border-slate-200 bg-slate-50/80 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
+                                <th class="py-3 px-5">Software / Publisher</th>
+                                <th class="py-3 px-4">License Type</th>
+                                <th class="py-3 px-4 text-center">Seat Quota</th>
+                                <th class="py-3 px-4">License Key / Portal</th>
+                                <th class="py-3 px-4">Renewal / Expiry</th>
+                                <th class="py-3 px-4 text-right">Investment</th>
+                                <th class="py-3 px-5 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 text-slate-700">
+                            @forelse($licenses as $lic)
+                                @php
+                                    $assigned = $lic->assignments->count();
+                                    $total = $lic->seats_total;
+                                    $pct = $total > 0 ? round(($assigned / $total) * 100) : 0;
+                                    $badge = $lic->status_badge;
+                                @endphp
+                                <tr class="hover:bg-slate-50/80 transition">
+                                    <td class="py-3.5 px-5">
+                                        <div class="font-extrabold text-slate-900 text-xs">{{ $lic->name }}</div>
+                                        <div class="text-[10px] text-slate-400 mt-0.5">Publisher: {{ $lic->vendor_publisher ?: 'General' }}</div>
+                                        @if($lic->notes)
+                                            <div class="text-[10px] text-slate-500 mt-1 italic">{{ Str::limit($lic->notes, 60) }}</div>
+                                        @endif
+                                    </td>
+                                    <td class="py-3.5 px-4">
+                                        <span class="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 capitalize">
+                                            {{ $lic->license_type }}
+                                        </span>
+                                        <div class="text-[10px] text-slate-400 mt-0.5 capitalize">{{ str_replace('_', ' ', $lic->billing_cycle) }}</div>
+                                    </td>
+                                    <td class="py-3.5 px-4 text-center">
+                                        <div class="flex items-center justify-center space-x-2">
+                                            <span class="font-black text-slate-900">{{ $assigned }}</span>
+                                            <span class="text-slate-400">/</span>
+                                            <span class="font-bold text-slate-600">{{ $total }}</span>
+                                        </div>
+                                        <div class="w-24 h-1.5 bg-slate-100 rounded-full mx-auto mt-1.5 overflow-hidden">
+                                            <div class="h-full {{ $pct >= 90 ? 'bg-rose-500' : ($pct >= 75 ? 'bg-amber-500' : 'bg-emerald-500') }}" style="width: {{ $pct }}%"></div>
+                                        </div>
+                                        <div class="text-[9px] text-slate-400 mt-0.5">{{ $pct }}% in use</div>
+                                    </td>
+                                    <td class="py-3.5 px-4 font-mono text-[11px] text-slate-600">
+                                        @if($lic->license_key)
+                                            @if(Str::startsWith($lic->license_key, ['http://', 'https://']))
+                                                <a href="{{ $lic->license_key }}" target="_blank" class="text-blue-600 hover:underline flex items-center space-x-1">
+                                                    <span>Admin Portal ↗</span>
+                                                </a>
+                                            @else
+                                                <span class="bg-slate-100 px-2 py-0.5 rounded text-[10px] font-semibold text-slate-800 border border-slate-200">
+                                                    {{ Str::limit($lic->license_key, 25) }}
+                                                </span>
+                                            @endif
+                                        @else
+                                            <span class="text-slate-400">—</span>
+                                        @endif
+                                    </td>
+                                    <td class="py-3.5 px-4">
+                                        <span class="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full border {{ $badge['class'] }}">
+                                            {{ $badge['label'] }}
+                                        </span>
+                                        <div class="text-[10px] text-slate-500 mt-0.5">
+                                            {{ $lic->expiry_date ? $lic->expiry_date->format('d-M-Y') : 'Perpetual / No Expiry' }}
+                                        </div>
+                                    </td>
+                                    <td class="py-3.5 px-4 text-right font-mono font-bold text-slate-900">
+                                        @if($canViewFinancials)
+                                            {{ $lic->purchase_cost ? '$' . number_format($lic->purchase_cost, 2) : '—' }}
+                                        @else
+                                            <span class="text-slate-400 font-normal">[Confidential]</span>
+                                        @endif
+                                    </td>
+                                    <td class="py-3.5 px-5 text-right space-x-1">
+                                        <button type="button" 
+                                                @click="openAssignSeat({{ json_encode($lic) }})"
+                                                class="px-2 py-1 rounded-lg text-[10px] font-bold bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 transition cursor-pointer"
+                                                title="Allocate Seat">
+                                            + Seat
+                                        </button>
+                                        <button type="button" 
+                                                @click="openEditLicense({{ json_encode($lic) }})"
+                                                class="px-2 py-1 rounded-lg text-[10px] font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition cursor-pointer"
+                                                title="Edit License">
+                                            ✏️ Edit
+                                        </button>
+                                        <form method="POST" action="{{ route('portal.assets.licenses.destroy', $lic->id) }}" class="inline" onsubmit="return confirm('Delete software license &quot;{{ $lic->name }}&quot;?');">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="px-2 py-1 rounded-lg text-[10px] font-bold bg-rose-50 text-rose-600 hover:bg-rose-100 transition cursor-pointer" title="Delete">
+                                                ✕
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                <!-- Sub-row: Allocated Seats Breakdown -->
+                                @if($lic->assignments->count() > 0)
+                                    <tr class="bg-slate-50/40 border-b border-slate-100">
+                                        <td colspan="7" class="py-2 px-8 text-xs">
+                                            <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 flex items-center space-x-1.5">
+                                                <span>👥</span>
+                                                <span>Allocated Seats ({{ $lic->assignments->count() }} of {{ $lic->seats_total }}):</span>
+                                            </div>
+                                            <div class="flex flex-wrap gap-2">
+                                                @foreach($lic->assignments as $asgn)
+                                                    <div class="inline-flex items-center space-x-2 bg-white px-2.5 py-1 rounded-xl border border-slate-200 shadow-2xs text-[11px]">
+                                                        @if($asgn->user)
+                                                            <span class="font-bold text-slate-800">👤 {{ $asgn->user->name }}</span>
+                                                        @endif
+                                                        @if($asgn->asset)
+                                                            <span class="text-blue-600 font-mono text-[10px] bg-blue-50 px-1 rounded">💻 {{ $asgn->asset->asset_tag }}</span>
+                                                        @endif
+                                                        @if($asgn->notes)
+                                                            <span class="text-slate-400 text-[10px] italic">({{ $asgn->notes }})</span>
+                                                        @endif
+                                                        <form method="POST" action="{{ route('portal.assets.licenses.unassign', $asgn->id) }}" class="inline ml-1" onsubmit="return confirm('Revoke this seat?');">
+                                                            @csrf
+                                                            @method('DELETE')
+                                                            <button type="submit" class="text-rose-500 hover:text-rose-700 font-bold text-xs" title="Revoke Seat">✕</button>
+                                                        </form>
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @endif
+                            @empty
+                                <tr>
+                                    <td colspan="7" class="py-12 text-center text-slate-400">
+                                        <div class="text-3xl mb-2">🔑</div>
+                                        <div class="font-bold text-slate-700">No software licenses registered yet</div>
+                                        <p class="text-xs text-slate-400 mt-1">Register SaaS apps (Office 365, Adobe, AutoCAD, Antivirus) to track seats and renewal dates.</p>
+                                    </td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    @endif
+
     <!-- ======================================================== -->
     <!-- MODAL 1: REGISTER NEW HARDWARE ASSET                      -->
     <!-- ======================================================== -->
@@ -1278,6 +1524,297 @@
                 <div class="flex items-center justify-end space-x-2 pt-3 border-t border-slate-100">
                     <button type="button" @click="createSpareModal = false" class="px-4 py-2 text-xs text-slate-600 font-semibold hover:bg-slate-100 rounded-xl transition">Cancel</button>
                     <button type="submit" class="px-5 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow-xs transition">Add to IT Stock</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- MODAL 3: REGISTER NEW SOFTWARE LICENSE                    -->
+    <!-- ======================================================== -->
+    <div x-show="createLicenseModal" 
+         x-transition:enter="transition ease-out duration-200" 
+         x-transition:enter-start="opacity-0 scale-95"
+         x-transition:enter-end="opacity-100 scale-100"
+         x-transition:leave="transition ease-in duration-150" 
+         x-transition:leave-start="opacity-100 scale-100"
+         x-transition:leave-end="opacity-0 scale-95"
+         class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-3 sm:p-4" 
+         x-cloak>
+        <div @click.away="createLicenseModal = false" class="bg-white rounded-3xl max-w-xl w-full shadow-2xl flex flex-col max-h-[92vh] overflow-hidden my-auto border border-slate-100">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/80 shrink-0">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center text-lg font-bold shadow-2xs">
+                        🔑
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-extrabold text-slate-900">Register Software / SaaS License</h3>
+                        <p class="text-[11px] text-slate-500">Track digital subscriptions, license keys, and total seat quotas.</p>
+                    </div>
+                </div>
+                <button type="button" @click="createLicenseModal = false" class="text-slate-400 hover:text-slate-600 text-xl font-bold p-1 rounded-lg hover:bg-slate-100 transition leading-none">&times;</button>
+            </div>
+
+            <form method="POST" action="{{ route('portal.assets.licenses.store') }}" class="p-6 space-y-4 overflow-y-auto">
+                @csrf
+
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Software / Application Name <span class="text-rose-500">*</span></label>
+                    <input type="text" name="name" required placeholder="e.g. Microsoft 365 Business Standard or Adobe CC" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Publisher / Vendor</label>
+                        <input type="text" name="vendor_publisher" placeholder="e.g. Microsoft, Adobe, Autodesk" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Total Seats Purchased <span class="text-rose-500">*</span></label>
+                        <input type="number" name="seats_total" min="1" value="1" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">License Type</label>
+                        <select name="license_type" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white font-medium">
+                            <option value="subscription">Subscription (Cloud SaaS / Recurring)</option>
+                            <option value="perpetual">Perpetual (One-time Purchase)</option>
+                            <option value="oem">OEM / Hardware Bundled</option>
+                            <option value="volume">Volume Key / Enterprise</option>
+                            <option value="free">Free / Open Source</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Billing Cycle</label>
+                        <select name="billing_cycle" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white font-medium">
+                            <option value="annual">Annual / Yearly</option>
+                            <option value="monthly">Monthly</option>
+                            <option value="one_time">One-time / Lifetime</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">License Key / Activation Code / Admin URL</label>
+                    <input type="text" name="license_key" placeholder="e.g. https://admin.microsoft.com or XXXX-YYYY-ZZZZ" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono">
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Purchase Date</label>
+                        <input type="date" name="purchase_date" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Renewal / Expiry Date</label>
+                        <input type="date" name="expiry_date" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Cost (USD)</label>
+                        @if($canViewFinancials)
+                            <input type="number" step="0.01" min="0" name="purchase_cost" placeholder="e.g. 1200.00" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold">
+                        @else
+                            <input type="text" disabled placeholder="🔒 Restricted" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed">
+                        @endif
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Status</label>
+                    <select name="status" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white font-medium">
+                        <option value="active">Active</option>
+                        <option value="expiring_soon">Expiring Soon</option>
+                        <option value="expired">Expired</option>
+                        <option value="cancelled">Cancelled</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Notes / Instructions</label>
+                    <textarea name="notes" rows="2" placeholder="e.g. Admin login credentials, authorized reseller contact, or user guidelines" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"></textarea>
+                </div>
+
+                <div class="flex items-center justify-end space-x-2 pt-4 border-t border-slate-100">
+                    <button type="button" @click="createLicenseModal = false" class="px-4 py-2.5 text-xs text-slate-600 font-semibold hover:bg-slate-100 rounded-xl transition">Cancel</button>
+                    <button type="submit" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition">Save License</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- MODAL 4: EDIT SOFTWARE LICENSE                            -->
+    <!-- ======================================================== -->
+    <div x-show="editLicenseModal" 
+         x-transition:enter="transition ease-out duration-200" 
+         x-transition:enter-start="opacity-0 scale-95"
+         x-transition:enter-end="opacity-100 scale-100"
+         x-transition:leave="transition ease-in duration-150" 
+         x-transition:leave-start="opacity-100 scale-100"
+         x-transition:leave-end="opacity-0 scale-95"
+         class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-3 sm:p-4" 
+         x-cloak>
+        <div @click.away="editLicenseModal = false" class="bg-white rounded-3xl max-w-xl w-full shadow-2xl flex flex-col max-h-[92vh] overflow-hidden my-auto border border-slate-100">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/80 shrink-0">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-2xl bg-blue-100 text-blue-700 flex items-center justify-center text-lg font-bold shadow-2xs">
+                        ✏️
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-extrabold text-slate-900">Edit Software License</h3>
+                        <p class="text-[11px] text-slate-500" x-text="activeLicense?.name"></p>
+                    </div>
+                </div>
+                <button type="button" @click="editLicenseModal = false" class="text-slate-400 hover:text-slate-600 text-xl font-bold p-1 rounded-lg hover:bg-slate-100 transition leading-none">&times;</button>
+            </div>
+
+            <form method="POST" :action="'/portal/assets/licenses/' + (activeLicense ? activeLicense.id : '')" class="p-6 space-y-4 overflow-y-auto">
+                @csrf
+                @method('PUT')
+
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Software / Application Name <span class="text-rose-500">*</span></label>
+                    <input type="text" name="name" required :value="activeLicense?.name" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Publisher / Vendor</label>
+                        <input type="text" name="vendor_publisher" :value="activeLicense?.vendor_publisher" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Total Seats Purchased <span class="text-rose-500">*</span></label>
+                        <input type="number" name="seats_total" min="1" required :value="activeLicense?.seats_total" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">License Type</label>
+                        <select name="license_type" :value="activeLicense?.license_type" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-medium">
+                            <option value="subscription">Subscription (Cloud SaaS / Recurring)</option>
+                            <option value="perpetual">Perpetual (One-time Purchase)</option>
+                            <option value="oem">OEM / Hardware Bundled</option>
+                            <option value="volume">Volume Key / Enterprise</option>
+                            <option value="free">Free / Open Source</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Billing Cycle</label>
+                        <select name="billing_cycle" :value="activeLicense?.billing_cycle" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-medium">
+                            <option value="annual">Annual / Yearly</option>
+                            <option value="monthly">Monthly</option>
+                            <option value="one_time">One-time / Lifetime</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">License Key / Activation Code / Admin URL</label>
+                    <input type="text" name="license_key" :value="activeLicense?.license_key" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono">
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Purchase Date</label>
+                        <input type="date" name="purchase_date" :value="activeLicense?.purchase_date ? activeLicense.purchase_date.substring(0, 10) : ''" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Renewal / Expiry Date</label>
+                        <input type="date" name="expiry_date" :value="activeLicense?.expiry_date ? activeLicense.expiry_date.substring(0, 10) : ''" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Cost (USD)</label>
+                        @if($canViewFinancials)
+                            <input type="number" step="0.01" min="0" name="purchase_cost" :value="activeLicense?.purchase_cost" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold">
+                        @else
+                            <input type="text" disabled value="🔒 Management Confidential" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed">
+                        @endif
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Status</label>
+                    <select name="status" :value="activeLicense?.status" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-medium">
+                        <option value="active">Active</option>
+                        <option value="expiring_soon">Expiring Soon</option>
+                        <option value="expired">Expired</option>
+                        <option value="cancelled">Cancelled</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Notes / Instructions</label>
+                    <textarea name="notes" rows="2" :value="activeLicense?.notes" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                </div>
+
+                <div class="flex items-center justify-end space-x-2 pt-4 border-t border-slate-100">
+                    <button type="button" @click="editLicenseModal = false" class="px-4 py-2.5 text-xs text-slate-600 font-semibold hover:bg-slate-100 rounded-xl transition">Cancel</button>
+                    <button type="submit" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition">Update License</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- MODAL 5: ALLOCATE LICENSE SEAT (USER OR COMPUTER)         -->
+    <!-- ======================================================== -->
+    <div x-show="assignSeatModal" 
+         x-transition:enter="transition ease-out duration-200" 
+         x-transition:enter-start="opacity-0 scale-95"
+         x-transition:enter-end="opacity-100 scale-100"
+         x-transition:leave="transition ease-in duration-150" 
+         x-transition:leave-start="opacity-100 scale-100"
+         x-transition:leave-end="opacity-0 scale-95"
+         class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-3 sm:p-4" 
+         x-cloak>
+        <div @click.away="assignSeatModal = false" class="bg-white rounded-3xl max-w-lg w-full shadow-2xl flex flex-col max-h-[92vh] overflow-hidden my-auto border border-slate-100">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/80 shrink-0">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-2xl bg-blue-100 text-blue-700 flex items-center justify-center text-lg font-bold shadow-2xs">
+                        👥
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-extrabold text-slate-900">Allocate License Seat</h3>
+                        <p class="text-[11px] text-slate-500" x-text="activeLicense?.name"></p>
+                    </div>
+                </div>
+                <button type="button" @click="assignSeatModal = false" class="text-slate-400 hover:text-slate-600 text-xl font-bold p-1 rounded-lg hover:bg-slate-100 transition leading-none">&times;</button>
+            </div>
+
+            <form method="POST" :action="'/portal/assets/licenses/' + (activeLicense ? activeLicense.id : '') + '/assign'" class="p-6 space-y-4 overflow-y-auto">
+                @csrf
+
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Assign to Staff Member (User)</label>
+                    <select name="user_id" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-medium">
+                        <option value="">-- No Specific Person / Shared Device --</option>
+                        @foreach($users as $u)
+                            <option value="{{ $u->id }}">👤 {{ $u->name }} ({{ $u->email }})</option>
+                        @endforeach
+                    </select>
+                    <span class="text-[10px] text-slate-400 mt-1 block">Staff member receiving the account/mailbox</span>
+                </div>
+
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Install on Hardware Asset (Computer / Laptop)</label>
+                    <select name="asset_id" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-medium">
+                        <option value="">-- No Computer / Cloud Account Only --</option>
+                        @foreach($allAssetsList as $ast)
+                            <option value="{{ $ast->id }}">💻 {{ $ast->asset_tag }} — {{ $ast->name }}</option>
+                        @endforeach
+                    </select>
+                    <span class="text-[10px] text-slate-400 mt-1 block">Hardware machine where the software is installed</span>
+                </div>
+
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Allocation Notes</label>
+                    <input type="text" name="notes" placeholder="e.g. Graphic Designer Workstation or ERP Finance Counter" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+
+                <div class="flex items-center justify-end space-x-2 pt-4 border-t border-slate-100">
+                    <button type="button" @click="assignSeatModal = false" class="px-4 py-2.5 text-xs text-slate-600 font-semibold hover:bg-slate-100 rounded-xl transition">Cancel</button>
+                    <button type="submit" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition">Allocate Seat</button>
                 </div>
             </form>
         </div>

@@ -500,5 +500,6 @@ class DatabaseSeeder extends Seeder
 
         // 6. IT Division Classification & Codes (IT-OPR vs IT-PRD)
         $this->call(ItDivisionClassificationSeeder::class);
+        $this->call(SoftwareLicenseSampleSeeder::class);
     }
 }

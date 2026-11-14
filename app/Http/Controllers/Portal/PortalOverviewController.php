@@ -7,6 +7,8 @@ use App\Models\Asset;
 use App\Models\AssetCategory;
 use App\Models\AssetComponent;
 use App\Models\Branch;
+use App\Models\SoftwareLicense;
+use App\Models\SoftwareLicenseAssignment;
 use App\Models\Ticket;
 use App\Models\User;
 use Carbon\Carbon;
@@ -52,8 +54,17 @@ class PortalOverviewController extends Controller
         $sparesInStock = AssetComponent::whereNull('asset_id')->where('status', 'in_stock')->count();
         $attachedComponents = AssetComponent::whereNotNull('asset_id')->count();
 
-        // 2. Hardware Lifecycle & Capital Valuation
+        // Software & Digital Licenses
+        $totalLicenses = SoftwareLicense::count();
+        $totalSoftwareSeats = (int) SoftwareLicense::sum('seats_total');
+        $assignedSoftwareSeats = SoftwareLicenseAssignment::count();
         $todayDate = Carbon::now()->toDateString();
+        $expiringLicenses = SoftwareLicense::whereNotNull('expiry_date')
+            ->whereBetween('expiry_date', [$todayDate, Carbon::now()->addDays(30)->toDateString()])
+            ->count();
+        $totalSoftwareValuation = (float) SoftwareLicense::sum('purchase_cost');
+
+        // 2. Hardware Lifecycle & Capital Valuation
         $totalValuation = (float) (clone $assetQuery)->sum('purchase_cost');
 
         $activeWarrantyCount = (clone $assetQuery)->where('warranty_expiry', '>=', $todayDate)->count();
@@ -151,6 +162,11 @@ class PortalOverviewController extends Controller
             'decommissionedAssets',
             'sparesInStock',
             'attachedComponents',
+            'totalLicenses',
+            'totalSoftwareSeats',
+            'assignedSoftwareSeats',
+            'expiringLicenses',
+            'totalSoftwareValuation',
             'totalValuation',
             'activeWarrantyCount',
             'activeWarrantyValuation',

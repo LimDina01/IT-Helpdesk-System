@@ -8,6 +8,8 @@ use App\Models\AssetCategory;
 use App\Models\AssetComponent;
 use App\Models\Branch;
 use App\Models\Department;
+use App\Models\SoftwareLicense;
+use App\Models\SoftwareLicenseAssignment;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -169,10 +171,30 @@ class PortalAssetController extends Controller
             ->orderByDesc('assets_count')
             ->get();
 
+        // 4. Software & Digital Licenses
+        $licenses = SoftwareLicense::with(['assignments.user', 'assignments.asset'])
+            ->orderBy('name')
+            ->get();
+        $totalLicensesCount = SoftwareLicense::count();
+        $totalSeatsCount = (int) SoftwareLicense::sum('seats_total');
+        $assignedSeatsCount = SoftwareLicenseAssignment::count();
+        $expiringLicensesCount = SoftwareLicense::whereNotNull('expiry_date')
+            ->whereBetween('expiry_date', [now()->toDateString(), now()->addDays(30)->toDateString()])
+            ->count();
+        $totalSoftwareValuation = (float) SoftwareLicense::sum('purchase_cost');
+        $allAssetsList = Asset::orderBy('asset_tag')->get(['id', 'asset_tag', 'name']);
+
         return view('portal.assets.index', compact(
             'canViewFinancials',
+            'allAssetsList',
             'assets',
             'components',
+            'licenses',
+            'totalLicensesCount',
+            'totalSeatsCount',
+            'assignedSeatsCount',
+            'expiringLicensesCount',
+            'totalSoftwareValuation',
             'currentTab',
             'search',
             'categoryId',

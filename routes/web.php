@@ -7,6 +7,7 @@ use App\Http\Controllers\Portal\PortalCockpitController;
 use App\Http\Controllers\Portal\PortalDashboardController;
 use App\Http\Controllers\Portal\PortalLinkRequestController;
 use App\Http\Controllers\Portal\PortalOverviewController;
+use App\Http\Controllers\Portal\PortalSoftwareLicenseController;
 use App\Http\Controllers\Portal\PortalTicketController;
 use App\Http\Controllers\Tma\TmaAuthController;
 use App\Http\Controllers\Tma\TmaTicketController;
@@ -108,6 +109,14 @@ Route::prefix('portal')->group(function () {
             Route::get('/', [PortalAssetController::class, 'index'])->name('portal.assets.index');
             Route::get('/export', [PortalAssetController::class, 'exportCsv'])->name('portal.assets.export');
             Route::post('/', [PortalAssetController::class, 'store'])->name('portal.assets.store');
+
+            // Software & Digital Licenses
+            Route::post('/licenses', [PortalSoftwareLicenseController::class, 'store'])->name('portal.assets.licenses.store');
+            Route::put('/licenses/{license}', [PortalSoftwareLicenseController::class, 'update'])->name('portal.assets.licenses.update');
+            Route::delete('/licenses/{license}', [PortalSoftwareLicenseController::class, 'destroy'])->name('portal.assets.licenses.destroy');
+            Route::post('/licenses/{license}/assign', [PortalSoftwareLicenseController::class, 'assignSeat'])->name('portal.assets.licenses.assign');
+            Route::delete('/licenses/assignments/{assignment}', [PortalSoftwareLicenseController::class, 'removeSeat'])->name('portal.assets.licenses.unassign');
+
             Route::get('/{asset}', [PortalAssetController::class, 'show'])->name('portal.assets.show');
             Route::put('/{asset}', [PortalAssetController::class, 'update'])->name('portal.assets.update');
             Route::delete('/{asset}', [PortalAssetController::class, 'destroy'])->name('portal.assets.destroy');
