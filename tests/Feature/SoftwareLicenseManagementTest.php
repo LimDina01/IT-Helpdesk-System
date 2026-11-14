@@ -138,4 +138,27 @@ class SoftwareLicenseManagementTest extends TestCase
         $response->assertSee('Software &amp; Licenses', false);
         $response->assertSee('seats');
     }
+
+    public function test_it_staff_can_search_and_filter_software_licenses(): void
+    {
+        $this->actingAs($this->techUser);
+
+        // Search by keyword
+        $searchResponse = $this->get(route('portal.assets.index', [
+            'tab' => 'licenses',
+            'license_search' => 'Adobe',
+        ]));
+        $searchResponse->assertOk();
+        $searchResponse->assertSee('Adobe Creative Cloud');
+        $searchResponse->assertDontSee('Kaspersky Endpoint Security');
+
+        // Filter by license type
+        $filterResponse = $this->get(route('portal.assets.index', [
+            'tab' => 'licenses',
+            'license_type' => 'perpetual',
+        ]));
+        $filterResponse->assertOk();
+        $filterResponse->assertSee('Windows 11 Pro OEM');
+        $filterResponse->assertDontSee('Adobe Creative Cloud');
+    }
 }

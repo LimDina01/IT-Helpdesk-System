@@ -983,6 +983,42 @@
                 </div>
             </div>
 
+            <!-- Filter & Search Toolbar for Software Licenses -->
+            <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
+                <form method="GET" action="{{ route('portal.assets.index') }}" class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                    <input type="hidden" name="tab" value="licenses">
+
+                    <div class="relative">
+                        <input type="text"
+                               name="license_search"
+                               value="{{ $licenseSearch ?? '' }}"
+                               placeholder="Search software, publisher, key, staff, PC... (Enter)"
+                               class="w-full text-xs pl-8 pr-7 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-2xs">
+                        <span class="absolute left-2.5 top-2.5 text-slate-400 text-xs">🔍</span>
+                        @if(!empty($licenseSearch))
+                            <a href="{{ route('portal.assets.index', ['tab' => 'licenses']) }}" class="absolute right-2.5 top-2 text-xs text-slate-400 hover:text-slate-600 font-bold">✕</a>
+                        @endif
+                    </div>
+
+                    <select name="license_type" onchange="this.form.submit()" class="text-xs font-semibold px-2.5 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white text-slate-700">
+                        <option value="">All License Types</option>
+                        <option value="subscription" {{ ($licenseType ?? '') === 'subscription' ? 'selected' : '' }}>Cloud SaaS / Subscription</option>
+                        <option value="perpetual" {{ ($licenseType ?? '') === 'perpetual' ? 'selected' : '' }}>Perpetual (One-time)</option>
+                        <option value="oem" {{ ($licenseType ?? '') === 'oem' ? 'selected' : '' }}>OEM / Bundled</option>
+                        <option value="volume" {{ ($licenseType ?? '') === 'volume' ? 'selected' : '' }}>Volume / Enterprise</option>
+                        <option value="free" {{ ($licenseType ?? '') === 'free' ? 'selected' : '' }}>Free / Open Source</option>
+                    </select>
+
+                    <select name="license_status" onchange="this.form.submit()" class="text-xs font-semibold px-2.5 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white text-slate-700">
+                        <option value="">All Statuses</option>
+                        <option value="active" {{ ($licenseStatus ?? '') === 'active' ? 'selected' : '' }}>🟢 Active</option>
+                        <option value="expiring_soon" {{ ($licenseStatus ?? '') === 'expiring_soon' ? 'selected' : '' }}>🟡 Expiring Soon (&lt;30d)</option>
+                        <option value="expired" {{ ($licenseStatus ?? '') === 'expired' ? 'selected' : '' }}>🔴 Expired</option>
+                        <option value="cancelled" {{ ($licenseStatus ?? '') === 'cancelled' ? 'selected' : '' }}>⚪ Cancelled</option>
+                    </select>
+                </form>
+            </div>
+
             <!-- 2. Software Licenses Table Card -->
             <div class="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
                 <div class="px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/60">
@@ -1766,7 +1802,74 @@
          x-transition:leave-end="opacity-0 scale-95"
          class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-3 sm:p-4" 
          x-cloak>
-        <div @click.away="assignSeatModal = false" class="bg-white rounded-3xl max-w-lg w-full shadow-2xl flex flex-col max-h-[92vh] overflow-hidden my-auto border border-slate-100">
+        <div @click.away="assignSeatModal = false"
+             x-data="{
+                 userSearch: '',
+                 userOpen: false,
+                 selectedUserId: '',
+                 assetSearch: '',
+                 assetOpen: false,
+                 selectedAssetId: '',
+                 usersList: {{ $usersJson->toJson() }},
+                 assetsList: {{ $allAssetsJson->toJson() }},
+                 init() {
+                     this.$watch('assignSeatModal', (val) => {
+                         if (val) {
+                             this.userSearch = '';
+                             this.userOpen = false;
+                             this.selectedUserId = '';
+                             this.assetSearch = '';
+                             this.assetOpen = false;
+                             this.selectedAssetId = '';
+                         }
+                     });
+                 },
+                 getSelectedUser() {
+                     if (!this.selectedUserId) return null;
+                     return this.usersList.find(u => u.id == this.selectedUserId) || null;
+                 },
+                 getSelectedAsset() {
+                     if (!this.selectedAssetId) return null;
+                     return this.assetsList.find(a => a.id == this.selectedAssetId) || null;
+                 },
+                 getFilteredUsers() {
+                     let q = (this.userSearch || '').toLowerCase().trim();
+                     if (!q) return this.usersList.slice(0, 30);
+                     return this.usersList.filter(u =>
+                         (u.name && u.name.toLowerCase().includes(q)) ||
+                         (u.email && u.email.toLowerCase().includes(q)) ||
+                         (u.dept && u.dept.toLowerCase().includes(q)) ||
+                         (u.branch && u.branch.toLowerCase().includes(q))
+                     ).slice(0, 30);
+                 },
+                 getFilteredAssets() {
+                     let q = (this.assetSearch || '').toLowerCase().trim();
+                     if (!q) return this.assetsList.slice(0, 30);
+                     return this.assetsList.filter(a =>
+                         (a.tag && a.tag.toLowerCase().includes(q)) ||
+                         (a.name && a.name.toLowerCase().includes(q)) ||
+                         (a.model && a.model.toLowerCase().includes(q)) ||
+                         (a.branch && a.branch.toLowerCase().includes(q))
+                     ).slice(0, 30);
+                 },
+                 selectUser(user) {
+                     this.selectedUserId = user.id;
+                     this.userOpen = false;
+                     this.userSearch = '';
+                     if (user.primary_asset_id && !this.selectedAssetId) {
+                         this.selectedAssetId = user.primary_asset_id;
+                     }
+                 },
+                 selectAsset(asset) {
+                     this.selectedAssetId = asset.id;
+                     this.assetOpen = false;
+                     this.assetSearch = '';
+                     if (asset.assigned_user_id && !this.selectedUserId) {
+                         this.selectedUserId = asset.assigned_user_id;
+                     }
+                 }
+             }"
+             class="bg-white rounded-3xl max-w-lg w-full shadow-2xl flex flex-col max-h-[92vh] overflow-hidden my-auto border border-slate-100">
             <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/80 shrink-0">
                 <div class="flex items-center space-x-3">
                     <div class="w-10 h-10 rounded-2xl bg-blue-100 text-blue-700 flex items-center justify-center text-lg font-bold shadow-2xs">
@@ -1780,29 +1883,176 @@
                 <button type="button" @click="assignSeatModal = false" class="text-slate-400 hover:text-slate-600 text-xl font-bold p-1 rounded-lg hover:bg-slate-100 transition leading-none">&times;</button>
             </div>
 
+            <!-- Seat Availability Subheader -->
+            <div class="px-6 py-2.5 bg-blue-50/50 border-b border-blue-100/60 flex items-center justify-between text-xs text-slate-600 shrink-0">
+                <div class="flex items-center space-x-1.5">
+                    <span class="text-slate-400 font-semibold">Seat Quota:</span>
+                    <span class="font-bold text-blue-700" x-text="activeLicense?.seats_total ? (activeLicense.seats_total - (activeLicense.assignments ? activeLicense.assignments.length : 0)) + ' of ' + activeLicense.seats_total + ' seats available' : ''"></span>
+                </div>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white text-slate-700 border border-slate-200 uppercase tracking-wider capitalize" x-text="activeLicense?.license_type"></span>
+            </div>
+
             <form method="POST" :action="'/portal/assets/licenses/' + (activeLicense ? activeLicense.id : '') + '/assign'" class="p-6 space-y-4 overflow-y-auto">
                 @csrf
 
-                <div>
-                    <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Assign to Staff Member (User)</label>
-                    <select name="user_id" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-medium">
-                        <option value="">-- No Specific Person / Shared Device --</option>
-                        @foreach($users as $u)
-                            <option value="{{ $u->id }}">👤 {{ $u->name }} ({{ $u->email }})</option>
-                        @endforeach
-                    </select>
-                    <span class="text-[10px] text-slate-400 mt-1 block">Staff member receiving the account/mailbox</span>
+                <!-- 1. Searchable Staff Member Combobox -->
+                <div class="space-y-1.5" @click.away="userOpen = false">
+                    <input type="hidden" name="user_id" :value="selectedUserId">
+                    <div class="flex items-center justify-between">
+                        <label class="block text-[11px] font-bold text-slate-700 uppercase">
+                            👤 Staff Member (User)
+                        </label>
+                        <span class="text-[10px] text-blue-600 font-semibold" x-text="selectedUserId ? 'Selected' : 'Optional / Shared'"></span>
+                    </div>
+
+                    <!-- Selected Staff Card -->
+                    <div x-show="getSelectedUser()" class="p-2.5 rounded-xl border border-blue-200 bg-blue-50/60 shadow-2xs flex items-center justify-between gap-2">
+                        <div class="flex items-center space-x-2.5 min-w-0">
+                            <div class="w-8 h-8 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs shrink-0">
+                                <span x-text="getSelectedUser()?.name ? getSelectedUser().name.charAt(0).toUpperCase() : '👤'"></span>
+                            </div>
+                            <div class="min-w-0">
+                                <div class="font-bold text-xs text-slate-900 leading-tight truncate" x-text="getSelectedUser()?.name"></div>
+                                <div class="text-[10px] text-slate-500 truncate" x-text="getSelectedUser()?.email"></div>
+                                <div class="text-[9px] text-blue-700 font-medium">
+                                    🏢 <span x-text="getSelectedUser()?.dept"></span> &bull; 📍 <span x-text="getSelectedUser()?.branch"></span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-1 shrink-0">
+                            <button type="button" @click="userOpen = !userOpen" class="px-2 py-1 text-[10px] text-blue-600 hover:bg-blue-100 font-bold rounded-lg transition cursor-pointer">
+                                Change
+                            </button>
+                            <button type="button" @click="selectedUserId = ''; userSearch = ''; userOpen = false" class="p-1 text-slate-400 hover:text-rose-600 font-bold text-xs rounded-md transition cursor-pointer" title="Clear selection">
+                                ✕
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Unselected Trigger -->
+                    <div x-show="!getSelectedUser()">
+                        <div @click="userOpen = true" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white hover:border-blue-400 cursor-pointer flex items-center justify-between shadow-2xs">
+                            <span class="text-slate-400 font-medium">🔍 Search staff member by name, email, or dept...</span>
+                            <span class="text-slate-400 text-xs">▼</span>
+                        </div>
+                    </div>
+
+                    <!-- Searchable Dropdown Popup -->
+                    <div x-show="userOpen" class="bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden p-2 space-y-1.5" x-cloak>
+                        <div class="relative">
+                            <span class="absolute left-2.5 top-2.5 text-slate-400 text-xs">🔍</span>
+                            <input type="text" x-model="userSearch"
+                                   placeholder="Type employee name, email, or dept..."
+                                   @keydown.escape="userOpen = false"
+                                   class="w-full text-xs pl-7 pr-6 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <button type="button" x-show="userSearch" @click="userSearch = ''" class="absolute right-2.5 top-2 text-xs text-slate-400 hover:text-slate-600 cursor-pointer">✕</button>
+                        </div>
+
+                        <div class="max-h-40 overflow-y-auto divide-y divide-slate-100">
+                            <div @click="selectedUserId = ''; userOpen = false" class="p-2 hover:bg-slate-50 rounded-lg cursor-pointer transition flex items-center justify-between text-slate-500 text-xs">
+                                <span class="font-medium">— No specific person / Cloud account only —</span>
+                                <span class="text-[10px] text-slate-400">Clear</span>
+                            </div>
+
+                            <template x-for="user in getFilteredUsers()" :key="user.id">
+                                <div @click="selectUser(user)"
+                                     class="p-2 hover:bg-blue-50/80 rounded-xl cursor-pointer transition flex items-center justify-between gap-2">
+                                    <div class="min-w-0">
+                                        <div class="font-bold text-slate-900 text-xs truncate" x-text="user.name"></div>
+                                        <div class="text-[10px] text-slate-500 truncate" x-text="user.email"></div>
+                                    </div>
+                                    <div class="text-right shrink-0">
+                                        <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 block" x-text="user.dept"></span>
+                                        <span class="text-[8px] text-slate-400" x-text="user.branch"></span>
+                                    </div>
+                                </div>
+                            </template>
+
+                            <div x-show="getFilteredUsers().length === 0" class="p-3 text-center text-slate-400 text-xs italic">
+                                No employees found matching "<span x-text="userSearch"></span>".
+                            </div>
+                        </div>
+                    </div>
+                    <span class="text-[10px] text-slate-400 block">Selecting a staff member auto-detects their assigned computer workstation.</span>
                 </div>
 
-                <div>
-                    <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Install on Hardware Asset (Computer / Laptop)</label>
-                    <select name="asset_id" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-medium">
-                        <option value="">-- No Computer / Cloud Account Only --</option>
-                        @foreach($allAssetsList as $ast)
-                            <option value="{{ $ast->id }}">💻 {{ $ast->asset_tag }} — {{ $ast->name }}</option>
-                        @endforeach
-                    </select>
-                    <span class="text-[10px] text-slate-400 mt-1 block">Hardware machine where the software is installed</span>
+                <!-- 2. Searchable Hardware Asset Combobox -->
+                <div class="space-y-1.5" @click.away="assetOpen = false">
+                    <input type="hidden" name="asset_id" :value="selectedAssetId">
+                    <div class="flex items-center justify-between">
+                        <label class="block text-[11px] font-bold text-slate-700 uppercase">
+                            💻 Hardware Asset (Computer / Laptop)
+                        </label>
+                        <span class="text-[10px] text-blue-600 font-semibold" x-text="selectedAssetId ? 'Selected' : 'Optional / Device-less'"></span>
+                    </div>
+
+                    <!-- Selected Asset Card -->
+                    <div x-show="getSelectedAsset()" class="p-2.5 rounded-xl border border-indigo-200 bg-indigo-50/60 shadow-2xs flex items-center justify-between gap-2">
+                        <div class="flex items-center space-x-2.5 min-w-0">
+                            <div class="w-8 h-8 rounded-xl bg-indigo-600 text-white font-bold flex items-center justify-center text-xs shrink-0">
+                                💻
+                            </div>
+                            <div class="min-w-0">
+                                <div class="font-mono font-bold text-xs text-indigo-700 leading-tight truncate" x-text="getSelectedAsset()?.tag"></div>
+                                <div class="font-semibold text-xs text-slate-900 truncate" x-text="getSelectedAsset()?.name"></div>
+                                <div class="text-[9px] text-slate-500 truncate" x-text="getSelectedAsset()?.model + ' • 📍 ' + getSelectedAsset()?.branch"></div>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-1 shrink-0">
+                            <button type="button" @click="assetOpen = !assetOpen" class="px-2 py-1 text-[10px] text-indigo-600 hover:bg-indigo-100 font-bold rounded-lg transition cursor-pointer">
+                                Change
+                            </button>
+                            <button type="button" @click="selectedAssetId = ''; assetSearch = ''; assetOpen = false" class="p-1 text-slate-400 hover:text-rose-600 font-bold text-xs rounded-md transition cursor-pointer" title="Clear selection">
+                                ✕
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Unselected Trigger -->
+                    <div x-show="!getSelectedAsset()">
+                        <div @click="assetOpen = true" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white hover:border-indigo-400 cursor-pointer flex items-center justify-between shadow-2xs">
+                            <span class="text-slate-400 font-medium">🔍 Search computer by tag (e.g. CBVH-PC-0101) or model...</span>
+                            <span class="text-slate-400 text-xs">▼</span>
+                        </div>
+                    </div>
+
+                    <!-- Searchable Dropdown Popup -->
+                    <div x-show="assetOpen" class="bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden p-2 space-y-1.5" x-cloak>
+                        <div class="relative">
+                            <span class="absolute left-2.5 top-2.5 text-slate-400 text-xs">🔍</span>
+                            <input type="text" x-model="assetSearch"
+                                   placeholder="Type asset tag, PC name, or model..."
+                                   @keydown.escape="assetOpen = false"
+                                   class="w-full text-xs pl-7 pr-6 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            <button type="button" x-show="assetSearch" @click="assetSearch = ''" class="absolute right-2.5 top-2 text-xs text-slate-400 hover:text-slate-600 cursor-pointer">✕</button>
+                        </div>
+
+                        <div class="max-h-40 overflow-y-auto divide-y divide-slate-100">
+                            <div @click="selectedAssetId = ''; assetOpen = false" class="p-2 hover:bg-slate-50 rounded-lg cursor-pointer transition flex items-center justify-between text-slate-500 text-xs">
+                                <span class="font-medium">— No specific PC / Cloud account only —</span>
+                                <span class="text-[10px] text-slate-400">Clear</span>
+                            </div>
+
+                            <template x-for="asset in getFilteredAssets()" :key="asset.id">
+                                <div @click="selectAsset(asset)"
+                                     class="p-2 hover:bg-indigo-50/80 rounded-xl cursor-pointer transition flex items-center justify-between gap-2">
+                                    <div class="min-w-0">
+                                        <div class="font-mono font-bold text-indigo-700 text-xs truncate" x-text="asset.tag"></div>
+                                        <div class="font-semibold text-slate-900 text-xs truncate" x-text="asset.name"></div>
+                                    </div>
+                                    <div class="text-right shrink-0">
+                                        <span class="text-[9px] text-slate-500 font-medium block truncate max-w-[120px]" x-text="asset.model"></span>
+                                        <span class="text-[8px] text-slate-400" x-text="'📍 ' + asset.branch"></span>
+                                    </div>
+                                </div>
+                            </template>
+
+                            <div x-show="getFilteredAssets().length === 0" class="p-3 text-center text-slate-400 text-xs italic">
+                                No machines found matching "<span x-text="assetSearch"></span>".
+                            </div>
+                        </div>
+                    </div>
+                    <span class="text-[10px] text-slate-400 block">Selecting a PC auto-detects its registered staff custodian.</span>
                 </div>
 
                 <div>

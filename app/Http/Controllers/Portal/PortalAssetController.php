@@ -137,13 +137,14 @@ class PortalAssetController extends Controller
         $categories = AssetCategory::where('is_active', true)->orderBy('name')->get();
         $branches = Branch::where('is_active', true)->orderBy('name')->get();
         $departments = Department::where('is_active', true)->orderBy('name')->get();
-        $users = User::with(['employee.department', 'employee.branch'])->where('is_active', true)->orderBy('name')->get();
+        $users = User::with(['employee.department', 'employee.branch', 'assignedAssets'])->where('is_active', true)->orderBy('name')->get();
         $usersJson = $users->map(fn ($u) => [
             'id' => $u->id,
             'name' => $u->name,
             'email' => $u->email,
             'dept' => $u->employee?->department?->name ?? 'General Staff',
             'branch' => $u->employee?->branch?->name ?? 'HQ',
+            'primary_asset_id' => $u->assignedAssets->first()?->id ?? null,
         ])->values();
 
         // Management Stock & Lifecycle Reporting Metrics
@@ -178,9 +179,33 @@ class PortalAssetController extends Controller
             ->get();
 
         // 4. Software & Digital Licenses
-        $licenses = SoftwareLicense::with(['assignments.user', 'assignments.asset'])
-            ->orderBy('name')
-            ->get();
+        $licenseSearch = trim($request->input('license_search', ''));
+        $licenseType = $request->input('license_type');
+        $licenseStatus = $request->input('license_status');
+
+        $licensesQuery = SoftwareLicense::with(['assignments.user', 'assignments.asset'])
+            ->orderBy('name');
+
+        if (! empty($licenseSearch)) {
+            $licensesQuery->where(function ($q) use ($licenseSearch) {
+                $q->where('name', 'like', "%{$licenseSearch}%")
+                    ->orWhere('vendor_publisher', 'like', "%{$licenseSearch}%")
+                    ->orWhere('license_key', 'like', "%{$licenseSearch}%")
+                    ->orWhere('notes', 'like', "%{$licenseSearch}%")
+                    ->orWhereHas('assignments.user', fn ($uq) => $uq->where('name', 'like', "%{$licenseSearch}%"))
+                    ->orWhereHas('assignments.asset', fn ($aq) => $aq->where('asset_tag', 'like', "%{$licenseSearch}%"));
+            });
+        }
+
+        if (! empty($licenseType)) {
+            $licensesQuery->where('license_type', $licenseType);
+        }
+
+        if (! empty($licenseStatus)) {
+            $licensesQuery->where('status', $licenseStatus);
+        }
+
+        $licenses = $licensesQuery->get();
         $totalLicensesCount = SoftwareLicense::count();
         $totalSeatsCount = (int) SoftwareLicense::sum('seats_total');
         $assignedSeatsCount = SoftwareLicenseAssignment::count();
@@ -188,14 +213,27 @@ class PortalAssetController extends Controller
             ->whereBetween('expiry_date', [now()->toDateString(), now()->addDays(30)->toDateString()])
             ->count();
         $totalSoftwareValuation = (float) SoftwareLicense::sum('purchase_cost');
+
         $allAssetsList = Asset::orderBy('asset_tag')->get(['id', 'asset_tag', 'name']);
+        $allAssetsJson = Asset::with('branch')->orderBy('asset_tag')->get()->map(fn ($a) => [
+            'id' => $a->id,
+            'tag' => $a->asset_tag,
+            'name' => $a->name,
+            'model' => trim(($a->brand ?? '').' '.($a->model ?? '')),
+            'branch' => $a->branch?->name ?? 'HQ',
+            'assigned_user_id' => $a->assigned_user_id,
+        ])->values();
 
         return view('portal.assets.index', compact(
             'canViewFinancials',
             'allAssetsList',
+            'allAssetsJson',
             'assets',
             'components',
             'licenses',
+            'licenseSearch',
+            'licenseType',
+            'licenseStatus',
             'totalLicensesCount',
             'totalSeatsCount',
             'assignedSeatsCount',
