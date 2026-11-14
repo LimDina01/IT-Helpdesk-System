@@ -77,7 +77,7 @@ class SyncDemoAccounts extends Command
         foreach ($sampleAccounts as $sample) {
             $user = User::where('email', $sample['email'])->first();
 
-            if (!$user) {
+            if (! $user) {
                 $user = User::create([
                     'name' => $sample['name'],
                     'email' => $sample['email'],
@@ -94,7 +94,7 @@ class SyncDemoAccounts extends Command
             }
 
             // Sync designated roles
-            $roleIds = array_map(fn($r) => $roles[$r]->id, $sample['roles']);
+            $roleIds = array_map(fn ($r) => $roles[$r]->id, $sample['roles']);
             $user->roles()->syncWithoutDetaching($roleIds);
         }
 
@@ -117,7 +117,7 @@ class SyncDemoAccounts extends Command
         $this->info('--- Current Staff & Admin Roster in Database ---');
 
         $staffUsers = User::with('roles')
-            ->whereHas('roles', fn($q) => $q->whereIn('name', ['system_admin', 'hod', 'technician', 'helpdesk']))
+            ->whereHas('roles', fn ($q) => $q->whereIn('name', ['system_admin', 'hod', 'technician', 'helpdesk']))
             ->get();
 
         $tableData = $staffUsers->map(function ($u) {
@@ -133,6 +133,7 @@ class SyncDemoAccounts extends Command
         $this->table(['ID', 'Name', 'Email', 'Status', 'Roles'], $tableData);
 
         $this->info('Done! Sample 1-Click logins are fully operational.');
+
         return 0;
     }
 }

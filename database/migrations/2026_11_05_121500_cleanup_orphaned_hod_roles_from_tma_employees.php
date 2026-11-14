@@ -1,10 +1,8 @@
 <?php
 
-use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
-use App\Models\User;
 use App\Models\Role;
+use App\Models\User;
+use Illuminate\Database\Migrations\Migration;
 
 return new class extends Migration
 {
@@ -14,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         $hodRole = Role::where('name', 'hod')->first();
-        if (!$hodRole) {
+        if (! $hodRole) {
             return;
         }
 
@@ -40,4 +38,3 @@ return new class extends Migration
         // No reverse needed as approver authority is governed dynamically.
     }
 };
-

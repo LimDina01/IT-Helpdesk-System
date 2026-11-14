@@ -29,6 +29,7 @@ class SetTelegramMenuButton extends Command
         $botToken = config('services.telegram.bot_token');
         if (empty($botToken)) {
             $this->error('TELEGRAM_BOT_TOKEN is not set in your .env file.');
+
             return 1;
         }
 
@@ -49,10 +50,12 @@ class SetTelegramMenuButton extends Command
 
         if ($response->successful() && ($response->json('ok') === true)) {
             $this->info('✅ Telegram Bot Menu Button successfully updated!');
+
             return 0;
         }
 
-        $this->error('❌ Telegram API error: ' . $response->body());
+        $this->error('❌ Telegram API error: '.$response->body());
+
         return 1;
     }
 }

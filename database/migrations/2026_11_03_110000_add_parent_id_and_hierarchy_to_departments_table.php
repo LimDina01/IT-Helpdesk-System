@@ -13,7 +13,7 @@ return new class extends Migration
     public function up(): void
     {
         // 1. Add parent_id to departments for sub-office / unit hierarchy
-        if (!Schema::hasColumn('departments', 'parent_id')) {
+        if (! Schema::hasColumn('departments', 'parent_id')) {
             Schema::table('departments', function (Blueprint $table) {
                 $table->foreignId('parent_id')
                     ->nullable()
@@ -24,7 +24,7 @@ return new class extends Migration
         }
 
         // 2. Add it_department_id to ticket_categories to dynamically link categories to IT units
-        if (!Schema::hasColumn('ticket_categories', 'it_department_id')) {
+        if (! Schema::hasColumn('ticket_categories', 'it_department_id')) {
             Schema::table('ticket_categories', function (Blueprint $table) {
                 $table->foreignId('it_department_id')
                     ->nullable()
@@ -63,7 +63,7 @@ return new class extends Migration
     {
         // 1. Ensure top-level parent "Information Technology" department exists
         $itParent = DB::table('departments')->where('code', 'IT')->first();
-        if (!$itParent) {
+        if (! $itParent) {
             $adminUser = DB::table('users')->where('email', 'admin@cbvh.com.kh')->first();
             $itParentId = DB::table('departments')->insertGetId([
                 'name' => 'Information Technology',
@@ -85,7 +85,7 @@ return new class extends Migration
 
         // 3. Also introduce IT Solutions (IT-SOL) as a dynamic sub-unit under IT
         $itSol = DB::table('departments')->where('code', 'IT-SOL')->first();
-        if (!$itSol) {
+        if (! $itSol) {
             DB::table('departments')->insert([
                 'name' => 'IT Solutions & Development (IT-SOL)',
                 'code' => 'IT-SOL',
@@ -118,4 +118,3 @@ return new class extends Migration
         }
     }
 };
-

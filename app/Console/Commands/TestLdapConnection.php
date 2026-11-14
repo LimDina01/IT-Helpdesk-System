@@ -27,11 +27,11 @@ class TestLdapConnection extends Command
     public function handle(LdapAuthService $ldapAuth): int
     {
         $this->info('--- Active Directory (LDAP) Diagnostic Test ---');
-        $this->line('LDAP Enabled in config: ' . ($ldapAuth->isEnabled() ? '<fg=green>YES</>' : '<fg=yellow>NO (Check LDAP_ENABLED in .env)</>'));
-        $this->line('Target URL: ' . config('services.ldap.url'));
-        $this->line('Domain: ' . config('services.ldap.domain'));
-        $this->line('Search Base: ' . config('services.ldap.search_base'));
-        $this->line('Service Username: ' . config('services.ldap.username'));
+        $this->line('LDAP Enabled in config: '.($ldapAuth->isEnabled() ? '<fg=green>YES</>' : '<fg=yellow>NO (Check LDAP_ENABLED in .env)</>'));
+        $this->line('Target URL: '.config('services.ldap.url'));
+        $this->line('Domain: '.config('services.ldap.domain'));
+        $this->line('Search Base: '.config('services.ldap.search_base'));
+        $this->line('Service Username: '.config('services.ldap.username'));
         $this->newLine();
 
         $testUser = $this->argument('username');
@@ -40,20 +40,23 @@ class TestLdapConnection extends Command
         $this->info('Testing connection & service account bind...');
         $res = $ldapAuth->testConnection($testUser, $testPass);
 
-        if (!$res['extension_loaded']) {
+        if (! $res['extension_loaded']) {
             $this->error('❌ PHP LDAP extension is NOT installed or enabled on this system.');
             $this->line('Run: sudo apt-get install -y php8.5-ldap && sudo systemctl restart php8.5-fpm');
+
             return 1;
         }
 
-        if (!$res['connected']) {
-            $this->error('❌ Connection Failed: ' . $res['message']);
+        if (! $res['connected']) {
+            $this->error('❌ Connection Failed: '.$res['message']);
+
             return 1;
         }
         $this->info('  [OK] TCP / SSL Handshake with AD server established.');
 
-        if (!$res['service_bind']) {
-            $this->error('❌ Service Account Bind Failed: ' . $res['message']);
+        if (! $res['service_bind']) {
+            $this->error('❌ Service Account Bind Failed: '.$res['message']);
+
             return 1;
         }
         $this->info('  [OK] Service Account bound successfully to Active Directory.');
@@ -61,7 +64,7 @@ class TestLdapConnection extends Command
         if ($testUser) {
             $this->newLine();
             $this->info("Searching for test user: {$testUser}...");
-            if (!$res['user_found']) {
+            if (! $res['user_found']) {
                 $this->warn("⚠️ User '{$testUser}' was not found in {$res['search_base']}.");
             } else {
                 $u = $res['user_found'];
@@ -85,6 +88,7 @@ class TestLdapConnection extends Command
 
         $this->newLine();
         $this->info('🎉 LDAP connection test passed successfully!');
+
         return 0;
     }
 }

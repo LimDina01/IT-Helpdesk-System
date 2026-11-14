@@ -577,15 +577,103 @@
                             </label>
                         </div>
 
-                        <!-- Conditional Ownership User field -->
-                        <div x-show="assetOwnership === 'personal'" class="p-3 bg-blue-50/70 rounded-xl border border-blue-200/70 space-y-1">
-                            <label class="block text-[11px] font-bold text-blue-900 uppercase">Assigned Employee (Custodian)</label>
-                            <select name="assigned_user_id" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                                <option value="">-- Unassigned (or Spare in IT Stock) --</option>
-                                @foreach($users as $u)
-                                    <option value="{{ $u->id }}" {{ $asset->assigned_user_id == $u->id ? 'selected' : '' }}>👤 {{ $u->name }} ({{ $u->email }})</option>
-                                @endforeach
-                            </select>
+                        <!-- Searchable Custodian Combobox -->
+                        <div x-show="assetOwnership === 'personal'" 
+                             x-data="{
+                                 custodianSearch: '',
+                                 custodianOpen: false,
+                                 selectedUserId: '{{ $asset->assigned_user_id ?? '' }}',
+                                 users: {{ $usersJson->toJson() }},
+                                 getSelectedUser() {
+                                     if (!this.selectedUserId) return null;
+                                     return this.users.find(u => u.id == this.selectedUserId) || null;
+                                 },
+                                 getFilteredUsers() {
+                                     let q = (this.custodianSearch || '').toLowerCase().trim();
+                                     if (!q) return this.users.slice(0, 50);
+                                     return this.users.filter(u =>
+                                         (u.name && u.name.toLowerCase().includes(q)) ||
+                                         (u.email && u.email.toLowerCase().includes(q)) ||
+                                         (u.dept && u.dept.toLowerCase().includes(q)) ||
+                                         (u.branch && u.branch.toLowerCase().includes(q))
+                                     ).slice(0, 30);
+                                 }
+                             }"
+                             class="p-3 bg-blue-50/70 rounded-xl border border-blue-200/80 space-y-2">
+                            
+                            <input type="hidden" name="assigned_user_id" :value="selectedUserId">
+
+                            <div class="flex items-center justify-between">
+                                <label class="block text-[11px] font-bold text-blue-900 uppercase">Assigned Employee (Custodian)</label>
+                                <span class="text-[10px] text-blue-700 font-semibold" x-text="selectedUserId ? 'Assigned' : 'Unassigned / Spare'"></span>
+                            </div>
+
+                            <!-- Selected Employee Card -->
+                            <div x-show="getSelectedUser()" class="p-2.5 rounded-xl border border-blue-300 bg-white shadow-2xs flex items-center justify-between gap-2">
+                                <div class="flex items-center space-x-2.5 min-w-0">
+                                    <div class="w-7 h-7 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs shrink-0">
+                                        <span x-text="getSelectedUser()?.name ? getSelectedUser().name.charAt(0).toUpperCase() : '👤'"></span>
+                                    </div>
+                                    <div class="min-w-0">
+                                        <div class="font-bold text-xs text-slate-900 leading-tight truncate" x-text="getSelectedUser()?.name"></div>
+                                        <div class="text-[10px] text-slate-500 truncate" x-text="getSelectedUser()?.email"></div>
+                                        <div class="text-[9px] text-blue-700 font-medium">
+                                            🏢 <span x-text="getSelectedUser()?.dept"></span> &bull; 📍 <span x-text="getSelectedUser()?.branch"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center space-x-1 shrink-0">
+                                    <button type="button" @click="custodianOpen = !custodianOpen" class="px-2 py-0.5 text-[10px] text-blue-600 hover:bg-blue-50 font-bold rounded-md transition cursor-pointer">
+                                        Change
+                                    </button>
+                                    <button type="button" @click="selectedUserId = ''; custodianSearch = ''; custodianOpen = false" class="p-1 text-slate-400 hover:text-rose-600 font-bold text-xs rounded-md transition cursor-pointer" title="Unassign">
+                                        ✕
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Unselected State Prompt / Search Trigger -->
+                            <div x-show="!getSelectedUser()">
+                                <div @click="custodianOpen = true" class="w-full text-xs px-3.5 py-2 rounded-xl border border-slate-300 bg-white hover:border-blue-400 cursor-pointer flex items-center justify-between shadow-2xs">
+                                    <span class="text-slate-400 font-medium">🔍 Click or search to assign an employee...</span>
+                                    <span class="text-slate-400 text-xs">▼</span>
+                                </div>
+                            </div>
+
+                            <!-- Searchable Dropdown List -->
+                            <div x-show="custodianOpen || (!selectedUserId && custodianOpen)" class="mt-2 bg-white rounded-xl border border-slate-200 shadow-lg overflow-hidden space-y-1.5 p-2" x-cloak>
+                                <div class="relative">
+                                    <span class="absolute left-2.5 top-2 text-slate-400 text-xs">🔍</span>
+                                    <input type="text" x-model="custodianSearch"
+                                           placeholder="Type name, email, or dept..."
+                                           @keydown.escape="custodianOpen = false"
+                                           class="w-full text-xs pl-7 pr-6 py-1.5 rounded-lg border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <button type="button" x-show="custodianSearch" @click="custodianSearch = ''" class="absolute right-2 top-1.5 text-xs text-slate-400 hover:text-slate-600 cursor-pointer">✕</button>
+                                </div>
+
+                                <div class="max-h-40 overflow-y-auto divide-y divide-slate-100">
+                                    <!-- Option to leave unassigned -->
+                                    <div @click="selectedUserId = ''; custodianOpen = false" class="p-1.5 hover:bg-slate-50 rounded-lg cursor-pointer transition flex items-center justify-between text-slate-600 text-[11px]">
+                                        <span class="font-medium text-slate-500">— Leave Unassigned / Spare Stock —</span>
+                                        <span class="text-[9px] text-slate-400">Clear</span>
+                                    </div>
+
+                                    <template x-for="user in getFilteredUsers()" :key="user.id">
+                                        <div @click="selectedUserId = user.id; custodianOpen = false; custodianSearch = ''"
+                                             class="p-1.5 hover:bg-blue-50/80 rounded-lg cursor-pointer transition flex items-center justify-between gap-2">
+                                            <div class="min-w-0">
+                                                <div class="font-bold text-slate-900 text-xs truncate" x-text="user.name"></div>
+                                                <div class="text-[10px] text-slate-500 truncate" x-text="user.email"></div>
+                                            </div>
+                                            <span class="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 shrink-0" x-text="user.dept"></span>
+                                        </div>
+                                    </template>
+
+                                    <div x-show="getFilteredUsers().length === 0" class="p-3 text-center text-slate-400 text-xs italic">
+                                        No employees found matching "<span x-text="custodianSearch"></span>".
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
                         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">

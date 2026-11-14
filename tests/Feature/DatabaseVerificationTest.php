@@ -70,7 +70,7 @@ class DatabaseVerificationTest extends TestCase
 
     public function test_business_hours_service_skips_sundays_and_holidays(): void
     {
-        $service = new BusinessHoursService();
+        $service = new BusinessHoursService;
 
         // 2026-10-25 is a Sunday
         $sunday = Carbon::parse('2026-10-25');

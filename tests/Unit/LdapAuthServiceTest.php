@@ -9,7 +9,7 @@ class LdapAuthServiceTest extends TestCase
 {
     public function test_ldap_is_disabled_by_default_in_local_testing(): void
     {
-        $service = new LdapAuthService();
+        $service = new LdapAuthService;
         $this->assertFalse($service->isEnabled());
 
         // When disabled, authenticate returns null safely without network calls

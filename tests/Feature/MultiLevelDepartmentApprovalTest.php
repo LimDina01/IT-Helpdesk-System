@@ -20,6 +20,7 @@ class MultiLevelDepartmentApprovalTest extends TestCase
     use RefreshDatabase;
 
     protected User $adminUser;
+
     protected TicketApprovalService $approvalService;
 
     protected function setUp(): void
@@ -576,7 +577,7 @@ class MultiLevelDepartmentApprovalTest extends TestCase
 
         // Level 3: Department Manager (Vireak Morm)
         $deptMgr = User::where('email', 'hod.btb@cbvh.com.kh')->first();
-        if (!$deptMgr) {
+        if (! $deptMgr) {
             $deptMgr = User::factory()->create(['name' => 'Vireak Morm', 'email' => 'hod.btb@cbvh.com.kh', 'is_active' => true]);
             $deptMgr->roles()->attach(Role::where('name', 'hod')->firstOrFail());
         }
@@ -831,4 +832,3 @@ class MultiLevelDepartmentApprovalTest extends TestCase
         $this->assertEquals('IT Manager Approval', $step2->step_name);
     }
 }
-

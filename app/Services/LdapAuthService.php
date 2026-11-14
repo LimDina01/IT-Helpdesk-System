@@ -2,18 +2,28 @@
 
 namespace App\Services;
 
+use App\Models\Role;
 use App\Models\User;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class LdapAuthService
 {
     protected bool $enabled;
+
     protected string $url;
+
     protected string $domain;
+
     protected string $searchBase;
+
     protected string $serviceUsername;
+
     protected string $servicePassword;
+
     protected bool $useSsl;
+
     protected bool $validateCert;
 
     public function __construct()
@@ -42,17 +52,18 @@ class LdapAuthService
      */
     public function authenticate(string $username, string $password): ?User
     {
-        if (!$this->enabled || empty($username) || empty($password)) {
+        if (! $this->enabled || empty($username) || empty($password)) {
             return null;
         }
 
-        if (!extension_loaded('ldap')) {
+        if (! extension_loaded('ldap')) {
             Log::warning('LDAP extension is not loaded in PHP. Falling back to local auth.');
+
             return null;
         }
 
         // Configure LDAP connection options (bypass self-signed/internal AD cert if configured)
-        if (!$this->validateCert) {
+        if (! $this->validateCert) {
             putenv('LDAPTLS_REQCERT=never');
             if (defined('LDAP_OPT_X_TLS_REQUIRE_CERT') && defined('LDAP_OPT_X_TLS_NEVER')) {
                 ldap_set_option(null, LDAP_OPT_X_TLS_REQUIRE_CERT, LDAP_OPT_X_TLS_NEVER);
@@ -60,8 +71,9 @@ class LdapAuthService
         }
 
         $conn = @ldap_connect($this->url);
-        if (!$conn) {
+        if (! $conn) {
             Log::warning("Could not connect to LDAP server at {$this->url}");
+
             return null;
         }
 
@@ -76,9 +88,10 @@ class LdapAuthService
                 : "{$this->domain}\\{$this->serviceUsername}";
 
             $serviceBind = @ldap_bind($conn, $serviceBindUser, $this->servicePassword);
-            if (!$serviceBind) {
-                Log::warning('LDAP service account bind failed: ' . ldap_error($conn));
+            if (! $serviceBind) {
+                Log::warning('LDAP service account bind failed: '.ldap_error($conn));
                 @ldap_unbind($conn);
+
                 return null;
             }
 
@@ -96,14 +109,16 @@ class LdapAuthService
             $filter = "(&(objectClass=user)(!(objectClass=computer))(|(sAMAccountName={$sAMAccountName})(sAMAccountName={$cleanUser})(mail={$cleanUser})(userPrincipalName={$cleanUser})))";
             $search = @ldap_search($conn, $this->searchBase, $filter, ['dn', 'sAMAccountName', 'mail', 'givenName', 'sn', 'displayName', 'userPrincipalName']);
 
-            if (!$search) {
+            if (! $search) {
                 @ldap_unbind($conn);
+
                 return null;
             }
 
             $entries = @ldap_get_entries($conn, $search);
-            if (!$entries || $entries['count'] === 0) {
+            if (! $entries || $entries['count'] === 0) {
                 @ldap_unbind($conn);
+
                 return null; // User not found in AD
             }
 
@@ -113,13 +128,14 @@ class LdapAuthService
 
             // 3. Authenticate: Attempt user bind with DN first, fallback to UPN / Domain prefix
             $userBind = @ldap_bind($conn, $userDn, $password);
-            if (!$userBind) {
+            if (! $userBind) {
                 $upnBindUser = "{$this->domain}\\{$adUsername}";
                 $userBind = @ldap_bind($conn, $upnBindUser, $password);
             }
 
-            if (!$userBind) {
+            if (! $userBind) {
                 @ldap_unbind($conn);
+
                 return null; // Invalid credentials
             }
 
@@ -137,16 +153,16 @@ class LdapAuthService
                 $localUser = User::where('email', $adEmail)->first();
             }
 
-            if (!$localUser) {
+            if (! $localUser) {
                 $localUser = User::where('email', $username)
                     ->orWhere('email', 'like', "{$adUsername}@%")
-                    ->orWhereHas('employee', fn($q) => $q->where('employee_code', $adUsername))
+                    ->orWhereHas('employee', fn ($q) => $q->where('employee_code', $adUsername))
                     ->orWhere('name', $fullName)
                     ->first();
             }
 
-            $techRole = \App\Models\Role::firstOrCreate(['name' => 'technician'], ['label' => 'IT Technician']);
-            $requesterRole = \App\Models\Role::where('name', 'requester')->first();
+            $techRole = Role::firstOrCreate(['name' => 'technician'], ['label' => 'IT Technician']);
+            $requesterRole = Role::where('name', 'requester')->first();
 
             if ($localUser) {
                 // Ensure name and standalone status are kept in sync
@@ -158,7 +174,7 @@ class LdapAuthService
                 ]);
 
                 // If user doesn't already have IT staff roles, assign them as IT technician (no auto requester)
-                if (!$localUser->isStaff()) {
+                if (! $localUser->isStaff()) {
                     $localUser->roles()->sync([$techRole->id]);
                 } else {
                     // Detach redundant requester role from IT staff
@@ -172,7 +188,7 @@ class LdapAuthService
                 $localUser = User::create([
                     'name' => $fullName ?: $adUsername,
                     'email' => strtolower($email),
-                    'password' => \Illuminate\Support\Facades\Hash::make(\Illuminate\Support\Str::random(32)),
+                    'password' => Hash::make(Str::random(32)),
                     'employee_id' => null,
                     'is_active' => true,
                     'can_access_portal' => true,
@@ -188,6 +204,7 @@ class LdapAuthService
             if (is_resource($conn) || is_object($conn)) {
                 @ldap_unbind($conn);
             }
+
             return null;
         }
     }
@@ -209,12 +226,13 @@ class LdapAuthService
             'message' => '',
         ];
 
-        if (!$result['extension_loaded']) {
+        if (! $result['extension_loaded']) {
             $result['message'] = 'PHP LDAP extension is not installed or enabled.';
+
             return $result;
         }
 
-        if (!$this->validateCert) {
+        if (! $this->validateCert) {
             putenv('LDAPTLS_REQCERT=never');
             if (defined('LDAP_OPT_X_TLS_REQUIRE_CERT') && defined('LDAP_OPT_X_TLS_NEVER')) {
                 ldap_set_option(null, LDAP_OPT_X_TLS_REQUIRE_CERT, LDAP_OPT_X_TLS_NEVER);
@@ -222,8 +240,9 @@ class LdapAuthService
         }
 
         $conn = @ldap_connect($this->url);
-        if (!$conn) {
+        if (! $conn) {
             $result['message'] = "Cannot initialize connection to {$this->url}";
+
             return $result;
         }
 
@@ -238,9 +257,10 @@ class LdapAuthService
             : "{$this->domain}\\{$this->serviceUsername}";
 
         $serviceBind = @ldap_bind($conn, $serviceBindUser, $this->servicePassword);
-        if (!$serviceBind) {
-            $result['message'] = "Service account ({$serviceBindUser}) bind failed: " . ldap_error($conn);
+        if (! $serviceBind) {
+            $result['message'] = "Service account ({$serviceBindUser}) bind failed: ".ldap_error($conn);
             @ldap_unbind($conn);
+
             return $result;
         }
 
@@ -273,8 +293,8 @@ class LdapAuthService
 
                     if ($testPassword) {
                         $auth = @ldap_bind($conn, $entry['dn'], $testPassword);
-                        if (!$auth) {
-                            $upn = "{$this->domain}\\" . ($entry['samaccountname'][0] ?? $sAMAccountName);
+                        if (! $auth) {
+                            $upn = "{$this->domain}\\".($entry['samaccountname'][0] ?? $sAMAccountName);
                             $auth = @ldap_bind($conn, $upn, $testPassword);
                         }
                         $result['user_authenticated'] = (bool) $auth;
@@ -285,6 +305,7 @@ class LdapAuthService
 
         @ldap_unbind($conn);
         $result['message'] = 'Active Directory connection and service bind verified successfully!';
+
         return $result;
     }
 }

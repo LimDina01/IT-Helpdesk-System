@@ -3,6 +3,17 @@
 @section('title', 'IT Assets & Inventory Management')
 
 @section('content')
+<style>
+@media print {
+    .no-print, nav, header, aside {
+        display: none !important;
+    }
+    body {
+        background: white !important;
+        font-size: 11px !important;
+    }
+}
+</style>
 <div x-data="{ 
     createAssetModal: false, 
     createSpareModal: false,
@@ -11,7 +22,7 @@
 }" class="space-y-6">
 
     <!-- Top Header -->
-    <div class="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div class="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 no-print">
         <div>
             <div class="text-xs text-blue-600 font-extrabold uppercase tracking-wider flex items-center space-x-1.5">
                 <span>🖥️</span>
@@ -67,9 +78,9 @@
         </div>
     </div>
 
-    <!-- Segmented Navigation Tabs -->
-    <div class="bg-white p-2 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between">
-        <div class="flex items-center space-x-2">
+    <!-- Segmented Navigation Tabs & Actions -->
+    <div class="bg-white p-2 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div class="flex items-center flex-wrap gap-2">
             <a href="{{ route('portal.assets.index', ['tab' => 'assets']) }}" 
                class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center space-x-2 {{ $currentTab === 'assets' ? 'bg-blue-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">
                 <span>🖥️</span>
@@ -87,6 +98,32 @@
                     {{ $spareComponentsCount }} in stock
                 </span>
             </a>
+
+            <a href="{{ route('portal.assets.index', ['tab' => 'report']) }}" 
+               class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center space-x-2 {{ $currentTab === 'report' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">
+                <span>📊</span>
+                <span>Stock &amp; Lifecycle Report</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full font-black {{ $currentTab === 'report' ? 'bg-white/20 text-white' : 'bg-indigo-100 text-indigo-700' }}">
+                    Executive
+                </span>
+            </a>
+        </div>
+
+        <div class="flex items-center space-x-2 shrink-0">
+            <a href="{{ route('portal.assets.export', array_filter(['search' => $search, 'category_id' => $categoryId, 'branch_id' => $branchId, 'department_id' => $departmentId, 'ownership_type' => $ownershipType, 'status' => $status, 'lifecycle' => $lifecycle])) }}" 
+               class="px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 transition flex items-center space-x-1.5 shadow-2xs"
+               title="Export active inventory list to Excel / CSV">
+                <span>📥</span>
+                <span>Export CSV</span>
+            </a>
+            @if($currentTab === 'report')
+                <button type="button" onclick="window.print()" 
+                        class="px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition flex items-center space-x-1.5 cursor-pointer"
+                        title="Print Executive Report">
+                    <span>🖨️</span>
+                    <span>Print Report</span>
+                </button>
+            @endif
         </div>
     </div>
 
@@ -323,7 +360,7 @@
             </div>
         </div>
 
-    @else
+    @elseif($currentTab === 'components')
         <!-- TAB 2: SPARE PARTS & COMPONENTS INVENTORY -->
         <div class="space-y-4">
             <!-- Filter & Search Toolbar -->
@@ -455,6 +492,369 @@
                 </div>
             </div>
         </div>
+
+    @else
+        <!-- TAB 3: MANAGEMENT STOCK & LIFECYCLE REPORT -->
+        <div class="space-y-5">
+            <!-- Executive Report Header Banner -->
+            <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-6 text-white shadow-md relative overflow-hidden">
+                <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <div class="flex items-center space-x-2 text-indigo-300 font-extrabold text-xs uppercase tracking-wider">
+                            <span>📊</span>
+                            <span>Executive IT Asset &amp; Stock Intelligence</span>
+                        </div>
+                        <h2 class="text-xl sm:text-2xl font-black mt-1">Management Inventory &amp; Lifecycle Report</h2>
+                        <p class="text-xs text-indigo-200 mt-1 max-w-2xl">
+                            Consolidated valuation, fleet deployment ratios, warranty coverage, and degradation risk assessment across all CBVH branches.
+                        </p>
+                    </div>
+
+                    <div class="flex items-center space-x-2.5 shrink-0 no-print">
+                        <a href="{{ route('portal.assets.export', array_filter(['search' => $search, 'category_id' => $categoryId, 'branch_id' => $branchId, 'department_id' => $departmentId, 'ownership_type' => $ownershipType, 'status' => $status, 'lifecycle' => $lifecycle])) }}" 
+                           class="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center space-x-1.5 cursor-pointer">
+                            <span>📥</span>
+                            <span>Export CSV / Excel</span>
+                        </a>
+                        <button type="button" onclick="window.print()" 
+                                class="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white font-bold text-xs rounded-xl border border-white/20 transition flex items-center space-x-1.5 cursor-pointer">
+                            <span>🖨️</span>
+                            <span>Print Report</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="mt-4 pt-3 border-t border-white/10 flex flex-wrap gap-x-6 gap-y-1 text-[11px] text-indigo-200">
+                    <div>Report As Of: <strong>{{ now()->format('d-M-Y, H:i') }}</strong></div>
+                    <div>Active Assets: <strong>{{ $totalAssetsCount }}</strong></div>
+                    <div>Total Fleet Valuation: <strong>${{ number_format($totalValuation, 2) }}</strong></div>
+                    <div>Spare Parts in Stock: <strong>{{ $spareComponentsCount }}</strong></div>
+                </div>
+            </div>
+
+            <!-- 1. Executive Valuation & Fleet Distribution Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+                <!-- Total Valuation -->
+                <div class="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs">
+                    <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                        <span>Total Hardware Valuation</span>
+                        <span class="text-base">💰</span>
+                    </div>
+                    <div class="text-2xl font-black text-slate-900 mt-1.5">
+                        ${{ number_format($totalValuation, 2) }}
+                    </div>
+                    <div class="text-[11px] text-slate-500 mt-1">
+                        Active capital invested across all equipment
+                    </div>
+                </div>
+
+                <!-- Active Deployment Status -->
+                <div class="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs">
+                    <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                        <span>Fleet Deployment Status</span>
+                        <span class="text-base">🔄</span>
+                    </div>
+                    <div class="flex items-baseline space-x-2 mt-1.5">
+                        <span class="text-2xl font-black text-emerald-600">{{ $inUseCount }}</span>
+                        <span class="text-xs text-slate-500 font-semibold">In Active Service</span>
+                    </div>
+                    <div class="text-[11px] text-slate-500 mt-1 flex items-center space-x-2">
+                        <span>🔵 {{ $spareAssetsCount }} Spares</span>
+                        <span>&bull;</span>
+                        <span>🟡 {{ $underRepairCount }} In Repair</span>
+                    </div>
+                </div>
+
+                <!-- Degradation (EOD) Risk -->
+                <div class="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs {{ $pastEodCount > 0 ? 'border-amber-300 bg-amber-50/20' : '' }}">
+                    <div class="text-[10px] font-bold text-amber-700 uppercase tracking-wider flex items-center justify-between">
+                        <span>Past EOD (Depreciated / Overhaul)</span>
+                        <span class="text-base">⚠️</span>
+                    </div>
+                    <div class="text-2xl font-black text-amber-700 mt-1.5">
+                        {{ $pastEodCount }} <span class="text-xs font-bold text-amber-600">Assets</span>
+                    </div>
+                    <div class="text-[11px] text-amber-900/80 mt-1">
+                        ${{ number_format($pastEodValuation, 2) }} original cost &bull; 100% depreciated, check wear / bulb / overhaul
+                    </div>
+                </div>
+
+                <!-- Obsolescence (EOL) Cutoff -->
+                <div class="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs {{ $pastEolCount > 0 ? 'border-rose-300 bg-rose-50/20' : '' }}">
+                    <div class="text-[10px] font-bold text-rose-700 uppercase tracking-wider flex items-center justify-between">
+                        <span>Past EOL (End of Life Obsolete)</span>
+                        <span class="text-base">🛑</span>
+                    </div>
+                    <div class="text-2xl font-black text-rose-700 mt-1.5">
+                        {{ $pastEolCount }} <span class="text-xs font-bold text-rose-600">Assets</span>
+                    </div>
+                    <div class="text-[11px] text-rose-900/80 mt-1">
+                        ${{ number_format($pastEolValuation, 2) }} original cost &bull; Critical obsolescence, plan formal capex replacement
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. Department & Branch Capital Allocation Breakdown -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <!-- Department Breakdown -->
+                <div class="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs space-y-3">
+                    <div class="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                        <div class="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center space-x-1.5">
+                            <span>🏢</span>
+                            <span>Department Equipment Allocation</span>
+                        </div>
+                        <span class="text-[10px] text-slate-400 font-semibold">{{ $deptBreakdown->count() }} Departments</span>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs">
+                            <thead>
+                                <tr class="text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">
+                                    <th class="pb-2">Department</th>
+                                    <th class="pb-2 text-center">Equipment</th>
+                                    <th class="pb-2 text-right">Capital Value</th>
+                                    <th class="pb-2 text-right">% Fleet</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                @forelse($deptBreakdown as $dept)
+                                    @php
+                                        $cost = (float) ($dept->assets_sum_purchase_cost ?? 0);
+                                        $pct = $totalValuation > 0 ? round(($cost / $totalValuation) * 100, 1) : 0;
+                                    @endphp
+                                    <tr class="hover:bg-slate-50/60">
+                                        <td class="py-2.5 font-bold text-slate-800">
+                                            {{ $dept->name }}
+                                        </td>
+                                        <td class="py-2.5 text-center font-bold text-slate-700">
+                                            {{ $dept->assets_count }}
+                                        </td>
+                                        <td class="py-2.5 text-right font-mono font-bold text-slate-800">
+                                            ${{ number_format($cost, 2) }}
+                                        </td>
+                                        <td class="py-2.5 text-right text-slate-500 font-medium">
+                                            {{ $pct }}%
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="4" class="py-4 text-center text-slate-400 italic">No department data</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Branch Location Breakdown -->
+                <div class="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs space-y-3">
+                    <div class="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                        <div class="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center space-x-1.5">
+                            <span>📍</span>
+                            <span>Branch Location Distribution</span>
+                        </div>
+                        <span class="text-[10px] text-slate-400 font-semibold">{{ $branchBreakdown->count() }} Branches</span>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs">
+                            <thead>
+                                <tr class="text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">
+                                    <th class="pb-2">Branch Location</th>
+                                    <th class="pb-2 text-center">Equipment</th>
+                                    <th class="pb-2 text-right">Capital Value</th>
+                                    <th class="pb-2 text-right">% Fleet</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                @forelse($branchBreakdown as $b)
+                                    @php
+                                        $cost = (float) ($b->assets_sum_purchase_cost ?? 0);
+                                        $pct = $totalValuation > 0 ? round(($cost / $totalValuation) * 100, 1) : 0;
+                                    @endphp
+                                    <tr class="hover:bg-slate-50/60">
+                                        <td class="py-2.5 font-bold text-slate-800">
+                                            📍 {{ $b->name }}
+                                        </td>
+                                        <td class="py-2.5 text-center font-bold text-slate-700">
+                                            {{ $b->assets_count }}
+                                        </td>
+                                        <td class="py-2.5 text-right font-mono font-bold text-slate-800">
+                                            ${{ number_format($cost, 2) }}
+                                        </td>
+                                        <td class="py-2.5 text-right text-slate-500 font-medium">
+                                            {{ $pct }}%
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="4" class="py-4 text-center text-slate-400 italic">No branch data</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. Lifecycle Inventory Schedule Table -->
+            <div class="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
+                <div class="p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/50">
+                    <div>
+                        <div class="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center space-x-1.5">
+                            <span>📋</span>
+                            <span>Detailed Equipment Lifecycle &amp; Valuation Schedule</span>
+                        </div>
+                        <p class="text-[11px] text-slate-500 mt-0.5">Showing all {{ $assets->total() }} matching assets with EOW warranty, EOD depreciation, and EOL obsolescence metrics.</p>
+                    </div>
+
+                    <div class="flex items-center space-x-2 no-print">
+                        <a href="{{ route('portal.assets.export', array_filter(['search' => $search, 'category_id' => $categoryId, 'branch_id' => $branchId, 'department_id' => $departmentId, 'ownership_type' => $ownershipType, 'status' => $status, 'lifecycle' => $lifecycle])) }}" 
+                           class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center space-x-1 cursor-pointer">
+                            <span>📥</span>
+                            <span>Download Full CSV</span>
+                        </a>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs">
+                        <thead>
+                            <tr class="bg-slate-50 text-[10px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
+                                <th class="py-3 px-4">Asset Tag / Name</th>
+                                <th class="py-3 px-4">Category</th>
+                                <th class="py-3 px-4">Location / Custodian</th>
+                                <th class="py-3 px-4">Status</th>
+                                <th class="py-3 px-4 text-right">Cost (USD)</th>
+                                <th class="py-3 px-4">Warranty (EOW)</th>
+                                <th class="py-3 px-4">Depreciation (EOD)</th>
+                                <th class="py-3 px-4">End of Life (EOL)</th>
+                                <th class="py-3 px-4 text-center">Tickets</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            @forelse($assets as $asset)
+                                @php
+                                    $badge = $asset->status_badge;
+                                    $life = $asset->lifecycle_status;
+                                @endphp
+                                <tr class="hover:bg-slate-50/70 transition">
+                                    <td class="py-3.5 px-4">
+                                        <a href="{{ route('portal.assets.show', $asset->id) }}" class="font-mono font-bold text-blue-600 hover:text-blue-800 hover:underline block">
+                                            {{ $asset->asset_tag }}
+                                        </a>
+                                        <div class="font-bold text-slate-900 text-xs mt-0.5 leading-snug">{{ $asset->name }}</div>
+                                        <div class="text-[10px] text-slate-400 font-mono">{{ $asset->brand }} {{ $asset->model }}</div>
+                                    </td>
+                                    <td class="py-3.5 px-4 font-semibold text-slate-700">
+                                        {{ $asset->category?->name ?? 'General' }}
+                                    </td>
+                                    <td class="py-3.5 px-4">
+                                        @if($asset->status === 'spare_stock')
+                                            <span class="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200">
+                                                📦 IT Spare Stock
+                                            </span>
+                                            <div class="text-[10px] text-slate-500 mt-0.5">📍 {{ $asset->branch?->name ?? 'HQ' }}</div>
+                                        @elseif($asset->ownership_type === 'personal' && $asset->assignedUser)
+                                            <div class="font-bold text-blue-700">👤 {{ $asset->assignedUser->name }}</div>
+                                            <div class="text-[10px] text-slate-400">{{ $asset->department?->name ?? 'General' }} &bull; 📍 {{ $asset->branch?->name ?? 'HQ' }}</div>
+                                        @else
+                                            <div class="font-semibold text-purple-700">🏢 {{ $asset->location_details ?: 'Shared Area' }}</div>
+                                            <div class="text-[10px] text-slate-400">📍 {{ $asset->branch?->name ?? 'HQ' }}</div>
+                                        @endif
+                                    </td>
+                                    <td class="py-3.5 px-4">
+                                        <span class="inline-flex items-center text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border {{ $badge['class'] }}">
+                                            {{ $badge['label'] }}
+                                        </span>
+                                    </td>
+                                    <td class="py-3.5 px-4 text-right font-mono font-bold text-slate-900">
+                                        {{ $asset->purchase_cost ? '$' . number_format($asset->purchase_cost, 2) : '—' }}
+                                    </td>
+                                    <td class="py-3.5 px-4">
+                                        @if($asset->warranty_expiry)
+                                            <div class="text-xs font-semibold {{ $asset->warranty_expiry->isPast() ? 'text-slate-400' : 'text-emerald-700 font-bold' }}">
+                                                {{ $asset->warranty_expiry->format('d-M-Y') }}
+                                            </div>
+                                            <div class="text-[10px] {{ $asset->warranty_expiry->isPast() ? 'text-rose-600' : 'text-emerald-600' }}">
+                                                {{ $asset->warranty_expiry->isPast() ? 'Expired' : now()->diffInDays($asset->warranty_expiry) . 'd left' }}
+                                            </div>
+                                        @else
+                                            <span class="text-slate-400">—</span>
+                                        @endif
+                                    </td>
+                                    <td class="py-3.5 px-4">
+                                        @if($asset->eod_date)
+                                            <div class="text-xs font-semibold {{ $asset->isPastEod() ? 'text-amber-800 font-bold' : 'text-slate-700' }}">
+                                                {{ $asset->eod_date->format('d-M-Y') }}
+                                            </div>
+                                            <div class="text-[10px] {{ $asset->isPastEod() ? 'text-amber-700 font-bold' : 'text-slate-400' }}">
+                                                {{ $asset->isPastEod() ? '⚠️ Past EOD (100% Depreciated)' : now()->diffInDays($asset->eod_date) . 'd left' }}
+                                            </div>
+                                        @else
+                                            <span class="text-slate-400">—</span>
+                                        @endif
+                                    </td>
+                                    <td class="py-3.5 px-4">
+                                        @if($asset->eol_date)
+                                            <div class="text-xs font-semibold {{ $asset->isPastEol() ? 'text-rose-800 font-bold' : 'text-slate-700' }}">
+                                                {{ $asset->eol_date->format('d-M-Y') }}
+                                            </div>
+                                            <div class="text-[10px] {{ $asset->isPastEol() ? 'text-rose-600 font-bold' : 'text-slate-400' }}">
+                                                {{ $asset->isPastEol() ? '🛑 Past EOL (Obsolete)' : now()->diffInDays($asset->eol_date) . 'd left' }}
+                                            </div>
+                                        @else
+                                            <span class="text-slate-400">—</span>
+                                        @endif
+                                    </td>
+                                    <td class="py-3.5 px-4 text-center">
+                                        <span class="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full {{ $asset->tickets->count() > 0 ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'text-slate-400' }}">
+                                            {{ $asset->tickets->count() }}
+                                        </span>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="9" class="py-12 text-center text-slate-400">
+                                        <div class="text-3xl mb-2">📊</div>
+                                        <div class="font-bold text-slate-700">No matching assets found for this report</div>
+                                        <p class="text-xs text-slate-400 mt-1">Adjust filters or register new assets.</p>
+                                    </td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                        @if($assets->count() > 0)
+                            <tfoot class="bg-slate-50/80 border-t-2 border-slate-200 font-bold text-xs text-slate-800">
+                                <tr>
+                                    <td colspan="4" class="py-3 px-4 uppercase text-[10px] tracking-wider text-slate-500">
+                                        Page Subtotal ({{ $assets->count() }} assets)
+                                    </td>
+                                    <td class="py-3 px-4 text-right font-mono text-slate-900 font-black">
+                                        ${{ number_format($assets->sum('purchase_cost'), 2) }}
+                                    </td>
+                                    <td colspan="4" class="py-3 px-4 text-slate-400 text-right text-[11px] font-normal">
+                                        Total Active Valuation: <strong>${{ number_format($totalValuation, 2) }}</strong>
+                                    </td>
+                                </tr>
+                            </tfoot>
+                        @endif
+                    </table>
+                </div>
+
+                <!-- Pagination Footer -->
+                <div class="px-5 py-3.5 border-t border-slate-100 bg-slate-50/60 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 no-print">
+                    <div class="text-xs text-slate-500 font-medium">
+                        Showing <span class="font-bold text-slate-700">{{ $assets->firstItem() ?? 0 }}</span> to <span class="font-bold text-slate-700">{{ $assets->lastItem() ?? 0 }}</span> of <span class="font-bold text-slate-700">{{ $assets->total() }}</span> assets
+                    </div>
+
+                    @if($assets->hasPages())
+                        <div class="shrink-0">
+                            {{ $assets->links() }}
+                        </div>
+                    @endif
+                </div>
+            </div>
+        </div>
     @endif
 
     <!-- ======================================================== -->
@@ -530,16 +930,102 @@
                         <input type="text" name="name" required placeholder="e.g. HQ Floor 3 - Meeting Room A Slide Projector or Accounting PC" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium">
                     </div>
 
-                    <!-- Conditional Ownership Fields -->
-                    <div x-show="assetOwnership === 'personal'" class="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-blue-50/60 rounded-xl border border-blue-100">
-                        <div class="sm:col-span-2">
-                            <label class="block text-[11px] font-bold text-blue-900 uppercase mb-1">Assigned Employee (Custodian)</label>
-                            <select name="assigned_user_id" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                                <option value="">-- Choose Employee --</option>
-                                @foreach($users as $u)
-                                    <option value="{{ $u->id }}">{{ $u->name }} ({{ $u->email }})</option>
-                                @endforeach
-                            </select>
+                    <!-- Searchable Custodian Combobox -->
+                    <div x-show="assetOwnership === 'personal'" 
+                         x-data="{
+                             custodianSearch: '',
+                             custodianOpen: false,
+                             selectedUserId: '',
+                             users: {{ $usersJson->toJson() }},
+                             getSelectedUser() {
+                                 if (!this.selectedUserId) return null;
+                                 return this.users.find(u => u.id == this.selectedUserId) || null;
+                             },
+                             getFilteredUsers() {
+                                 let q = (this.custodianSearch || '').toLowerCase().trim();
+                                 if (!q) return this.users.slice(0, 50);
+                                 return this.users.filter(u =>
+                                     (u.name && u.name.toLowerCase().includes(q)) ||
+                                     (u.email && u.email.toLowerCase().includes(q)) ||
+                                     (u.dept && u.dept.toLowerCase().includes(q)) ||
+                                     (u.branch && u.branch.toLowerCase().includes(q))
+                                 ).slice(0, 30);
+                             }
+                         }"
+                         class="p-3 bg-blue-50/70 rounded-xl border border-blue-200/80 space-y-2">
+                        
+                        <input type="hidden" name="assigned_user_id" :value="selectedUserId">
+
+                        <div class="flex items-center justify-between">
+                            <label class="block text-[11px] font-bold text-blue-900 uppercase">Assigned Employee (Custodian)</label>
+                            <span class="text-[10px] text-blue-700 font-semibold" x-text="selectedUserId ? 'Assigned' : 'Optional / Can be Unassigned'"></span>
+                        </div>
+
+                        <!-- Selected Employee Card -->
+                        <div x-show="getSelectedUser()" class="p-2.5 rounded-xl border border-blue-300 bg-white shadow-2xs flex items-center justify-between gap-2">
+                            <div class="flex items-center space-x-2.5 min-w-0">
+                                <div class="w-7 h-7 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs shrink-0">
+                                    <span x-text="getSelectedUser()?.name ? getSelectedUser().name.charAt(0).toUpperCase() : '👤'"></span>
+                                </div>
+                                <div class="min-w-0">
+                                    <div class="font-bold text-xs text-slate-900 leading-tight truncate" x-text="getSelectedUser()?.name"></div>
+                                    <div class="text-[10px] text-slate-500 truncate" x-text="getSelectedUser()?.email"></div>
+                                    <div class="text-[9px] text-blue-700 font-medium">
+                                        🏢 <span x-text="getSelectedUser()?.dept"></span> &bull; 📍 <span x-text="getSelectedUser()?.branch"></span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex items-center space-x-1 shrink-0">
+                                <button type="button" @click="custodianOpen = !custodianOpen" class="px-2 py-0.5 text-[10px] text-blue-600 hover:bg-blue-50 font-bold rounded-md transition cursor-pointer">
+                                    Change
+                                </button>
+                                <button type="button" @click="selectedUserId = ''; custodianSearch = ''; custodianOpen = false" class="p-1 text-slate-400 hover:text-rose-600 font-bold text-xs rounded-md transition cursor-pointer" title="Unassign">
+                                    ✕
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Unselected State Prompt / Search Trigger -->
+                        <div x-show="!getSelectedUser()">
+                            <div @click="custodianOpen = true" class="w-full text-xs px-3.5 py-2 rounded-xl border border-slate-300 bg-white hover:border-blue-400 cursor-pointer flex items-center justify-between shadow-2xs">
+                                <span class="text-slate-400 font-medium">🔍 Click or search to assign an employee...</span>
+                                <span class="text-slate-400 text-xs">▼</span>
+                            </div>
+                        </div>
+
+                        <!-- Searchable Dropdown List -->
+                        <div x-show="custodianOpen || (!selectedUserId && custodianOpen)" class="mt-2 bg-white rounded-xl border border-slate-200 shadow-lg overflow-hidden space-y-1.5 p-2" x-cloak>
+                            <div class="relative">
+                                <span class="absolute left-2.5 top-2 text-slate-400 text-xs">🔍</span>
+                                <input type="text" x-model="custodianSearch"
+                                       placeholder="Type name, email, or dept..."
+                                       @keydown.escape="custodianOpen = false"
+                                       class="w-full text-xs pl-7 pr-6 py-1.5 rounded-lg border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <button type="button" x-show="custodianSearch" @click="custodianSearch = ''" class="absolute right-2 top-1.5 text-xs text-slate-400 hover:text-slate-600 cursor-pointer">✕</button>
+                            </div>
+
+                            <div class="max-h-40 overflow-y-auto divide-y divide-slate-100">
+                                <!-- Option to leave unassigned -->
+                                <div @click="selectedUserId = ''; custodianOpen = false" class="p-1.5 hover:bg-slate-50 rounded-lg cursor-pointer transition flex items-center justify-between text-slate-600 text-[11px]">
+                                    <span class="font-medium text-slate-500">— Leave Unassigned / Spare Stock —</span>
+                                    <span class="text-[9px] text-slate-400">Clear</span>
+                                </div>
+
+                                <template x-for="user in getFilteredUsers()" :key="user.id">
+                                    <div @click="selectedUserId = user.id; custodianOpen = false; custodianSearch = ''"
+                                         class="p-1.5 hover:bg-blue-50/80 rounded-lg cursor-pointer transition flex items-center justify-between gap-2">
+                                        <div class="min-w-0">
+                                            <div class="font-bold text-slate-900 text-xs truncate" x-text="user.name"></div>
+                                            <div class="text-[10px] text-slate-500 truncate" x-text="user.email"></div>
+                                        </div>
+                                        <span class="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 shrink-0" x-text="user.dept"></span>
+                                    </div>
+                                </template>
+
+                                <div x-show="getFilteredUsers().length === 0" class="p-3 text-center text-slate-400 text-xs italic">
+                                    No employees found matching "<span x-text="custodianSearch"></span>".
+                                </div>
+                            </div>
                         </div>
                     </div>
 

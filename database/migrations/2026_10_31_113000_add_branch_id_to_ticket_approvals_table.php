@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        if (!Schema::hasColumn('ticket_approvals', 'branch_id')) {
+        if (! Schema::hasColumn('ticket_approvals', 'branch_id')) {
             Schema::table('ticket_approvals', function (Blueprint $table) {
                 $table->foreignId('branch_id')->nullable()->after('department_id')->constrained('branches')->nullOnDelete();
             });
@@ -30,4 +30,3 @@ return new class extends Migration
         }
     }
 };
-

@@ -2,11 +2,16 @@
 
 namespace App\Services;
 
+use App\Models\Branch;
+use App\Models\Department;
+use App\Models\DepartmentApprover;
+use App\Models\Employee;
 use App\Models\Ticket;
 use App\Models\TicketApproval;
 use App\Models\TicketAuditLog;
 use App\Models\TicketMessage;
 use App\Models\User;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 
 class TicketApprovalService
@@ -23,8 +28,9 @@ class TicketApprovalService
         $category = $ticket->category;
         $requiresApproval = ($category && $category->requires_approval) || $ticket->ticket_type === 'service_request';
 
-        if (!$requiresApproval) {
+        if (! $requiresApproval) {
             $ticket->update(['status' => 'submitted']);
+
             return false;
         }
 
@@ -46,7 +52,7 @@ class TicketApprovalService
         $step1Role = 'department_hod';
         $hasDeptHod = false;
 
-        if (!$isItDept && $department) {
+        if (! $isItDept && $department) {
             // 1. Check Option B: Direct Line Manager (must be at least same level or higher)
             $lineManagerId = $requester->employee?->line_manager_user_id;
             if ($lineManagerId && $lineManagerId !== $requester->id) {
@@ -67,19 +73,19 @@ class TicketApprovalService
             }
 
             // 2. If no valid Line Manager, route hierarchically based on requester's level
-            if (!$hasDeptHod) {
+            if (! $hasDeptHod) {
                 if ($requesterLevel === 0) {
                     // Regular Staff (Level 0): Lowest level card first (Level 1 Team Leader, then 2, 3...)
                     $branchCard = null;
                     if ($branchId) {
-                        $branchCard = \App\Models\DepartmentApprover::where('department_id', $deptId)
+                        $branchCard = DepartmentApprover::where('department_id', $deptId)
                             ->where('branch_id', $branchId)
                             ->where('is_active', true)
                             ->orderBy('level')
                             ->first();
                     }
 
-                    $globalCard = \App\Models\DepartmentApprover::where('department_id', $deptId)
+                    $globalCard = DepartmentApprover::where('department_id', $deptId)
                         ->whereNull('branch_id')
                         ->where('is_active', true)
                         ->orderBy('level')
@@ -106,7 +112,7 @@ class TicketApprovalService
                     // Level 1 Team Leader: Find Level 2+ superior card (user != requester)
                     $branchCard = null;
                     if ($branchId) {
-                        $branchCard = \App\Models\DepartmentApprover::where('department_id', $deptId)
+                        $branchCard = DepartmentApprover::where('department_id', $deptId)
                             ->where('branch_id', $branchId)
                             ->where('level', '>=', 2)
                             ->where('user_id', '!=', $requester->id)
@@ -115,7 +121,7 @@ class TicketApprovalService
                             ->first();
                     }
 
-                    $globalCard = \App\Models\DepartmentApprover::where('department_id', $deptId)
+                    $globalCard = DepartmentApprover::where('department_id', $deptId)
                         ->whereNull('branch_id')
                         ->where('level', '>=', 2)
                         ->where('user_id', '!=', $requester->id)
@@ -151,7 +157,7 @@ class TicketApprovalService
                     // Prioritize Level 3+ superiors first, then Level 2 peers
                     $branchCard = null;
                     if ($branchId) {
-                        $branchCard = \App\Models\DepartmentApprover::where('department_id', $deptId)
+                        $branchCard = DepartmentApprover::where('department_id', $deptId)
                             ->where('branch_id', $branchId)
                             ->where('level', '>=', 2)
                             ->where('user_id', '!=', $requester->id)
@@ -160,7 +166,7 @@ class TicketApprovalService
                             ->first();
                     }
 
-                    $globalCard = \App\Models\DepartmentApprover::where('department_id', $deptId)
+                    $globalCard = DepartmentApprover::where('department_id', $deptId)
                         ->whereNull('branch_id')
                         ->where('level', '>=', 2)
                         ->where('user_id', '!=', $requester->id)
@@ -194,7 +200,7 @@ class TicketApprovalService
                     // Level 3+ / HOD: Level 1 and 2 are STRICTLY EXCLUDED!
                     $branchCard = null;
                     if ($branchId) {
-                        $branchCard = \App\Models\DepartmentApprover::where('department_id', $deptId)
+                        $branchCard = DepartmentApprover::where('department_id', $deptId)
                             ->where('branch_id', $branchId)
                             ->where('level', '>=', 3)
                             ->where('user_id', '!=', $requester->id)
@@ -203,7 +209,7 @@ class TicketApprovalService
                             ->first();
                     }
 
-                    $globalCard = \App\Models\DepartmentApprover::where('department_id', $deptId)
+                    $globalCard = DepartmentApprover::where('department_id', $deptId)
                         ->whereNull('branch_id')
                         ->where('level', '>=', 3)
                         ->where('user_id', '!=', $requester->id)
@@ -233,12 +239,12 @@ class TicketApprovalService
             }
         }
 
-        if (!$hasDeptHod && !$isItDept && $deptId && $branchId) {
-            $hasDeptHod = User::whereHas('roles', fn($q) => $q->where('name', 'hod'))
+        if (! $hasDeptHod && ! $isItDept && $deptId && $branchId) {
+            $hasDeptHod = User::whereHas('roles', fn ($q) => $q->where('name', 'hod'))
                 ->whereNotNull('employee_id')
                 ->where('email', '!=', 'admin@cbvh.com.kh')
                 ->where('id', '!=', $requester->id)
-                ->whereHas('employee', fn($q) => $q->where('department_id', $deptId)->where('branch_id', $branchId))
+                ->whereHas('employee', fn ($q) => $q->where('department_id', $deptId)->where('branch_id', $branchId))
                 ->exists();
         }
 
@@ -380,6 +386,7 @@ class TicketApprovalService
             if ($requesterLevel < 1 || $approval->approver_id !== $user->id) {
                 return false;
             }
+
             return true;
         }
 
@@ -400,7 +407,7 @@ class TicketApprovalService
         if (in_array($approval->role_name, ['department_hod', 'department_supervisor']) || ($approval->step_number === 1 && empty($approval->role_name))) {
             $targetDeptId = $approval->department_id ?? $ticket->requester->employee?->department_id;
             $targetBranchId = $approval->branch_id ?? $ticket->branch_id ?? $ticket->requester->employee?->branch_id;
-            $targetDept = $targetDeptId ? \App\Models\Department::find($targetDeptId) : null;
+            $targetDept = $targetDeptId ? Department::find($targetDeptId) : null;
             $targetDeptCode = $targetDept?->code ?? $ticket->requester->employee?->department?->code;
 
             // Subordinate check: Lower level can NEVER approve higher level!
@@ -413,10 +420,10 @@ class TicketApprovalService
             }
 
             // IT HOD cannot approve Step 1 for business departments (Operations, Finance, Sales, HR, etc.)
-            if ($isItHod && !in_array($targetDeptCode, ['IT', 'IT-OPR', 'IT-PRD']) && $targetDeptId != 2) {
+            if ($isItHod && ! in_array($targetDeptCode, ['IT', 'IT-OPR', 'IT-PRD']) && $targetDeptId != 2) {
                 $isExplicitHead = $targetDept && $targetDept->head_user_id === $user->id;
-                $isConfiguredApprover = $targetDeptId && \App\Models\DepartmentApprover::where('department_id', $targetDeptId)->where('user_id', $user->id)->exists();
-                if (!$isExplicitHead && !$isConfiguredApprover) {
+                $isConfiguredApprover = $targetDeptId && DepartmentApprover::where('department_id', $targetDeptId)->where('user_id', $user->id)->exists();
+                if (! $isExplicitHead && ! $isConfiguredApprover) {
                     return false;
                 }
             }
@@ -437,7 +444,7 @@ class TicketApprovalService
                 $targetBranchId = $approval->branch_id ?? $ticket->branch_id ?? $ticket->requester->employee?->branch_id;
 
                 // Priority: match approver configured for THIS specific branch, fallback to global/HQ card (branch_id is null)
-                $deptApprover = \App\Models\DepartmentApprover::where('department_id', $targetDeptId)
+                $deptApprover = DepartmentApprover::where('department_id', $targetDeptId)
                     ->where('user_id', $user->id)
                     ->where('is_active', true)
                     ->when($targetBranchId, function ($q) use ($targetBranchId) {
@@ -456,6 +463,7 @@ class TicketApprovalService
                         // For supervisor escalation step: user must be Level 2 or higher
                         return $deptApprover->level >= 2;
                     }
+
                     return true;
                 }
             }
@@ -488,7 +496,7 @@ class TicketApprovalService
             }
 
             $targetBranchId = $approval->branch_id ?? $ticket->branch_id ?? $ticket->requester->employee?->branch_id;
-            $targetBranch = $targetBranchId ? \App\Models\Branch::find($targetBranchId) : null;
+            $targetBranch = $targetBranchId ? Branch::find($targetBranchId) : null;
 
             // 1. Designated Branch Manager match: Explicitly configured in Admin Portal
             if ($targetBranch && $targetBranch->manager_user_id && $user->id === $targetBranch->manager_user_id) {
@@ -515,17 +523,17 @@ class TicketApprovalService
             // 1. Resolve Target IT Unit/Sub-Department dynamically
             $itDept = $ticket->category?->itDepartment;
 
-            if (!$itDept) {
+            if (! $itDept) {
                 $itDivision = $ticket->it_division ?? $ticket->category?->it_division;
                 if ($itDivision) {
-                    $targetDeptCode = str_starts_with($itDivision, 'IT-') ? $itDivision : 'IT-' . strtoupper($itDivision);
-                    $itDept = \App\Models\Department::where('code', $targetDeptCode)->first();
+                    $targetDeptCode = str_starts_with($itDivision, 'IT-') ? $itDivision : 'IT-'.strtoupper($itDivision);
+                    $itDept = Department::where('code', $targetDeptCode)->first();
                 }
             }
 
             // Fallback default to IT-OPR if neither is set
-            if (!$itDept) {
-                $itDept = \App\Models\Department::where('code', 'IT-OPR')->first();
+            if (! $itDept) {
+                $itDept = Department::where('code', 'IT-OPR')->first();
             }
 
             // 2. Direct Designated Unit Head match: Explicitly configured in Admin Portal (e.g. IT-OPR, IT-PRD, IT-SOL)
@@ -534,18 +542,18 @@ class TicketApprovalService
             }
 
             // 3. Parent IT Department Head match: Chief Information Officer / Head of IT (can approve across IT units)
-            $parentItDept = $itDept?->parent ?? \App\Models\Department::where('code', 'IT')->first();
+            $parentItDept = $itDept?->parent ?? Department::where('code', 'IT')->first();
             if ($parentItDept && $parentItDept->head_user_id && $user->id === $parentItDept->head_user_id) {
                 return true;
             }
 
             // If user is explicitly designated as the head of another IT unit, they cannot approve this unit's tickets
             if ($itDept) {
-                $isHeadOfOtherUnit = \App\Models\Department::where('head_user_id', $user->id)
+                $isHeadOfOtherUnit = Department::where('head_user_id', $user->id)
                     ->where('id', '!=', $itDept->id)
                     ->where(function ($q) {
                         $q->where('code', 'LIKE', 'IT-%')
-                          ->orWhereNotNull('parent_id');
+                            ->orWhereNotNull('parent_id');
                     })
                     ->exists();
 
@@ -559,7 +567,7 @@ class TicketApprovalService
                 return false;
             }
 
-            if (!$isItHod) {
+            if (! $isItHod) {
                 return false;
             }
 
@@ -590,9 +598,9 @@ class TicketApprovalService
     /**
      * Get tickets currently requiring approval from this specific user.
      */
-    public function getPendingApprovalTicketsForUser(User $user): \Illuminate\Support\Collection
+    public function getPendingApprovalTicketsForUser(User $user): Collection
     {
-        if (!$user->isApprover()) {
+        if (! $user->isApprover()) {
             return collect();
         }
 
@@ -603,9 +611,10 @@ class TicketApprovalService
 
         return $candidates->filter(function (Ticket $ticket) use ($user) {
             $currentApproval = $ticket->currentApproval();
-            if (!$currentApproval) {
+            if (! $currentApproval) {
                 return false;
             }
+
             return $this->canUserApprove($user, $currentApproval);
         })->values();
     }
@@ -617,11 +626,11 @@ class TicketApprovalService
     {
         return Ticket::whereHas('approvals', function ($q) use ($user) {
             $q->where('approver_id', $user->id)
-              ->whereIn('status', ['approved', 'rejected']);
+                ->whereIn('status', ['approved', 'rejected']);
         })
-        ->with(['branch', 'category.parent', 'technician', 'requester.employee.department', 'approvals', 'latestRequesterMessage.sender'])
-        ->orderByDesc('updated_at')
-        ->get();
+            ->with(['branch', 'category.parent', 'technician', 'requester.employee.department', 'approvals', 'latestRequesterMessage.sender'])
+            ->orderByDesc('updated_at')
+            ->get();
     }
 
     /**
@@ -629,7 +638,7 @@ class TicketApprovalService
      */
     public function approve(TicketApproval $approval, User $approver, ?string $comment = null): bool
     {
-        if (!$this->canUserApprove($approver, $approval)) {
+        if (! $this->canUserApprove($approver, $approval)) {
             return false;
         }
 
@@ -683,7 +692,7 @@ class TicketApprovalService
             );
         } else {
             // All steps approved! Calculate working minutes spent waiting for approvals and freeze it into paused_minutes
-            $businessService = app(\App\Services\BusinessHoursService::class);
+            $businessService = app(BusinessHoursService::class);
             $approvalWaitMinutes = $businessService->getWorkingMinutesBetween($ticket->created_at, now());
 
             $ticket->update([
@@ -724,7 +733,7 @@ class TicketApprovalService
      */
     public function reject(TicketApproval $approval, User $approver, string $reason): bool
     {
-        if (!$this->canUserApprove($approver, $approval)) {
+        if (! $this->canUserApprove($approver, $approval)) {
             return false;
         }
 
@@ -788,10 +797,10 @@ class TicketApprovalService
 
         // 1. If an approver is explicitly assigned, check if they have a card in this dept & branch
         if ($approval->approver_id && $deptId) {
-            $card = \App\Models\DepartmentApprover::where('department_id', $deptId)
+            $card = DepartmentApprover::where('department_id', $deptId)
                 ->where('user_id', $approval->approver_id)
                 ->where('is_active', true)
-                ->when($branchId, fn($q) => $q->where(fn($sub) => $sub->where('branch_id', $branchId)->orWhereNull('branch_id')))
+                ->when($branchId, fn ($q) => $q->where(fn ($sub) => $sub->where('branch_id', $branchId)->orWhereNull('branch_id')))
                 ->orderBy('level')
                 ->first();
 
@@ -838,20 +847,20 @@ class TicketApprovalService
         $maxLevel = 0;
 
         // 1. Check Department Approver cards
-        $cardsQuery = \App\Models\DepartmentApprover::where('user_id', $user->id)
+        $cardsQuery = DepartmentApprover::where('user_id', $user->id)
             ->where('is_active', true);
 
         if ($departmentId) {
             $cardsQuery->where(function ($q) use ($departmentId) {
                 $q->where('department_id', $departmentId)
-                  ->orWhereNull('department_id');
+                    ->orWhereNull('department_id');
             });
         }
 
         if ($branchId) {
             $cardsQuery->where(function ($q) use ($branchId) {
                 $q->where('branch_id', $branchId)
-                  ->orWhereNull('branch_id');
+                    ->orWhereNull('branch_id');
             });
         }
 
@@ -862,7 +871,7 @@ class TicketApprovalService
 
         // 2. Check if user is Department Head (HOD)
         if ($departmentId) {
-            $dept = \App\Models\Department::find($departmentId);
+            $dept = Department::find($departmentId);
             if ($dept && $dept->head_user_id === $user->id) {
                 $maxLevel = max($maxLevel, 3);
             }
@@ -875,7 +884,7 @@ class TicketApprovalService
 
         // 4. Check if user is a Direct Line Manager to active employees
         if ($maxLevel === 0) {
-            $isLineManager = \App\Models\Employee::where('line_manager_user_id', $user->id)->exists();
+            $isLineManager = Employee::where('line_manager_user_id', $user->id)->exists();
             if ($isLineManager) {
                 $maxLevel = max($maxLevel, 1);
             }
@@ -889,7 +898,7 @@ class TicketApprovalService
      */
     public function escalate(TicketApproval $approval, User $actor, ?string $comment = null, ?int $targetUserId = null): bool
     {
-        if (!$this->canUserApprove($actor, $approval)) {
+        if (! $this->canUserApprove($actor, $approval)) {
             return false;
         }
 
@@ -903,14 +912,14 @@ class TicketApprovalService
 
         if ($targetUserId) {
             $targetApprover = User::find($targetUserId);
-            if ($targetApprover && !$this->canEscalateTo($targetApprover, $approval, $actor)) {
+            if ($targetApprover && ! $this->canEscalateTo($targetApprover, $approval, $actor)) {
                 return false;
             }
             if ($targetApprover && $department) {
-                $card = \App\Models\DepartmentApprover::where('department_id', $department->id)
+                $card = DepartmentApprover::where('department_id', $department->id)
                     ->where('user_id', $targetApprover->id)
                     ->where('is_active', true)
-                    ->when($approval->branch_id, fn($q) => $q->where(fn($sub) => $sub->where('branch_id', $approval->branch_id)->orWhereNull('branch_id')))
+                    ->when($approval->branch_id, fn ($q) => $q->where(fn ($sub) => $sub->where('branch_id', $approval->branch_id)->orWhereNull('branch_id')))
                     ->orderBy('level')
                     ->first();
 
@@ -922,13 +931,13 @@ class TicketApprovalService
             }
         }
 
-        if (!$targetApprover && $department) {
+        if (! $targetApprover && $department) {
             $currentLevel = $this->getApprovalStepLevel($approval);
 
             // Find active approver card at Level > currentLevel (scoped to branch first, then HQ)
             $deptApprover = null;
             if ($approval->branch_id) {
-                $deptApprover = \App\Models\DepartmentApprover::where('department_id', $department->id)
+                $deptApprover = DepartmentApprover::where('department_id', $department->id)
                     ->where('branch_id', $approval->branch_id)
                     ->where('level', '>', $currentLevel)
                     ->where('is_active', true)
@@ -938,8 +947,8 @@ class TicketApprovalService
                     ->first();
             }
 
-            if (!$deptApprover) {
-                $deptApprover = \App\Models\DepartmentApprover::where('department_id', $department->id)
+            if (! $deptApprover) {
+                $deptApprover = DepartmentApprover::where('department_id', $department->id)
                     ->whereNull('branch_id')
                     ->where('level', '>', $currentLevel)
                     ->where('is_active', true)
@@ -962,7 +971,7 @@ class TicketApprovalService
         }
 
         // 2. Mark current step as endorsed & escalated
-        $endorsementComment = 'Endorsed & Escalated to superior' . ($comment ? ": {$comment}" : '');
+        $endorsementComment = 'Endorsed & Escalated to superior'.($comment ? ": {$comment}" : '');
         $approval->update([
             'status' => 'approved',
             'approver_id' => $actor->id,
@@ -985,7 +994,7 @@ class TicketApprovalService
         $escalatedStep = TicketApproval::create([
             'ticket_id' => $ticket->id,
             'step_number' => $newStepNumber,
-            'step_name' => $stepTitle . ' (Escalated)',
+            'step_name' => $stepTitle.' (Escalated)',
             'role_name' => $roleName,
             'department_id' => $department?->id,
             'branch_id' => $approval->branch_id,
@@ -1013,7 +1022,7 @@ class TicketApprovalService
             'sender_id' => $actor->id,
             'visibility' => 'system_event',
             'message_type' => 'status_change',
-            'body' => "⬆️ {$approval->step_name} endorsed by {$actor->name} and escalated to " . ($targetApprover ? $targetApprover->name : 'Department Supervisor') . ($comment ? " (Note: {$comment})" : '') . '.',
+            'body' => "⬆️ {$approval->step_name} endorsed by {$actor->name} and escalated to ".($targetApprover ? $targetApprover->name : 'Department Supervisor').($comment ? " (Note: {$comment})" : '').'.',
         ]);
 
         // 6. Notify the escalated approver
@@ -1039,7 +1048,7 @@ class TicketApprovalService
         }
 
         // 3. Target user must be active
-        if (!$targetUser->is_active) {
+        if (! $targetUser->is_active) {
             return false;
         }
 
@@ -1060,7 +1069,7 @@ class TicketApprovalService
     /**
      * Get all users eligible to receive this approval step upon delegation/forwarding (SAME level peers).
      */
-    public function getEligibleForwardUsers(TicketApproval $approval, User $currentUser): \Illuminate\Support\Collection
+    public function getEligibleForwardUsers(TicketApproval $approval, User $currentUser): Collection
     {
         $ticket = $approval->ticket;
         $requesterId = $ticket->requester_id;
@@ -1073,9 +1082,9 @@ class TicketApprovalService
 
         if ($approval->role_name === 'it_manager') {
             return $query->where(function ($q) {
-                $q->whereHas('roles', fn($r) => $r->whereIn('name', ['technician', 'helpdesk']))
-                  ->orWhere(fn($sub) => $sub->whereHas('roles', fn($r) => $r->where('name', 'hod'))->where('email', 'like', '%it%'));
-            })->get()->filter(fn($u) => $u->isItHod() || $u->isItStaff())->values();
+                $q->whereHas('roles', fn ($r) => $r->whereIn('name', ['technician', 'helpdesk']))
+                    ->orWhere(fn ($sub) => $sub->whereHas('roles', fn ($r) => $r->where('name', 'hod'))->where('email', 'like', '%it%'));
+            })->get()->filter(fn ($u) => $u->isItHod() || $u->isItStaff())->values();
         }
 
         $currentLevel = $this->getApprovalStepLevel($approval);
@@ -1083,7 +1092,7 @@ class TicketApprovalService
         // 1. Active approver cards at the SAME level for this branch & department
         $peerCardUserIds = collect();
         if ($branchId && $deptId) {
-            $peerCardUserIds = \App\Models\DepartmentApprover::where('department_id', $deptId)
+            $peerCardUserIds = DepartmentApprover::where('department_id', $deptId)
                 ->where('branch_id', $branchId)
                 ->where('level', $currentLevel)
                 ->where('is_active', true)
@@ -1092,7 +1101,7 @@ class TicketApprovalService
 
         // Fallback to company-wide / HQ cards at the same level
         if ($peerCardUserIds->isEmpty() && $deptId) {
-            $peerCardUserIds = \App\Models\DepartmentApprover::where('department_id', $deptId)
+            $peerCardUserIds = DepartmentApprover::where('department_id', $deptId)
                 ->whereNull('branch_id')
                 ->where('level', $currentLevel)
                 ->where('is_active', true)
@@ -1102,8 +1111,8 @@ class TicketApprovalService
         // 2. If Level 1 (Team Leader), also include other line managers in that same department & branch
         $lineManagerIds = collect();
         if ($currentLevel === 1 && $deptId) {
-            $lineManagerIds = \App\Models\Employee::where('department_id', $deptId)
-                ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
+            $lineManagerIds = Employee::where('department_id', $deptId)
+                ->when($branchId, fn ($q) => $q->where('branch_id', $branchId))
                 ->whereNotNull('line_manager_user_id')
                 ->pluck('line_manager_user_id')
                 ->unique();
@@ -1113,18 +1122,18 @@ class TicketApprovalService
         $hodPeerIds = collect();
         if ($currentLevel >= 3 && $deptId) {
             $hodPeerIds = User::where('is_active', true)
-                ->whereHas('roles', fn($r) => $r->where('name', 'hod'))
-                ->whereDoesntHave('roles', fn($r) => $r->where('name', 'system_admin'))
+                ->whereHas('roles', fn ($r) => $r->where('name', 'hod'))
+                ->whereDoesntHave('roles', fn ($r) => $r->where('name', 'system_admin'))
                 ->where('email', '!=', 'admin@cbvh.com.kh')
                 ->where(function ($q) use ($deptId, $branchId) {
                     $q->whereDoesntHave('employee')
-                      ->orWhereHas('employee', fn($e) => $e->where('department_id', $deptId)->when($branchId, fn($b) => $b->where('branch_id', $branchId)));
+                        ->orWhereHas('employee', fn ($e) => $e->where('department_id', $deptId)->when($branchId, fn ($b) => $b->where('branch_id', $branchId)));
                 })
                 ->pluck('id');
         }
 
         $eligibleIds = $peerCardUserIds->concat($lineManagerIds)->concat($hodPeerIds)->unique()
-            ->reject(fn($id) => $id == $currentUser->id || $id == $requesterId);
+            ->reject(fn ($id) => $id == $currentUser->id || $id == $requesterId);
 
         if ($eligibleIds->isEmpty()) {
             return collect();
@@ -1146,7 +1155,7 @@ class TicketApprovalService
             return false;
         }
 
-        if (!$targetUser->is_active) {
+        if (! $targetUser->is_active) {
             return false;
         }
 
@@ -1160,7 +1169,7 @@ class TicketApprovalService
     /**
      * Get all users eligible to receive an escalated approval step (HIGHER level superiors).
      */
-    public function getEligibleEscalateUsers(TicketApproval $approval, User $currentUser): \Illuminate\Support\Collection
+    public function getEligibleEscalateUsers(TicketApproval $approval, User $currentUser): Collection
     {
         $ticket = $approval->ticket;
         $requesterId = $ticket->requester_id;
@@ -1176,7 +1185,7 @@ class TicketApprovalService
         // 1. Check for active approver cards in this branch & department with Level > currentLevel
         $higherCardUserIds = collect();
         if ($branchId && $deptId) {
-            $higherCardUserIds = \App\Models\DepartmentApprover::where('department_id', $deptId)
+            $higherCardUserIds = DepartmentApprover::where('department_id', $deptId)
                 ->where('branch_id', $branchId)
                 ->where('level', '>', $currentLevel)
                 ->where('is_active', true)
@@ -1186,7 +1195,7 @@ class TicketApprovalService
 
         // Fallback to company-wide / HQ cards with Level > currentLevel
         if ($higherCardUserIds->isEmpty() && $deptId) {
-            $higherCardUserIds = \App\Models\DepartmentApprover::where('department_id', $deptId)
+            $higherCardUserIds = DepartmentApprover::where('department_id', $deptId)
                 ->whereNull('branch_id')
                 ->where('level', '>', $currentLevel)
                 ->where('is_active', true)
@@ -1195,35 +1204,35 @@ class TicketApprovalService
         }
 
         // 2. Department Head (role 'hod' or explicit head_user_id) or Branch Manager as fallback superiors
-        $deptHeadId = $deptId ? \App\Models\Department::where('id', $deptId)->value('head_user_id') : null;
-        $branchManagerId = $branchId ? \App\Models\Branch::where('id', $branchId)->value('manager_user_id') : null;
+        $deptHeadId = $deptId ? Department::where('id', $deptId)->value('head_user_id') : null;
+        $branchManagerId = $branchId ? Branch::where('id', $branchId)->value('manager_user_id') : null;
 
         $hodSuperiorIds = collect();
         if ($currentLevel < 3 && $deptId) {
             $hodSuperiorIds = User::where('is_active', true)
-                ->whereHas('roles', fn($r) => $r->where('name', 'hod'))
-                ->whereDoesntHave('roles', fn($r) => $r->where('name', 'system_admin'))
+                ->whereHas('roles', fn ($r) => $r->where('name', 'hod'))
+                ->whereDoesntHave('roles', fn ($r) => $r->where('name', 'system_admin'))
                 ->where('email', '!=', 'admin@cbvh.com.kh')
                 ->where(function ($q) use ($deptId, $branchId) {
                     $q->whereDoesntHave('employee')
-                      ->orWhereHas('employee', fn($e) => $e->where('department_id', $deptId)->when($branchId, fn($b) => $b->where('branch_id', $branchId)));
+                        ->orWhereHas('employee', fn ($e) => $e->where('department_id', $deptId)->when($branchId, fn ($b) => $b->where('branch_id', $branchId)));
                 })
                 ->pluck('id');
         }
 
         $parentHeadId = null;
         if ($deptId) {
-            $dept = \App\Models\Department::find($deptId);
+            $dept = Department::find($deptId);
             $parentHeadId = $dept?->parent?->head_user_id;
         }
 
         $superiorIds = $higherCardUserIds
             ->concat($hodSuperiorIds)
-            ->when($deptHeadId, fn($c) => $c->push($deptHeadId))
-            ->when($branchManagerId, fn($c) => $c->push($branchManagerId))
-            ->when($parentHeadId, fn($c) => $c->push($parentHeadId))
+            ->when($deptHeadId, fn ($c) => $c->push($deptHeadId))
+            ->when($branchManagerId, fn ($c) => $c->push($branchManagerId))
+            ->when($parentHeadId, fn ($c) => $c->push($parentHeadId))
             ->unique()
-            ->reject(fn($id) => $id == $currentUser->id || $id == $requesterId);
+            ->reject(fn ($id) => $id == $currentUser->id || $id == $requesterId);
 
         if ($superiorIds->isEmpty()) {
             return collect();
@@ -1237,11 +1246,11 @@ class TicketApprovalService
      */
     public function forward(TicketApproval $approval, User $actor, User $targetUser, ?string $comment = null): bool
     {
-        if (!$this->canUserApprove($actor, $approval)) {
+        if (! $this->canUserApprove($actor, $approval)) {
             return false;
         }
 
-        if (!$this->canForwardTo($targetUser, $approval, $actor)) {
+        if (! $this->canForwardTo($targetUser, $approval, $actor)) {
             return false;
         }
 
@@ -1249,7 +1258,7 @@ class TicketApprovalService
 
         $approval->update([
             'approver_id' => $targetUser->id,
-            'comments' => "Delegated by {$actor->name}" . ($comment ? ": {$comment}" : ''),
+            'comments' => "Delegated by {$actor->name}".($comment ? ": {$comment}" : ''),
         ]);
 
         TicketAuditLog::create([
@@ -1266,7 +1275,7 @@ class TicketApprovalService
             'sender_id' => $actor->id,
             'visibility' => 'system_event',
             'message_type' => 'status_change',
-            'body' => "🔄 {$approval->step_name} review delegated from {$actor->name} to {$targetUser->name}" . ($comment ? " (Note: {$comment})" : '') . '.',
+            'body' => "🔄 {$approval->step_name} review delegated from {$actor->name} to {$targetUser->name}".($comment ? " (Note: {$comment})" : '').'.',
         ]);
 
         // Notify new approver
@@ -1285,13 +1294,14 @@ class TicketApprovalService
             $assignedUser = User::find($step->approver_id);
             if ($assignedUser && $assignedUser->telegram_id) {
                 $this->telegramNotification->sendApprovalRequestAlert($assignedUser, $ticket, $step);
+
                 return;
             }
         }
 
         if (in_array($step->role_name, ['department_hod', 'department_supervisor'])) {
             $deptId = $step->department_id ?? $ticket->requester->employee?->department_id;
-            $department = $deptId ? \App\Models\Department::with(['head', 'activeApprovers.user'])->find($deptId) : null;
+            $department = $deptId ? Department::with(['head', 'activeApprovers.user'])->find($deptId) : null;
             $branchId = $step->branch_id ?? $ticket->branch_id ?? $ticket->requester->employee?->branch_id;
 
             // Check department_approvers
@@ -1306,7 +1316,7 @@ class TicketApprovalService
                         ->with('user')
                         ->get();
                     if ($branchCards->isNotEmpty()) {
-                        $approverUsers = $branchCards->pluck('user')->filter(fn($u) => !empty($u->telegram_id));
+                        $approverUsers = $branchCards->pluck('user')->filter(fn ($u) => ! empty($u->telegram_id));
                     }
                 }
 
@@ -1316,7 +1326,7 @@ class TicketApprovalService
                         ->whereNull('branch_id')
                         ->with('user')
                         ->get();
-                    $approverUsers = $hqCards->pluck('user')->filter(fn($u) => !empty($u->telegram_id));
+                    $approverUsers = $hqCards->pluck('user')->filter(fn ($u) => ! empty($u->telegram_id));
                 }
             }
 
@@ -1325,40 +1335,40 @@ class TicketApprovalService
             } elseif ($department && $department->head && $department->head->telegram_id) {
                 $approvers = collect([$department->head]);
             } else {
-                $approvers = User::whereHas('roles', fn($q) => $q->where('name', 'hod'))
-                    ->whereHas('employee', fn($q) => $q->where('department_id', $deptId)->when($branchId, fn($q2) => $q2->where('branch_id', $branchId)))
+                $approvers = User::whereHas('roles', fn ($q) => $q->where('name', 'hod'))
+                    ->whereHas('employee', fn ($q) => $q->where('department_id', $deptId)->when($branchId, fn ($q2) => $q2->where('branch_id', $branchId)))
                     ->whereNotNull('telegram_id')
                     ->get();
             }
         } elseif (in_array($step->role_name, ['branch_manager', 'division_head', 'intermediate_approver'])) {
             $branchId = $step->branch_id ?? $ticket->branch_id ?? $ticket->requester->employee?->branch_id;
-            $branch = $branchId ? \App\Models\Branch::with('manager')->find($branchId) : null;
+            $branch = $branchId ? Branch::with('manager')->find($branchId) : null;
 
             if ($branch && $branch->manager && $branch->manager->telegram_id) {
                 $approvers = collect([$branch->manager]);
             } else {
-                $approvers = User::whereHas('roles', fn($q) => $q->whereIn('name', ['hod', 'system_admin']))
-                    ->whereHas('employee', fn($q) => $q->where('branch_id', $branchId))
+                $approvers = User::whereHas('roles', fn ($q) => $q->whereIn('name', ['hod', 'system_admin']))
+                    ->whereHas('employee', fn ($q) => $q->where('branch_id', $branchId))
                     ->whereNotNull('telegram_id')
                     ->get();
             }
         } else {
             // Process: Central IT Department HOD (HQ) & IT HODs (filtered by dynamic IT unit: OPR / PRD / SOL / etc.)
             $itDept = $ticket->category?->itDepartment;
-            if (!$itDept) {
+            if (! $itDept) {
                 $itDivision = $ticket->it_division ?? $ticket->category?->it_division ?? 'opr';
-                $targetDeptCode = str_starts_with($itDivision, 'IT-') ? $itDivision : 'IT-' . strtoupper($itDivision);
-                $itDept = \App\Models\Department::where('code', $targetDeptCode)->with('head')->first();
+                $targetDeptCode = str_starts_with($itDivision, 'IT-') ? $itDivision : 'IT-'.strtoupper($itDivision);
+                $itDept = Department::where('code', $targetDeptCode)->with('head')->first();
             }
 
             if ($itDept && $itDept->head && $itDept->head->telegram_id) {
                 $approvers = collect([$itDept->head]);
             } else {
                 $targetDeptCode = $itDept?->code ?? 'IT-OPR';
-                $approvers = User::whereHas('roles', fn($q) => $q->whereIn('name', ['hod', 'system_admin']))
+                $approvers = User::whereHas('roles', fn ($q) => $q->whereIn('name', ['hod', 'system_admin']))
                     ->where(function ($q) use ($targetDeptCode) {
                         $q->whereDoesntHave('employee')
-                          ->orWhereHas('employee.department', fn($d) => $d->whereIn('code', [$targetDeptCode, 'IT', 'IT-OPR', 'IT-PRD', 'IT-SOL'])->orWhere('id', 2));
+                            ->orWhereHas('employee.department', fn ($d) => $d->whereIn('code', [$targetDeptCode, 'IT', 'IT-OPR', 'IT-PRD', 'IT-SOL'])->orWhere('id', 2));
                     })
                     ->whereNotNull('telegram_id')
                     ->get();

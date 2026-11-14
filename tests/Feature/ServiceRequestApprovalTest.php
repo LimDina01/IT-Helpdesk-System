@@ -3,17 +3,12 @@
 namespace Tests\Feature;
 
 use App\Models\Branch;
-use App\Models\Department;
-use App\Models\Employee;
 use App\Models\Ticket;
-use App\Models\TicketApproval;
 use App\Models\TicketCategory;
 use App\Models\User;
-use App\Services\TelegramAuthService;
 use App\Services\TicketApprovalService;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Auth;
 use Tests\TestCase;
 
 class ServiceRequestApprovalTest extends TestCase
@@ -21,13 +16,21 @@ class ServiceRequestApprovalTest extends TestCase
     use RefreshDatabase;
 
     protected User $requester;
+
     protected User $hodUser;
+
     protected User $opsHodUser;
+
     protected User $itHodUser;
+
     protected User $adminUser;
+
     protected User $techUser;
+
     protected Branch $branch;
+
     protected TicketCategory $procurementCat;
+
     protected TicketCategory $incidentCat;
 
     protected function setUp(): void

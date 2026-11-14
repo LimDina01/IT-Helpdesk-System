@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\BusinessHoursService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -12,10 +13,10 @@ class CompanyHoliday extends Model
     protected static function booted(): void
     {
         static::saved(function () {
-            \App\Services\BusinessHoursService::clearHolidayCache();
+            BusinessHoursService::clearHolidayCache();
         });
         static::deleted(function () {
-            \App\Services\BusinessHoursService::clearHolidayCache();
+            BusinessHoursService::clearHolidayCache();
         });
     }
 

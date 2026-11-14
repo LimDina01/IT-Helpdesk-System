@@ -7,7 +7,6 @@ use App\Models\User;
 use App\Services\LdapAuthService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
 
 class MakeStaffUser extends Command
 {
@@ -40,14 +39,16 @@ class MakeStaffUser extends Command
 
         // 1. Verify Role Exists
         $validRoles = ['system_admin', 'hod', 'technician', 'helpdesk', 'requester'];
-        if (!in_array($roleName, $validRoles, true)) {
-            $this->error("Invalid role '{$roleName}'. Valid roles are: " . implode(', ', $validRoles));
+        if (! in_array($roleName, $validRoles, true)) {
+            $this->error("Invalid role '{$roleName}'. Valid roles are: ".implode(', ', $validRoles));
+
             return 1;
         }
 
         $role = Role::where('name', $roleName)->first();
-        if (!$role) {
+        if (! $role) {
             $this->error("Role '{$roleName}' was not found in the database.");
+
             return 1;
         }
 
@@ -57,27 +58,27 @@ class MakeStaffUser extends Command
         // 2. Find Existing Local User (by exact email, prefix, telegram username, employee code, or name)
         $user = User::where('email', $identifier)
             ->orWhere('telegram_username', $cleanUsername)
-            ->orWhereHas('employee', fn($q) => $q->where('employee_code', $identifier)->orWhere('email', $identifier))
+            ->orWhereHas('employee', fn ($q) => $q->where('employee_code', $identifier)->orWhere('email', $identifier))
             ->orWhere('email', 'like', "{$identifier}@%")
             ->orWhere('name', $identifier)
             ->first();
 
         // 3. If User Doesn't Exist, Try to Fetch Info from Active Directory
-        if (!$user) {
+        if (! $user) {
             $this->info("User '{$identifier}' not found in local database. Checking Active Directory...");
 
             $adResult = $ldapAuth->testConnection($identifier);
             $fullName = $nameOverride;
             $email = null;
 
-            if ($adResult['connected'] && $adResult['service_bind'] && !empty($adResult['user_found'])) {
+            if ($adResult['connected'] && $adResult['service_bind'] && ! empty($adResult['user_found'])) {
                 $u = $adResult['user_found'];
                 $fullName = $fullName ?: ($u['displayName'] ?? $identifier);
                 $email = $u['mail'] ?? null;
                 $this->info("  [OK] Found user in Active Directory: {$fullName} ({$email})");
             }
 
-            if (!$email) {
+            if (! $email) {
                 $email = str_contains($identifier, '@') ? $identifier : "{$identifier}@cbvh.com.kh";
             }
 
@@ -95,13 +96,13 @@ class MakeStaffUser extends Command
         } else {
             $this->info("Found existing user record: #{$user->id} {$user->name} ({$user->email})");
             $user->update(['is_active' => true]);
-            if (!$user->password) {
+            if (! $user->password) {
                 $user->update(['password' => Hash::make($passwordInput)]);
             }
         }
 
         // 4. Attach Role
-        if (!$user->roles->contains('id', $role->id)) {
+        if (! $user->roles->contains('id', $role->id)) {
             $user->roles()->attach($role->id);
             $this->info("✅ Assigned role '{$role->label}' ({$role->name}) to {$user->name}.");
         } else {
@@ -111,16 +112,17 @@ class MakeStaffUser extends Command
         // If system_admin, optionally ensure they also have HOD role if missing
         if ($roleName === 'system_admin') {
             $hodRole = Role::where('name', 'hod')->first();
-            if ($hodRole && !$user->roles->contains('id', $hodRole->id)) {
+            if ($hodRole && ! $user->roles->contains('id', $hodRole->id)) {
                 $user->roles()->attach($hodRole->id);
-                $this->info("ℹ️ Also attached HOD role for executive queue visibility.");
+                $this->info('ℹ️ Also attached HOD role for executive queue visibility.');
             }
         }
 
         $this->newLine();
-        $this->info("🎉 SUCCESS! You can now log into the portal at /portal/login using:");
+        $this->info('🎉 SUCCESS! You can now log into the portal at /portal/login using:');
         $this->line("   Username: {$identifier} (or {$user->email})");
-        $this->line("   Password: Your Active Directory (Windows) password");
+        $this->line('   Password: Your Active Directory (Windows) password');
+
         return 0;
     }
 }

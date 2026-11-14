@@ -61,4 +61,3 @@ class DepartmentApprover extends Model
         };
     }
 }
-

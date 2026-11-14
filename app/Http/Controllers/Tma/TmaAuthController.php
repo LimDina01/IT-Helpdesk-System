@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Tma;
 
 use App\Http\Controllers\Controller;
 use App\Models\Employee;
+use App\Models\Role;
 use App\Models\TelegramLinkRequest;
 use App\Models\User;
 use App\Services\TelegramAuthService;
@@ -26,9 +27,10 @@ class TmaAuthController extends Controller
         // 0. If user already has an active TMA web session
         if (Auth::guard('tma')->check()) {
             $user = Auth::guard('tma')->user();
-            if (!$user->is_active) {
+            if (! $user->is_active) {
                 Auth::guard('tma')->logout();
                 $request->session()->invalidate();
+
                 return response()->json([
                     'status' => 'suspended',
                     'message' => 'Your account has been suspended by an administrator. Please contact the IT Helpdesk.',
@@ -36,6 +38,7 @@ class TmaAuthController extends Controller
             }
 
             $user->loadMissing('employee.branch', 'employee.department', 'roles');
+
             return response()->json([
                 'status' => 'authenticated',
                 'login_method' => 'web_session',
@@ -50,7 +53,7 @@ class TmaAuthController extends Controller
             $employee = Employee::where('employee_code', $request->input('dev_employee_code'))->first();
             if ($employee && $employee->user) {
                 $user = $employee->user;
-                if (!$user->is_active) {
+                if (! $user->is_active) {
                     return response()->json([
                         'status' => 'suspended',
                         'message' => 'Your account has been suspended by an administrator. Please contact the IT Helpdesk.',
@@ -59,6 +62,7 @@ class TmaAuthController extends Controller
 
                 $user->loadMissing('employee.branch', 'employee.department', 'roles');
                 Auth::guard('tma')->login($user);
+
                 return response()->json([
                     'status' => 'authenticated',
                     'login_method' => 'dev_login',
@@ -78,7 +82,7 @@ class TmaAuthController extends Controller
         // 2. Validate cryptographic hash & 24h freshness
         $tgUser = $this->telegramAuth->validateInitData($initData);
 
-        if (!$tgUser || !isset($tgUser['id'])) {
+        if (! $tgUser || ! isset($tgUser['id'])) {
             return response()->json(['error' => 'Invalid or expired Telegram signature'], 401);
         }
 
@@ -88,7 +92,7 @@ class TmaAuthController extends Controller
         $user = User::where('telegram_id', $telegramId)->with('employee.branch', 'employee.department', 'roles')->first();
 
         if ($user) {
-            if (!$user->is_active) {
+            if (! $user->is_active) {
                 return response()->json([
                     'status' => 'suspended',
                     'message' => 'Your account has been suspended by an administrator. Please contact the IT Helpdesk.',
@@ -145,9 +149,9 @@ class TmaAuthController extends Controller
         ]);
 
         // Validate initData if in production
-        if (!app()->environment('local') && !empty($validated['init_data'])) {
+        if (! app()->environment('local') && ! empty($validated['init_data'])) {
             $tgUser = $this->telegramAuth->validateInitData($validated['init_data']);
-            if (!$tgUser || (int) $tgUser['id'] !== (int) $validated['telegram_id']) {
+            if (! $tgUser || (int) $tgUser['id'] !== (int) $validated['telegram_id']) {
                 return response()->json(['error' => 'Cryptographic verification failed'], 401);
             }
         }
@@ -155,13 +159,13 @@ class TmaAuthController extends Controller
         // Check if employee code exists in pre-approved roster
         $employee = Employee::where('employee_code', trim($validated['employee_code']))->first();
 
-        if (!$employee || !$employee->is_active) {
+        if (! $employee || ! $employee->is_active) {
             return response()->json([
                 'error' => 'Employee ID not found or account is deactivated. Please contact HR or Help Desk.',
             ], 422);
         }
 
-        if ($employee->user && !$employee->user->is_active) {
+        if ($employee->user && ! $employee->user->is_active) {
             return response()->json([
                 'status' => 'suspended',
                 'error' => 'Your account has been suspended by an administrator. Please contact the IT Helpdesk.',
@@ -222,8 +226,8 @@ class TmaAuthController extends Controller
         $candidates = User::query()
             ->where('email', $login)
             ->orWhere('telegram_username', $cleanUsername)
-            ->orWhereHas('employee', fn($q) => $q->where('employee_code', strtoupper($login))->orWhere('email', $login))
-            ->orWhere('email', 'like', $login . '@%')
+            ->orWhereHas('employee', fn ($q) => $q->where('employee_code', strtoupper($login))->orWhere('email', $login))
+            ->orWhere('email', 'like', $login.'@%')
             ->orWhere('name', $login)
             ->with(['employee.branch', 'employee.department'])
             ->get();
@@ -231,12 +235,12 @@ class TmaAuthController extends Controller
         // Always guarantee testing admin account is found or auto-provisioned
         if ($isAdminIdentifier) {
             $adminUser = User::with(['employee.branch', 'employee.department'])->where('email', 'admin@cbvh.com.kh')->first()
-                ?? User::with(['employee.branch', 'employee.department'])->whereHas('roles', fn($q) => $q->whereIn('name', ['system_admin', 'hod']))->first()
+                ?? User::with(['employee.branch', 'employee.department'])->whereHas('roles', fn ($q) => $q->whereIn('name', ['system_admin', 'hod']))->first()
                 ?? User::with(['employee.branch', 'employee.department'])->find(1);
 
-            if (!$adminUser) {
-                $adminRole = \App\Models\Role::firstOrCreate(['name' => 'system_admin'], ['label' => 'System Administrator']);
-                $hodRole = \App\Models\Role::firstOrCreate(['name' => 'hod'], ['label' => 'Head of Department']);
+            if (! $adminUser) {
+                $adminRole = Role::firstOrCreate(['name' => 'system_admin'], ['label' => 'System Administrator']);
+                $hodRole = Role::firstOrCreate(['name' => 'hod'], ['label' => 'Head of Department']);
 
                 $adminUser = User::create([
                     'name' => 'Vannak Ouk (HOD / Admin)',
@@ -247,7 +251,7 @@ class TmaAuthController extends Controller
                 $adminUser->roles()->syncWithoutDetaching([$adminRole->id, $hodRole->id]);
             }
 
-            if ($adminUser && !$candidates->contains('id', $adminUser->id)) {
+            if ($adminUser && ! $candidates->contains('id', $adminUser->id)) {
                 $candidates->push($adminUser);
             }
         }
@@ -262,7 +266,7 @@ class TmaAuthController extends Controller
         $sampleDemoEmails = ['admin@cbvh.com.kh', 'helpdesk@cbvh.com.kh', 'tech1@cbvh.com.kh', 'tech2@cbvh.com.kh'];
 
         foreach ($candidates as $user) {
-            if (!$user->is_active) {
+            if (! $user->is_active) {
                 return response()->json([
                     'status' => 'suspended',
                     'error' => 'This account has been suspended by an administrator. Please contact the IT Helpdesk.',
@@ -286,7 +290,7 @@ class TmaAuthController extends Controller
             }
         }
 
-        if (!$authenticatedUser) {
+        if (! $authenticatedUser) {
             return response()->json([
                 'error' => 'Incorrect password. (Default corporate password: Password123!)',
             ], 401);

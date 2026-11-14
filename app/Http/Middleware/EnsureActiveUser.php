@@ -20,11 +20,12 @@ class EnsureActiveUser
         if ($activeGuard) {
             $user = Auth::guard($activeGuard)->user();
 
-            if (!$user->is_active) {
+            if (! $user->is_active) {
                 // Instantly purge user sessions and log out
                 try {
                     DB::table('sessions')->where('user_id', $user->id)->delete();
-                } catch (\Throwable $e) {}
+                } catch (\Throwable $e) {
+                }
 
                 Auth::guard($activeGuard)->logout();
                 $request->session()->invalidate();
@@ -47,4 +48,3 @@ class EnsureActiveUser
         return $next($request);
     }
 }
-

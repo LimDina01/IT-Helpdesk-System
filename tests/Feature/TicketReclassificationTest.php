@@ -3,8 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\Branch;
-use App\Models\Department;
-use App\Models\Employee;
 use App\Models\Role;
 use App\Models\Ticket;
 use App\Models\TicketCategory;
@@ -19,10 +17,15 @@ class TicketReclassificationTest extends TestCase
     use RefreshDatabase;
 
     protected User $helpdeskUser;
+
     protected User $techUser;
+
     protected User $requesterUser;
+
     protected Branch $branch;
+
     protected TicketCategory $incidentCat;
+
     protected TicketCategory $serviceCat;
 
     protected function setUp(): void
@@ -356,4 +359,3 @@ class TicketReclassificationTest extends TestCase
         $this->assertEquals('assigned', $ticket->status);
     }
 }
-

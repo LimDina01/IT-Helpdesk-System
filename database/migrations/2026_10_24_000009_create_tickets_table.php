@@ -17,10 +17,10 @@ return new class extends Migration
             $table->foreignId('requester_id')->constrained('users')->cascadeOnUpdate()->restrictOnDelete();
             $table->foreignId('branch_id')->constrained('branches')->cascadeOnUpdate()->restrictOnDelete();
             $table->foreignId('category_id')->constrained('ticket_categories')->cascadeOnUpdate()->restrictOnDelete();
-            
+
             $table->foreignId('current_helpdesk_id')->nullable()->constrained('users')->nullOnDelete();
             $table->foreignId('current_technician_id')->nullable()->constrained('users')->nullOnDelete();
-            
+
             $table->enum('status', [
                 'pending_approval',      // Waiting for HOD / IT Manager sign-off
                 'submitted',             // Approved or Direct incident, ready for triage
@@ -33,11 +33,11 @@ return new class extends Migration
                 'resolved_auto_closed',  // Closed automatically after business days timeout
                 'reopened',              // Employee reported still broken
                 'rejected',              // Rejected by HOD or IT Manager
-                'cancelled'              // Voided/withdrawn
+                'cancelled',              // Voided/withdrawn
             ])->default('submitted');
 
             $table->enum('priority', ['low', 'medium', 'high', 'critical'])->default('medium');
-            
+
             $table->string('subject', 255);
             $table->text('description');
 

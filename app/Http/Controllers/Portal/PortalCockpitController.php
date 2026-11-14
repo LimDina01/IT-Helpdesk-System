@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
-use App\Models\Role;
 use App\Models\Ticket;
 use App\Models\TicketAuditLog;
 use App\Models\User;
@@ -45,12 +44,12 @@ class PortalCockpitController extends Controller
         $totalFulfillmentCount = Ticket::whereIn('status', ['assigned', 'in_progress', 'blocked'])->count();
 
         // 2. Live Technician Workload Distribution Board
-        $technicians = User::whereHas('roles', fn($q) => $q->where('name', 'technician'))
+        $technicians = User::whereHas('roles', fn ($q) => $q->where('name', 'technician'))
             ->where('is_active', true)
             ->withCount([
-                'assignedTickets as active_tasks_count' => fn($q) => $q->whereIn('status', ['assigned', 'in_progress', 'blocked']),
-                'assignedTickets as resolved_today_count' => fn($q) => $q->where('resolved_at', '>=', Carbon::today()),
-                'assignedTickets as overdue_sla_count' => fn($q) => $q->where('status', 'assigned')
+                'assignedTickets as active_tasks_count' => fn ($q) => $q->whereIn('status', ['assigned', 'in_progress', 'blocked']),
+                'assignedTickets as resolved_today_count' => fn ($q) => $q->where('resolved_at', '>=', Carbon::today()),
+                'assignedTickets as overdue_sla_count' => fn ($q) => $q->where('status', 'assigned')
                     ->whereNull('acknowledged_at')
                     ->where('assigned_at', '<', Carbon::now()->subMinutes(30)),
             ])
@@ -74,6 +73,7 @@ class PortalCockpitController extends Controller
                     $tech->load_badge = 'bg-rose-100 text-rose-900 border-rose-200';
                     $tech->load_indicator = 'bg-rose-500 animate-pulse';
                 }
+
                 return $tech;
             });
 
@@ -81,15 +81,15 @@ class PortalCockpitController extends Controller
         $urgentQuery = Ticket::with(['requester', 'branch', 'category', 'technician', 'approvals'])
             ->where(function ($q) {
                 $q->where('status', 'blocked')
-                  ->orWhere('status', 'reopened')
-                  ->orWhere('priority', 'critical')
-                  ->orWhere('status', 'pending_approval')
-                  ->orWhereNotNull('hold_requested_at')
-                  ->orWhere(function ($sub) {
-                      $sub->where('status', 'assigned')
-                          ->whereNull('acknowledged_at')
-                          ->where('assigned_at', '<', Carbon::now()->subMinutes(30));
-                  });
+                    ->orWhere('status', 'reopened')
+                    ->orWhere('priority', 'critical')
+                    ->orWhere('status', 'pending_approval')
+                    ->orWhereNotNull('hold_requested_at')
+                    ->orWhere(function ($sub) {
+                        $sub->where('status', 'assigned')
+                            ->whereNull('acknowledged_at')
+                            ->where('assigned_at', '<', Carbon::now()->subMinutes(30));
+                    });
             })
             ->orderByRaw("CASE WHEN hold_requested_at IS NOT NULL THEN 0 WHEN priority = 'critical' THEN 1 WHEN priority = 'high' THEN 2 WHEN priority = 'medium' THEN 3 ELSE 4 END")
             ->orderByDesc('created_at');
@@ -152,10 +152,10 @@ class PortalCockpitController extends Controller
                 'sender_id' => Auth::id(),
                 'visibility' => 'system_event',
                 'message_type' => 'status_change',
-                'body' => "⚡ Executive Override: Priority changed from " . strtoupper($oldPriority) . " to " . strtoupper($validated['priority']) . ". Reason: " . $validated['reason'],
+                'body' => '⚡ Executive Override: Priority changed from '.strtoupper($oldPriority).' to '.strtoupper($validated['priority']).'. Reason: '.$validated['reason'],
             ]);
         });
 
-        return back()->with('status', "Priority for {$ticket->ticket_code} updated to " . strtoupper($validated['priority']));
+        return back()->with('status', "Priority for {$ticket->ticket_code} updated to ".strtoupper($validated['priority']));
     }
 }

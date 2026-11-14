@@ -15,6 +15,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -29,7 +30,7 @@ class PortalAdminController extends Controller
         abort_unless(Auth::user()->hasRole(['system_admin', 'hod']), 403, 'System Administrator or HOD privileges required.');
 
         $categories = TicketCategory::whereNull('parent_id')
-            ->with(['children' => fn($q) => $q->withCount('tickets')])
+            ->with(['children' => fn ($q) => $q->withCount('tickets')])
             ->withCount('tickets')
             ->orderBy('name')
             ->get();
@@ -91,16 +92,16 @@ class PortalAdminController extends Controller
 
         if ($request->hasFile('icon_file')) {
             $file = $request->file('icon_file');
-            $filename = 'cat_' . time() . '_' . Str::random(8) . '.' . $file->getClientOriginalExtension();
+            $filename = 'cat_'.time().'_'.Str::random(8).'.'.$file->getClientOriginalExtension();
             $destinationPath = public_path('uploads/categories');
-            if (!file_exists($destinationPath)) {
+            if (! file_exists($destinationPath)) {
                 mkdir($destinationPath, 0755, true);
             }
             $file->move($destinationPath, $filename);
-            $validated['icon_url'] = '/uploads/categories/' . $filename;
+            $validated['icon_url'] = '/uploads/categories/'.$filename;
         }
 
-        if (!empty($validated['it_department_id'])) {
+        if (! empty($validated['it_department_id'])) {
             $dept = Department::find($validated['it_department_id']);
             if ($dept) {
                 $clean = strtolower(str_replace('IT-', '', $dept->code));
@@ -122,7 +123,7 @@ class PortalAdminController extends Controller
         abort_unless(Auth::user()->hasRole(['system_admin', 'hod']), 403);
 
         $validated = $request->validate([
-            'parent_id' => 'nullable|exists:ticket_categories,id|not_in:' . $category->id,
+            'parent_id' => 'nullable|exists:ticket_categories,id|not_in:'.$category->id,
             'code' => 'nullable|string|max:20',
             'it_division' => 'nullable|in:opr,prd',
             'it_department_id' => 'nullable|exists:departments,id',
@@ -151,8 +152,8 @@ class PortalAdminController extends Controller
 
         $crit = $validated['sla_critical_hours'] ?? $category->sla_critical_hours ?? 4;
         $high = $validated['sla_high_hours'] ?? $category->sla_high_hours ?? 8;
-        $med  = $validated['sla_medium_hours'] ?? $category->sla_medium_hours ?? 24;
-        $low  = $validated['sla_low_hours'] ?? $category->sla_low_hours ?? 48;
+        $med = $validated['sla_medium_hours'] ?? $category->sla_medium_hours ?? 24;
+        $low = $validated['sla_low_hours'] ?? $category->sla_low_hours ?? 48;
         $defaultPriority = $validated['default_priority'];
 
         $priorityMap = [
@@ -173,13 +174,13 @@ class PortalAdminController extends Controller
                 @unlink(public_path(ltrim($category->icon_url, '/')));
             }
             $file = $request->file('icon_file');
-            $filename = 'cat_' . time() . '_' . Str::random(8) . '.' . $file->getClientOriginalExtension();
+            $filename = 'cat_'.time().'_'.Str::random(8).'.'.$file->getClientOriginalExtension();
             $destinationPath = public_path('uploads/categories');
-            if (!file_exists($destinationPath)) {
+            if (! file_exists($destinationPath)) {
                 mkdir($destinationPath, 0755, true);
             }
             $file->move($destinationPath, $filename);
-            $validated['icon_url'] = '/uploads/categories/' . $filename;
+            $validated['icon_url'] = '/uploads/categories/'.$filename;
         }
 
         // If explicitly set empty, allow removing parent (promoting to root)
@@ -187,7 +188,7 @@ class PortalAdminController extends Controller
             $validated['parent_id'] = null;
         }
 
-        if (!empty($validated['it_department_id'])) {
+        if (! empty($validated['it_department_id'])) {
             $dept = Department::find($validated['it_department_id']);
             if ($dept) {
                 $clean = strtolower(str_replace('IT-', '', $dept->code));
@@ -198,6 +199,7 @@ class PortalAdminController extends Controller
         $category->update($validated);
 
         $typeLabel = $category->parent_id ? 'Subcategory' : 'Parent Group';
+
         return back()->with('status', "{$typeLabel} '{$category->name}' updated successfully!");
     }
 
@@ -208,9 +210,10 @@ class PortalAdminController extends Controller
     {
         abort_unless(Auth::user()->hasRole(['system_admin', 'hod']), 403);
 
-        $category->update(['is_active' => !$category->is_active]);
+        $category->update(['is_active' => ! $category->is_active]);
 
         $statusStr = $category->is_active ? 'activated' : 'deactivated';
+
         return back()->with('status', "Category '{$category->name}' {$statusStr}.");
     }
 
@@ -224,16 +227,18 @@ class PortalAdminController extends Controller
         // 1. Check if it has child subcategories
         if ($category->children()->exists()) {
             $childCount = $category->children()->count();
+
             return back()->withErrors([
-                'error' => "Cannot delete group '{$category->name}' because it contains {$childCount} subcategories. Please delete or move them first."
+                'error' => "Cannot delete group '{$category->name}' because it contains {$childCount} subcategories. Please delete or move them first.",
             ]);
         }
 
         // 2. Check if it has linked tickets
         if ($category->tickets()->exists()) {
             $ticketCount = $category->tickets()->count();
+
             return back()->withErrors([
-                'error' => "Cannot delete '{$category->name}' because it has {$ticketCount} existing ticket(s). You can disable it instead to preserve historical records."
+                'error' => "Cannot delete '{$category->name}' because it has {$ticketCount} existing ticket(s). You can disable it instead to preserve historical records.",
             ]);
         }
 
@@ -241,7 +246,7 @@ class PortalAdminController extends Controller
         $isParent = $category->parent_id === null;
         $category->delete();
 
-        return back()->with('status', ($isParent ? 'Parent Group' : 'Subcategory') . " '{$name}' permanently deleted.");
+        return back()->with('status', ($isParent ? 'Parent Group' : 'Subcategory')." '{$name}' permanently deleted.");
     }
 
     /**
@@ -300,7 +305,7 @@ class PortalAdminController extends Controller
         $filter = $request->input('filter', 'all');
         $search = trim((string) $request->input('search', ''));
         $perPage = (int) $request->input('per_page', 25);
-        if (!in_array($perPage, [10, 25, 50, 100], true)) {
+        if (! in_array($perPage, [10, 25, 50, 100], true)) {
             $perPage = 25;
         }
 
@@ -316,21 +321,21 @@ class PortalAdminController extends Controller
         if ($search !== '') {
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%")
-                  ->orWhere('telegram_username', 'like', "%{$search}%")
-                  ->orWhereHas('employee', function ($eq) use ($search) {
-                      $eq->where('employee_code', 'like', "%{$search}%")
-                         ->orWhere('full_name', 'like', "%{$search}%")
-                         ->orWhere('phone', 'like', "%{$search}%")
-                         ->orWhereHas('department', fn($dq) => $dq->where('name', 'like', "%{$search}%"))
-                         ->orWhereHas('branch', fn($bq) => $bq->where('name', 'like', "%{$search}%"));
-                  });
+                    ->orWhere('email', 'like', "%{$search}%")
+                    ->orWhere('telegram_username', 'like', "%{$search}%")
+                    ->orWhereHas('employee', function ($eq) use ($search) {
+                        $eq->where('employee_code', 'like', "%{$search}%")
+                            ->orWhere('full_name', 'like', "%{$search}%")
+                            ->orWhere('phone', 'like', "%{$search}%")
+                            ->orWhereHas('department', fn ($dq) => $dq->where('name', 'like', "%{$search}%"))
+                            ->orWhereHas('branch', fn ($bq) => $bq->where('name', 'like', "%{$search}%"));
+                    });
             });
         }
 
         $staffFilterClosure = function ($q) {
             $q->whereNull('employee_id')
-              ->whereHas('roles', fn($r) => $r->whereIn('name', ['technician', 'helpdesk', 'system_admin', 'hod']));
+                ->whereHas('roles', fn ($r) => $r->whereIn('name', ['technician', 'helpdesk', 'system_admin', 'hod']));
         };
 
         $tmaFilterClosure = function ($q) {
@@ -356,7 +361,7 @@ class PortalAdminController extends Controller
         $departments = Department::where('is_active', true)->orderBy('name')->get();
         $branches = Branch::where('is_active', true)->orderBy('name')->get();
         $lineManagerCandidates = User::where('is_active', true)
-            ->whereHas('roles', fn($r) => $r->whereIn('name', ['hod', 'requester', 'system_admin']))
+            ->whereHas('roles', fn ($r) => $r->whereIn('name', ['hod', 'requester', 'system_admin']))
             ->with(['employee.department', 'employee.branch', 'roles'])
             ->orderBy('name')
             ->get();
@@ -413,7 +418,7 @@ class PortalAdminController extends Controller
         $email = strtolower(trim($validated['email']));
         $user = User::where('email', $email)->first();
 
-        $passwordInput = !empty($validated['password']) ? $validated['password'] : null;
+        $passwordInput = ! empty($validated['password']) ? $validated['password'] : null;
 
         if ($user) {
             // Update existing user profile & promote roles without failing (standalone IT account)
@@ -423,11 +428,11 @@ class PortalAdminController extends Controller
                 'can_access_portal' => true,
                 'is_active' => true,
             ];
-            if (!empty($validated['telegram_username'])) {
+            if (! empty($validated['telegram_username'])) {
                 $updateData['telegram_username'] = ltrim($validated['telegram_username'], '@');
             }
             if ($passwordInput) {
-                $updateData['password'] = \Illuminate\Support\Facades\Hash::make($passwordInput);
+                $updateData['password'] = Hash::make($passwordInput);
             }
             $user->update($updateData);
             $user->roles()->sync($validated['roles']);
@@ -444,8 +449,8 @@ class PortalAdminController extends Controller
         $newUser = User::create([
             'name' => $validated['name'],
             'email' => $email,
-            'password' => \Illuminate\Support\Facades\Hash::make($password),
-            'telegram_username' => !empty($validated['telegram_username']) ? ltrim($validated['telegram_username'], '@') : null,
+            'password' => Hash::make($password),
+            'telegram_username' => ! empty($validated['telegram_username']) ? ltrim($validated['telegram_username'], '@') : null,
             'employee_id' => null,
             'can_access_portal' => true,
             'is_active' => true,
@@ -491,8 +496,8 @@ class PortalAdminController extends Controller
         $employee->email = $email;
         $employee->department_id = $validated['department_id'];
         $employee->branch_id = $validated['branch_id'];
-        $employee->line_manager_user_id = !empty($validated['line_manager_user_id']) ? $validated['line_manager_user_id'] : null;
-        if (!empty($validated['phone'])) {
+        $employee->line_manager_user_id = ! empty($validated['line_manager_user_id']) ? $validated['line_manager_user_id'] : null;
+        if (! empty($validated['phone'])) {
             $employee->phone = $validated['phone'];
         }
         $employee->is_active = true;
@@ -500,7 +505,7 @@ class PortalAdminController extends Controller
 
         // 2. Create or update User record
         $user = User::where('employee_id', $employee->id)->orWhere('email', $email)->first();
-        $passwordInput = !empty($validated['password']) ? $validated['password'] : 'Password123!';
+        $passwordInput = ! empty($validated['password']) ? $validated['password'] : 'Password123!';
 
         if ($user) {
             $updateData = [
@@ -509,11 +514,11 @@ class PortalAdminController extends Controller
                 'employee_id' => $employee->id,
                 'is_active' => true,
             ];
-            if (!empty($validated['telegram_username'])) {
+            if (! empty($validated['telegram_username'])) {
                 $updateData['telegram_username'] = ltrim($validated['telegram_username'], '@');
             }
-            if (!empty($validated['password'])) {
-                $updateData['password'] = \Illuminate\Support\Facades\Hash::make($passwordInput);
+            if (! empty($validated['password'])) {
+                $updateData['password'] = Hash::make($passwordInput);
             }
             $user->update($updateData);
         } else {
@@ -521,15 +526,15 @@ class PortalAdminController extends Controller
                 'name' => $validated['name'],
                 'email' => $email,
                 'employee_id' => $employee->id,
-                'password' => \Illuminate\Support\Facades\Hash::make($passwordInput),
-                'telegram_username' => !empty($validated['telegram_username']) ? ltrim($validated['telegram_username'], '@') : null,
+                'password' => Hash::make($passwordInput),
+                'telegram_username' => ! empty($validated['telegram_username']) ? ltrim($validated['telegram_username'], '@') : null,
                 'can_access_portal' => false,
                 'is_active' => true,
             ]);
         }
 
         // 3. Assign roles (defaults to Requester; supports HOD if explicitly provided)
-        $selectedRoles = !empty($validated['roles']) ? $validated['roles'] : (!empty($validated['role']) ? [$validated['role']] : ['requester']);
+        $selectedRoles = ! empty($validated['roles']) ? $validated['roles'] : (! empty($validated['role']) ? [$validated['role']] : ['requester']);
         $rolesToAttach = [];
         $requesterRole = Role::firstOrCreate(['name' => 'requester'], ['label' => 'Requester']);
         $rolesToAttach[] = $requesterRole->id;
@@ -584,9 +589,9 @@ class PortalAdminController extends Controller
         } else {
             // 1. Update or link Employee record for TMA users
             $employee = $user->employee;
-            if (!empty($validated['employee_code'])) {
+            if (! empty($validated['employee_code'])) {
                 $code = strtoupper(trim($validated['employee_code']));
-                if (!$employee) {
+                if (! $employee) {
                     $employee = Employee::firstOrNew(['employee_code' => $code]);
                 } else {
                     $employee->employee_code = $code;
@@ -622,7 +627,7 @@ class PortalAdminController extends Controller
             $user->telegram_id = null;
             $user->telegram_username = null;
         } else {
-            $newUsername = !empty($validated['telegram_username']) ? ltrim($validated['telegram_username'], '@') : null;
+            $newUsername = ! empty($validated['telegram_username']) ? ltrim($validated['telegram_username'], '@') : null;
             // If telegram username changed or cleared by admin, clear telegram_id as well
             if ($user->telegram_username !== $newUsername) {
                 $user->telegram_id = null;
@@ -630,21 +635,21 @@ class PortalAdminController extends Controller
             }
         }
 
-        if (!empty($validated['password'])) {
-            $user->password = \Illuminate\Support\Facades\Hash::make($validated['password']);
+        if (! empty($validated['password'])) {
+            $user->password = Hash::make($validated['password']);
         }
         $user->save();
 
         // 3. Update roles (with primary admin protection)
-        $roleIds = !empty($validated['roles']) ? array_map('intval', $validated['roles']) : [];
+        $roleIds = ! empty($validated['roles']) ? array_map('intval', $validated['roles']) : [];
 
         $adminRoleId = Role::where('name', 'system_admin')->value('id');
         $requesterRoleId = Role::where('name', 'requester')->value('id');
         $hodRoleId = Role::where('name', 'hod')->value('id');
 
-        if (!$isStaff) {
+        if (! $isStaff) {
             // For TMA employees: must always have at least requester role
-            if ($requesterRoleId && !in_array($requesterRoleId, $roleIds)) {
+            if ($requesterRoleId && ! in_array($requesterRoleId, $roleIds)) {
                 $roleIds[] = $requesterRoleId;
             }
             // Strip any IT technical roles from TMA employees
@@ -652,7 +657,7 @@ class PortalAdminController extends Controller
             $roleIds = array_values(array_diff($roleIds, $itRoleIds));
         } else {
             // Protect primary admin from losing system_admin role
-            if (($user->id === 1 || $user->email === 'admin@cbvh.com.kh') && $adminRoleId && !in_array($adminRoleId, $roleIds)) {
+            if (($user->id === 1 || $user->email === 'admin@cbvh.com.kh') && $adminRoleId && ! in_array($adminRoleId, $roleIds)) {
                 $roleIds[] = $adminRoleId;
             }
             // For IT staff: strip requester role
@@ -661,7 +666,7 @@ class PortalAdminController extends Controller
             }
         }
 
-        if (!empty($roleIds)) {
+        if (! empty($roleIds)) {
             $user->roles()->sync($roleIds);
         }
 
@@ -682,16 +687,16 @@ class PortalAdminController extends Controller
 
         // Protect primary admin from losing system_admin role
         $adminRoleId = Role::where('name', 'system_admin')->value('id');
-        if (($user->id === 1 || $user->email === 'admin@cbvh.com.kh') && $adminRoleId && !in_array($adminRoleId, $validated['roles'])) {
+        if (($user->id === 1 || $user->email === 'admin@cbvh.com.kh') && $adminRoleId && ! in_array($adminRoleId, $validated['roles'])) {
             $validated['roles'][] = $adminRoleId;
         }
 
         $user->roles()->sync($validated['roles']);
         $requesterRoleId = Role::where('name', 'requester')->value('id');
-        if (!$user->fresh()->isStaff()) {
+        if (! $user->fresh()->isStaff()) {
             $user->can_access_portal = false;
             $user->save();
-        } elseif ($user->isItStaff() && $requesterRoleId && !in_array($requesterRoleId, $validated['roles'])) {
+        } elseif ($user->isItStaff() && $requesterRoleId && ! in_array($requesterRoleId, $validated['roles'])) {
             $user->roles()->detach($requesterRoleId);
         }
 
@@ -713,16 +718,18 @@ class PortalAdminController extends Controller
             return back()->withErrors(['error' => 'The primary testing admin account cannot be deactivated.']);
         }
 
-        $newStatus = !$user->is_active;
+        $newStatus = ! $user->is_active;
         $user->update(['is_active' => $newStatus]);
 
-        if (!$newStatus) {
+        if (! $newStatus) {
             try {
                 DB::table('sessions')->where('user_id', $user->id)->delete();
-            } catch (\Throwable $e) {}
+            } catch (\Throwable $e) {
+            }
         }
 
         $statusStr = $newStatus ? 'activated' : 'suspended';
+
         return back()->with('status', "User {$user->name} {$statusStr}.");
     }
 
@@ -733,7 +740,7 @@ class PortalAdminController extends Controller
     {
         abort_unless(Auth::user()->hasRole(['system_admin', 'hod']), 403);
 
-        if (!$user->isStaff()) {
+        if (! $user->isStaff()) {
             return back()->withErrors(['error' => 'Web Portal access is only applicable to IT Technical Staff and Management. Regular employees use Telegram TMA.']);
         }
 
@@ -745,19 +752,21 @@ class PortalAdminController extends Controller
             return back()->withErrors(['error' => 'Primary system admin portal access cannot be revoked.']);
         }
 
-        $newAccess = !$user->can_access_portal;
+        $newAccess = ! $user->can_access_portal;
         $user->can_access_portal = $newAccess;
 
         // If revoking portal access, terminate active portal sessions
-        if (!$newAccess) {
+        if (! $newAccess) {
             try {
                 DB::table('sessions')->where('user_id', $user->id)->delete();
-            } catch (\Throwable $e) {}
+            } catch (\Throwable $e) {
+            }
         }
 
         $user->save();
 
         $actionText = $newAccess ? 'granted' : 'revoked';
+
         return back()->with('status', "Web Portal access {$actionText} for {$user->name}.");
     }
 
@@ -775,7 +784,8 @@ class PortalAdminController extends Controller
 
         try {
             DB::table('sessions')->where('user_id', $user->id)->delete();
-        } catch (\Throwable $e) {}
+        } catch (\Throwable $e) {
+        }
 
         return back()->with('status', "Telegram account unlinked for {$user->name}. The employee can link again via Telegram.");
     }
@@ -788,12 +798,12 @@ class PortalAdminController extends Controller
         abort_unless(Auth::user()->hasRole(['system_admin', 'hod']), 403);
 
         $deptPerPage = (int) $request->input('dept_per_page', 10);
-        if (!in_array($deptPerPage, [10, 25, 50], true)) {
+        if (! in_array($deptPerPage, [10, 25, 50], true)) {
             $deptPerPage = 10;
         }
 
         $branchPerPage = (int) $request->input('branch_per_page', 10);
-        if (!in_array($branchPerPage, [10, 25, 50], true)) {
+        if (! in_array($branchPerPage, [10, 25, 50], true)) {
             $branchPerPage = 10;
         }
 
@@ -806,11 +816,11 @@ class PortalAdminController extends Controller
         if ($deptSearch !== '') {
             $deptQuery->where(function ($q) use ($deptSearch) {
                 $q->where('name', 'like', "%{$deptSearch}%")
-                  ->orWhere('code', 'like', "%{$deptSearch}%");
+                    ->orWhere('code', 'like', "%{$deptSearch}%");
             });
         }
 
-        $departments = $deptQuery->orderByRaw("CASE WHEN parent_id IS NULL THEN 0 ELSE 1 END, name ASC")
+        $departments = $deptQuery->orderByRaw('CASE WHEN parent_id IS NULL THEN 0 ELSE 1 END, name ASC')
             ->paginate($deptPerPage, ['*'], 'depts_page')
             ->withQueryString();
 
@@ -820,7 +830,7 @@ class PortalAdminController extends Controller
         if ($branchSearch !== '') {
             $branchQuery->where(function ($q) use ($branchSearch) {
                 $q->where('name', 'like', "%{$branchSearch}%")
-                  ->orWhere('code', 'like', "%{$branchSearch}%");
+                    ->orWhere('code', 'like', "%{$branchSearch}%");
             });
         }
 
@@ -860,11 +870,11 @@ class PortalAdminController extends Controller
         })->values();
 
         return view('portal.admin.organization', compact(
-            'departments', 
-            'branches', 
-            'parentDepartments', 
-            'itParent', 
-            'itUnits', 
+            'departments',
+            'branches',
+            'parentDepartments',
+            'itParent',
+            'itUnits',
             'approverCandidates',
             'candidatesJson',
             'deptPerPage',
@@ -908,8 +918,8 @@ class PortalAdminController extends Controller
 
         $validated = $request->validate([
             'name' => 'required|string|max:100',
-            'code' => 'required|string|max:20|unique:departments,code,' . $department->id,
-            'parent_id' => 'nullable|exists:departments,id|not_in:' . $department->id,
+            'code' => 'required|string|max:20|unique:departments,code,'.$department->id,
+            'parent_id' => 'nullable|exists:departments,id|not_in:'.$department->id,
             'head_user_id' => 'nullable|exists:users,id',
         ]);
 
@@ -939,6 +949,7 @@ class PortalAdminController extends Controller
         ]);
 
         $approverName = $department->head ? $department->head->name : 'Auto / Role Fallback';
+
         return back()->with('status', "Department '{$department->name}' approver updated to {$approverName}.");
     }
 
@@ -967,14 +978,15 @@ class PortalAdminController extends Controller
 
         DepartmentApprover::create([
             'department_id' => $department->id,
-            'branch_id' => !empty($validated['branch_id']) ? $validated['branch_id'] : null,
+            'branch_id' => ! empty($validated['branch_id']) ? $validated['branch_id'] : null,
             'user_id' => $validated['user_id'],
             'level' => $validated['level'],
-            'title' => !empty($validated['title']) ? $validated['title'] : $defaultTitle,
+            'title' => ! empty($validated['title']) ? $validated['title'] : $defaultTitle,
             'is_active' => true,
         ]);
 
-        $scopeDesc = !empty($validated['branch_id']) ? ' (Branch scoped)' : ' (Company-wide / HQ)';
+        $scopeDesc = ! empty($validated['branch_id']) ? ' (Branch scoped)' : ' (Company-wide / HQ)';
+
         return back()->with('status', "Approver card added successfully to '{$department->name}'{$scopeDesc}.");
     }
 
@@ -1008,7 +1020,7 @@ class PortalAdminController extends Controller
             'branch_id' => $branch->id,
             'user_id' => $validated['user_id'],
             'level' => $validated['level'],
-            'title' => !empty($validated['title']) ? $validated['title'] : $defaultTitle,
+            'title' => ! empty($validated['title']) ? $validated['title'] : $defaultTitle,
             'is_active' => true,
         ]);
 
@@ -1043,7 +1055,7 @@ class PortalAdminController extends Controller
                 'user_id' => $validated['user_id'],
                 'branch_id' => array_key_exists('branch_id', $validated) ? ($validated['branch_id'] ?: null) : $approver->branch_id,
                 'level' => $validated['level'],
-                'title' => !empty($validated['title']) ? $validated['title'] : $defaultTitle,
+                'title' => ! empty($validated['title']) ? $validated['title'] : $defaultTitle,
             ]);
         }
 
@@ -1071,9 +1083,10 @@ class PortalAdminController extends Controller
     {
         abort_unless(Auth::user()->hasRole(['system_admin', 'hod']), 403);
 
-        $department->update(['is_active' => !$department->is_active]);
+        $department->update(['is_active' => ! $department->is_active]);
 
         $statusStr = $department->is_active ? 'activated' : 'suspended';
+
         return back()->with('status', "Department '{$department->name}' {$statusStr}.");
     }
 
@@ -1134,7 +1147,7 @@ class PortalAdminController extends Controller
 
         $validated = $request->validate([
             'name' => 'required|string|max:100',
-            'code' => 'required|string|max:20|unique:branches,code,' . $branch->id,
+            'code' => 'required|string|max:20|unique:branches,code,'.$branch->id,
             'manager_user_id' => 'nullable|exists:users,id',
         ]);
 
@@ -1163,6 +1176,7 @@ class PortalAdminController extends Controller
         ]);
 
         $managerName = $branch->manager ? $branch->manager->name : 'Unassigned';
+
         return back()->with('status', "Branch '{$branch->name}' manager updated to {$managerName}.");
     }
 
@@ -1173,9 +1187,10 @@ class PortalAdminController extends Controller
     {
         abort_unless(Auth::user()->hasRole(['system_admin', 'hod']), 403);
 
-        $branch->update(['is_active' => !$branch->is_active]);
+        $branch->update(['is_active' => ! $branch->is_active]);
 
         $statusStr = $branch->is_active ? 'activated' : 'suspended';
+
         return back()->with('status', "Branch '{$branch->name}' {$statusStr}.");
     }
 
@@ -1215,15 +1230,15 @@ class PortalAdminController extends Controller
 
         if ($selectedBranchId === 'hq') {
             $approversQuery->whereNull('branch_id');
-        } elseif (!empty($selectedBranchId)) {
+        } elseif (! empty($selectedBranchId)) {
             $approversQuery->where('branch_id', $selectedBranchId);
         }
 
-        if (!empty($selectedDeptId)) {
+        if (! empty($selectedDeptId)) {
             $approversQuery->where('department_id', $selectedDeptId);
         }
 
-        if (!empty($selectedLevel)) {
+        if (! empty($selectedLevel)) {
             $approversQuery->where('level', (int) $selectedLevel);
         }
 
@@ -1231,17 +1246,17 @@ class PortalAdminController extends Controller
         if ($search !== '') {
             $approversQuery->where(function ($q) use ($search) {
                 $q->where('title', 'like', "%{$search}%")
-                  ->orWhereHas('user', function ($uq) use ($search) {
-                      $uq->where('name', 'like', "%{$search}%")
-                         ->orWhere('email', 'like', "%{$search}%");
-                  })
-                  ->orWhereHas('department', fn($dq) => $dq->where('name', 'like', "%{$search}%")->orWhere('code', 'like', "%{$search}%"))
-                  ->orWhereHas('branch', fn($bq) => $bq->where('name', 'like', "%{$search}%")->orWhere('code', 'like', "%{$search}%"));
+                    ->orWhereHas('user', function ($uq) use ($search) {
+                        $uq->where('name', 'like', "%{$search}%")
+                            ->orWhere('email', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('department', fn ($dq) => $dq->where('name', 'like', "%{$search}%")->orWhere('code', 'like', "%{$search}%"))
+                    ->orWhereHas('branch', fn ($bq) => $bq->where('name', 'like', "%{$search}%")->orWhere('code', 'like', "%{$search}%"));
             });
         }
 
         $perPage = (int) $request->input('per_page', 10);
-        if (!in_array($perPage, [10, 15, 25, 50], true)) {
+        if (! in_array($perPage, [10, 15, 25, 50], true)) {
             $perPage = 10;
         }
 
@@ -1330,14 +1345,14 @@ class PortalAdminController extends Controller
 
         DepartmentApprover::create([
             'department_id' => $dept->id,
-            'branch_id' => !empty($validated['branch_id']) ? $validated['branch_id'] : null,
+            'branch_id' => ! empty($validated['branch_id']) ? $validated['branch_id'] : null,
             'user_id' => $validated['user_id'],
             'level' => $validated['level'],
-            'title' => !empty($validated['title']) ? $validated['title'] : $defaultTitle,
+            'title' => ! empty($validated['title']) ? $validated['title'] : $defaultTitle,
             'is_active' => true,
         ]);
 
-        return back()->with('status', "Approver card added successfully.");
+        return back()->with('status', 'Approver card added successfully.');
     }
 
     /**
@@ -1366,13 +1381,13 @@ class PortalAdminController extends Controller
 
         $approver->update([
             'department_id' => $validated['department_id'],
-            'branch_id' => !empty($validated['branch_id']) ? $validated['branch_id'] : null,
+            'branch_id' => ! empty($validated['branch_id']) ? $validated['branch_id'] : null,
             'user_id' => $validated['user_id'],
             'level' => $validated['level'],
-            'title' => !empty($validated['title']) ? $validated['title'] : $defaultTitle,
+            'title' => ! empty($validated['title']) ? $validated['title'] : $defaultTitle,
         ]);
 
-        return back()->with('status', "Approver card updated successfully.");
+        return back()->with('status', 'Approver card updated successfully.');
     }
 
     /**
@@ -1384,6 +1399,6 @@ class PortalAdminController extends Controller
 
         $approver->delete();
 
-        return back()->with('status', "Approver card removed successfully.");
+        return back()->with('status', 'Approver card removed successfully.');
     }
 }

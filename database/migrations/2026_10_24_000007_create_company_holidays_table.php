@@ -18,7 +18,7 @@ return new class extends Migration
             $table->boolean('is_recurring')->default(false);
             $table->string('notes', 255)->nullable();
             $table->timestamps();
-            
+
             $table->index('holiday_date');
         });
     }

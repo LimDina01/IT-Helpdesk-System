@@ -10,4 +10,3 @@ Artisan::command('inspire', function () {
 use Illuminate\Support\Facades\Schedule;
 
 Schedule::command('helpdesk:auto-close')->dailyAt('18:00');
-

@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\CompanyHoliday;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
+use Illuminate\Support\Collection;
 
 class BusinessHoursService
 {
@@ -18,30 +19,39 @@ class BusinessHoursService
      * Public Holidays: Custom official holidays (Off-clock / Frozen)
      */
     public const TIMEZONE = 'Asia/Phnom_Penh';
+
     public const WORK_START_HOUR = 8;
+
     public const WORK_START_MINUTE = 0;
+
     public const LUNCH_START_HOUR = 12;
+
     public const LUNCH_START_MINUTE = 0;
+
     public const LUNCH_END_HOUR = 13;
+
     public const LUNCH_END_MINUTE = 0;
+
     public const WORK_END_HOUR = 17;
+
     public const WORK_END_MINUTE = 0;
 
     /**
      * In-memory static cache for holidays to eliminate N+1 query storms during SLA loops.
      */
-    protected static ?\Illuminate\Support\Collection $cachedHolidays = null;
+    protected static ?Collection $cachedHolidays = null;
 
     public static function clearHolidayCache(): void
     {
         static::$cachedHolidays = null;
     }
 
-    protected function getHolidays(): \Illuminate\Support\Collection
+    protected function getHolidays(): Collection
     {
         if (static::$cachedHolidays === null) {
             static::$cachedHolidays = CompanyHoliday::all();
         }
+
         return static::$cachedHolidays;
     }
 
@@ -83,7 +93,7 @@ class BusinessHoursService
     {
         $current = $time ? Carbon::instance($time)->setTimezone(self::TIMEZONE) : Carbon::now(self::TIMEZONE);
 
-        if (!$this->isWorkingDay($current)) {
+        if (! $this->isWorkingDay($current)) {
             return false;
         }
 
@@ -100,7 +110,7 @@ class BusinessHoursService
     {
         $current = $time ? Carbon::instance($time)->setTimezone(self::TIMEZONE) : Carbon::now(self::TIMEZONE);
 
-        if (!$this->isWorkingDay($current)) {
+        if (! $this->isWorkingDay($current)) {
             return false;
         }
 
@@ -186,8 +196,9 @@ class BusinessHoursService
 
         while ($remainingMinutes > 0) {
             // If current day is not a working day, fast forward to next day at 08:00
-            if (!$this->isWorkingDay($current)) {
+            if (! $this->isWorkingDay($current)) {
                 $current->addDay()->setTime(self::WORK_START_HOUR, self::WORK_START_MINUTE, 0);
+
                 continue;
             }
 
@@ -230,6 +241,7 @@ class BusinessHoursService
                 $remainingMinutes -= $available;
                 // Move to next day at 08:00
                 $current->addDay()->setTime(self::WORK_START_HOUR, self::WORK_START_MINUTE, 0);
+
                 continue;
             }
 
@@ -279,7 +291,7 @@ class BusinessHoursService
      */
     public function isOverdue(?CarbonInterface $deadline): bool
     {
-        if (!$deadline) {
+        if (! $deadline) {
             return false;
         }
 

@@ -13,6 +13,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class PortalAssetController extends Controller
 {
@@ -127,7 +128,43 @@ class PortalAssetController extends Controller
         $categories = AssetCategory::where('is_active', true)->orderBy('name')->get();
         $branches = Branch::where('is_active', true)->orderBy('name')->get();
         $departments = Department::where('is_active', true)->orderBy('name')->get();
-        $users = User::where('is_active', true)->orderBy('name')->get(['id', 'name', 'email']);
+        $users = User::with(['employee.department', 'employee.branch'])->where('is_active', true)->orderBy('name')->get();
+        $usersJson = $users->map(fn ($u) => [
+            'id' => $u->id,
+            'name' => $u->name,
+            'email' => $u->email,
+            'dept' => $u->employee?->department?->name ?? 'General Staff',
+            'branch' => $u->employee?->branch?->name ?? 'HQ',
+        ])->values();
+
+        // Management Stock & Lifecycle Reporting Metrics
+        $totalValuation = (float) Asset::where('status', '!=', 'decommissioned')->sum('purchase_cost');
+        $underRepairCount = Asset::where('status', 'under_repair')->count();
+        $decommissionedCount = Asset::where('status', 'decommissioned')->count();
+
+        $activeWarrantyCount = Asset::whereNotNull('warranty_expiry')->where('warranty_expiry', '>=', now()->toDateString())->where('status', '!=', 'decommissioned')->count();
+        $activeWarrantyValuation = (float) Asset::whereNotNull('warranty_expiry')->where('warranty_expiry', '>=', now()->toDateString())->where('status', '!=', 'decommissioned')->sum('purchase_cost');
+
+        $outOfWarrantyCount = Asset::whereNotNull('warranty_expiry')->where('warranty_expiry', '<', now()->toDateString())->where('status', '!=', 'decommissioned')->count();
+        $outOfWarrantyValuation = (float) Asset::whereNotNull('warranty_expiry')->where('warranty_expiry', '<', now()->toDateString())->where('status', '!=', 'decommissioned')->sum('purchase_cost');
+
+        $pastEodValuation = (float) Asset::whereNotNull('eod_date')->where('eod_date', '<=', now()->toDateString())->where('status', '!=', 'decommissioned')->sum('purchase_cost');
+        $pastEolValuation = (float) Asset::whereNotNull('eol_date')->where('eol_date', '<=', now()->toDateString())->where('status', '!=', 'decommissioned')->sum('purchase_cost');
+
+        $deptBreakdown = Department::withCount(['assets' => fn ($q) => $q->where('status', '!=', 'decommissioned')])
+            ->withSum(['assets' => fn ($q) => $q->where('status', '!=', 'decommissioned')], 'purchase_cost')
+            ->orderByDesc('assets_count')
+            ->get();
+
+        $branchBreakdown = Branch::withCount(['assets' => fn ($q) => $q->where('status', '!=', 'decommissioned')])
+            ->withSum(['assets' => fn ($q) => $q->where('status', '!=', 'decommissioned')], 'purchase_cost')
+            ->orderByDesc('assets_count')
+            ->get();
+
+        $categoryBreakdown = AssetCategory::withCount(['assets' => fn ($q) => $q->where('status', '!=', 'decommissioned')])
+            ->withSum(['assets' => fn ($q) => $q->where('status', '!=', 'decommissioned')], 'purchase_cost')
+            ->orderByDesc('assets_count')
+            ->get();
 
         return view('portal.assets.index', compact(
             'assets',
@@ -147,15 +184,28 @@ class PortalAssetController extends Controller
             'totalAssetsCount',
             'inUseCount',
             'spareAssetsCount',
+            'underRepairCount',
+            'decommissionedCount',
             'sharedLocationsCount',
             'spareComponentsCount',
             'pastEodCount',
             'pastEolCount',
             'expiringWarrantyCount',
+            'totalValuation',
+            'activeWarrantyCount',
+            'activeWarrantyValuation',
+            'outOfWarrantyCount',
+            'outOfWarrantyValuation',
+            'pastEodValuation',
+            'pastEolValuation',
+            'deptBreakdown',
+            'branchBreakdown',
+            'categoryBreakdown',
             'categories',
             'branches',
             'departments',
-            'users'
+            'users',
+            'usersJson'
         ));
     }
 
@@ -260,7 +310,14 @@ class PortalAssetController extends Controller
         $categories = AssetCategory::where('is_active', true)->orderBy('name')->get();
         $branches = Branch::where('is_active', true)->orderBy('name')->get();
         $departments = Department::where('is_active', true)->orderBy('name')->get();
-        $users = User::where('is_active', true)->orderBy('name')->get(['id', 'name', 'email']);
+        $users = User::with(['employee.department', 'employee.branch'])->where('is_active', true)->orderBy('name')->get();
+        $usersJson = $users->map(fn ($u) => [
+            'id' => $u->id,
+            'name' => $u->name,
+            'email' => $u->email,
+            'dept' => $u->employee?->department?->name ?? 'General Staff',
+            'branch' => $u->employee?->branch?->name ?? 'HQ',
+        ])->values();
 
         // Spare parts in stock for this branch or HQ to allow 1-click install
         $availableSpares = AssetComponent::where('status', 'in_stock')
@@ -274,6 +331,7 @@ class PortalAssetController extends Controller
             'branches',
             'departments',
             'users',
+            'usersJson',
             'availableSpares'
         ));
     }
@@ -480,5 +538,160 @@ class PortalAssetController extends Controller
 
         return redirect()->route('portal.assets.index', ['tab' => 'components'])
             ->with('status', "Added {$quantity}x spare component(s) to IT Storage.");
+    }
+
+    /**
+     * Export Asset Inventory and Lifecycle Stock Report to CSV.
+     */
+    public function exportCsv(Request $request): StreamedResponse
+    {
+        $search = trim($request->input('search', ''));
+        $categoryId = $request->input('category_id');
+        $branchId = $request->input('branch_id');
+        $departmentId = $request->input('department_id');
+        $ownershipType = $request->input('ownership_type');
+        $status = $request->input('status');
+        $lifecycle = $request->input('lifecycle');
+
+        $query = Asset::with(['category', 'branch', 'department', 'assignedUser', 'tickets']);
+
+        if (! empty($search)) {
+            $query->where(function ($q) use ($search) {
+                $q->where('asset_tag', 'like', "%{$search}%")
+                    ->orWhere('name', 'like', "%{$search}%")
+                    ->orWhere('serial_number', 'like', "%{$search}%")
+                    ->orWhere('brand', 'like', "%{$search}%")
+                    ->orWhere('model', 'like', "%{$search}%")
+                    ->orWhere('location_details', 'like', "%{$search}%")
+                    ->orWhereHas('assignedUser', fn ($uq) => $uq->where('name', 'like', "%{$search}%")->orWhere('email', 'like', "%{$search}%"));
+            });
+        }
+
+        if (! empty($categoryId)) {
+            $query->where('category_id', $categoryId);
+        }
+
+        if (! empty($branchId)) {
+            $query->where('branch_id', $branchId);
+        }
+
+        if (! empty($departmentId)) {
+            $query->where('department_id', $departmentId);
+        }
+
+        if (! empty($ownershipType)) {
+            $query->where('ownership_type', $ownershipType);
+        }
+
+        if (! empty($status)) {
+            $query->where('status', $status);
+        }
+
+        if (! empty($lifecycle)) {
+            if ($lifecycle === 'past_eod') {
+                $query->whereNotNull('eod_date')->where('eod_date', '<=', now()->toDateString());
+            } elseif ($lifecycle === 'past_eol') {
+                $query->whereNotNull('eol_date')->where('eol_date', '<=', now()->toDateString());
+            } elseif ($lifecycle === 'expiring_warranty') {
+                $query->whereNotNull('warranty_expiry')->whereBetween('warranty_expiry', [now()->toDateString(), now()->addDays(60)->toDateString()]);
+            } elseif ($lifecycle === 'out_of_warranty') {
+                $query->whereNotNull('warranty_expiry')->where('warranty_expiry', '<', now()->toDateString());
+            } elseif ($lifecycle === 'under_warranty') {
+                $query->whereNotNull('warranty_expiry')->where('warranty_expiry', '>=', now()->toDateString());
+            }
+        }
+
+        $assets = $query->orderBy('asset_tag')->get();
+
+        $headers = [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="IT_Asset_Stock_Report_'.now()->format('Y-m-d').'.csv"',
+            'Pragma' => 'no-cache',
+            'Cache-Control' => 'must-revalidate, post-check=0, pre-check=0',
+            'Expires' => '0',
+        ];
+
+        return response()->stream(function () use ($assets) {
+            $handle = fopen('php://output', 'w');
+            // Write UTF-8 BOM so Excel opens accents & symbols properly
+            fprintf($handle, chr(0xEF).chr(0xBB).chr(0xBF));
+
+            fputcsv($handle, [
+                'Asset Tag',
+                'Asset Name',
+                'Category',
+                'Ownership Type',
+                'Custodian / Staff',
+                'Department',
+                'Branch',
+                'Location / Shelf',
+                'Brand',
+                'Model',
+                'Serial Number',
+                'Status',
+                'Purchase Date',
+                'Purchase Cost (USD)',
+                'Warranty Expiry (EOW)',
+                'Warranty Status',
+                'EOD Depreciation Date',
+                'EOD Status',
+                'EOL Target Date',
+                'EOL Status',
+                'Hardware Specs',
+                'Supplier / Vendor',
+                'Total Service Tickets',
+                'Notes',
+            ]);
+
+            foreach ($assets as $asset) {
+                $specsSummary = ! empty($asset->specs)
+                    ? implode(' | ', array_map(fn ($k, $v) => strtoupper($k).': '.$v, array_keys($asset->specs), $asset->specs))
+                    : '';
+
+                $warrantyStatus = 'N/A';
+                if ($asset->warranty_expiry) {
+                    $warrantyStatus = $asset->warranty_expiry->isPast() ? 'Expired' : 'Active ('.now()->diffInDays($asset->warranty_expiry).'d left)';
+                }
+
+                $eodStatus = 'N/A';
+                if ($asset->eod_date) {
+                    $eodStatus = $asset->isPastEod() ? 'Past EOD (Depreciated / Overhaul Due)' : 'Normal ('.now()->diffInDays($asset->eod_date).'d left)';
+                }
+
+                $eolStatus = 'N/A';
+                if ($asset->eol_date) {
+                    $eolStatus = $asset->isPastEol() ? 'Past EOL (Obsolete / Retirement Target)' : 'Normal ('.now()->diffInDays($asset->eol_date).'d left)';
+                }
+
+                fputcsv($handle, [
+                    $asset->asset_tag,
+                    $asset->name,
+                    $asset->category?->name ?? 'General',
+                    $asset->ownership_type === 'personal' ? 'Personal Custody' : 'Shared Area / Room',
+                    $asset->assignedUser?->name ?? 'Unassigned',
+                    $asset->department?->name ?? 'N/A',
+                    $asset->branch?->name ?? 'HQ Phnom Penh',
+                    $asset->location_details ?: 'N/A',
+                    $asset->brand ?: 'N/A',
+                    $asset->model ?: 'N/A',
+                    $asset->serial_number ?: 'N/A',
+                    $asset->status_badge['label'] ?? ucfirst($asset->status),
+                    $asset->purchase_date ? $asset->purchase_date->format('Y-m-d') : 'N/A',
+                    $asset->purchase_cost ? number_format((float) $asset->purchase_cost, 2, '.', '') : '0.00',
+                    $asset->warranty_expiry ? $asset->warranty_expiry->format('Y-m-d') : 'N/A',
+                    $warrantyStatus,
+                    $asset->eod_date ? $asset->eod_date->format('Y-m-d') : 'N/A',
+                    $eodStatus,
+                    $asset->eol_date ? $asset->eol_date->format('Y-m-d') : 'N/A',
+                    $eolStatus,
+                    $specsSummary,
+                    $asset->vendor_supplier ?: 'N/A',
+                    $asset->tickets->count(),
+                    $asset->notes ?: '',
+                ]);
+            }
+
+            fclose($handle);
+        }, 200, $headers);
     }
 }

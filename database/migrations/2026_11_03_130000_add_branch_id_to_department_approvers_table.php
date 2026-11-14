@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        if (Schema::hasTable('department_approvers') && !Schema::hasColumn('department_approvers', 'branch_id')) {
+        if (Schema::hasTable('department_approvers') && ! Schema::hasColumn('department_approvers', 'branch_id')) {
             Schema::table('department_approvers', function (Blueprint $table) {
                 $table->foreignId('branch_id')
                     ->nullable()
@@ -37,4 +37,3 @@ return new class extends Migration
         }
     }
 };
-

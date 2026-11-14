@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\Branch;
-use App\Models\NotificationLog;
 use App\Models\Ticket;
 use App\Models\TicketCategory;
 use App\Models\User;
@@ -30,7 +29,7 @@ class TelegramNotificationAndAutoCloseTest extends TestCase
             'https://api.telegram.org/*' => Http::response(['ok' => true, 'result' => ['message_id' => 999]], 200),
         ]);
 
-        $service = new TelegramNotificationService();
+        $service = new TelegramNotificationService;
         $result = $service->sendMessage(
             123456789,
             'Hello from CBVH IT Help Desk test alert!',
@@ -59,7 +58,7 @@ class TelegramNotificationAndAutoCloseTest extends TestCase
             ], 403),
         ]);
 
-        $service = new TelegramNotificationService();
+        $service = new TelegramNotificationService;
         $result = $service->sendMessage(
             999999999,
             'Alert that cannot be delivered',

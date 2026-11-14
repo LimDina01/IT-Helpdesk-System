@@ -29,7 +29,7 @@ class TicketPolicy
      */
     public function addMessage(User $user, Ticket $ticket): bool
     {
-        if ($ticket->isClosed() && !$ticket->isPendingConfirmation()) {
+        if ($ticket->isClosed() && ! $ticket->isPendingConfirmation()) {
             return false;
         }
 
@@ -53,7 +53,7 @@ class TicketPolicy
      */
     public function downloadAttachment(User $user, Ticket $ticket, TicketAttachment $attachment): bool
     {
-        if (!$this->view($user, $ticket)) {
+        if (! $this->view($user, $ticket)) {
             return false;
         }
 

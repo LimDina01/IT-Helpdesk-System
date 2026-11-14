@@ -12,7 +12,7 @@ class TelegramAuthService
         parse_str($initData, $data);
 
         // Check required fields
-        if (!isset($data['hash'], $data['auth_date'])) {
+        if (! isset($data['hash'], $data['auth_date'])) {
             return null;
         }
 
@@ -30,7 +30,7 @@ class TelegramAuthService
 
         // 3. Build data check string: key=value\n
         $dataCheckString = collect($data)
-            ->map(fn($val, $key) => "{$key}={$val}")
+            ->map(fn ($val, $key) => "{$key}={$val}")
             ->implode("\n");
 
         // 4. Calculate HMAC-SHA-256 with "WebAppData" secret key
@@ -42,12 +42,12 @@ class TelegramAuthService
         $secretKey = hash_hmac('sha256', $botToken, 'WebAppData', true);
         $calculatedHash = hash_hmac('sha256', $dataCheckString, $secretKey);
 
-        if (!hash_equals($calculatedHash, $checkHash)) {
+        if (! hash_equals($calculatedHash, $checkHash)) {
             return null;
         }
 
         // 5. Decode user JSON object
-        if (!isset($data['user'])) {
+        if (! isset($data['user'])) {
             return null;
         }
 
@@ -72,7 +72,7 @@ class TelegramAuthService
 
         ksort($data);
         $dataCheckString = collect($data)
-            ->map(fn($val, $key) => "{$key}={$val}")
+            ->map(fn ($val, $key) => "{$key}={$val}")
             ->implode("\n");
 
         $secretKey = hash_hmac('sha256', $botToken, 'WebAppData', true);

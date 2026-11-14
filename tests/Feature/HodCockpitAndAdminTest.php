@@ -10,8 +10,10 @@ use App\Models\Role;
 use App\Models\Ticket;
 use App\Models\TicketCategory;
 use App\Models\User;
+use App\Services\TicketApprovalService;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Tests\TestCase;
 
 class HodCockpitAndAdminTest extends TestCase
@@ -19,7 +21,9 @@ class HodCockpitAndAdminTest extends TestCase
     use RefreshDatabase;
 
     protected User $adminUser;
+
     protected User $requesterUser;
+
     protected User $techUser;
 
     protected function setUp(): void
@@ -160,7 +164,7 @@ class HodCockpitAndAdminTest extends TestCase
         $this->actingAs($this->adminUser);
 
         // 1. Create parent group with custom icon upload and descriptions
-        $fakeIcon = \Illuminate\Http\UploadedFile::fake()->image('pos_scanner.png', 100, 100);
+        $fakeIcon = UploadedFile::fake()->image('pos_scanner.png', 100, 100);
 
         $response = $this->post(route('portal.admin.categories.store'), [
             'name' => 'Boutique Scales & Tag Scanners',
@@ -256,10 +260,10 @@ class HodCockpitAndAdminTest extends TestCase
 
         // 3. Create tickets with different priorities under this category and verify target resolve hours
         $requester = User::where('email', 'sokha.chan@cbvh.com.kh')->firstOrFail();
-        $branch = \App\Models\Branch::firstOrFail();
+        $branch = Branch::firstOrFail();
 
         $ticketCrit = Ticket::create([
-            'ticket_code' => 'IT-TEST-CRIT-' . time(),
+            'ticket_code' => 'IT-TEST-CRIT-'.time(),
             'requester_id' => $requester->id,
             'branch_id' => $branch->id,
             'category_id' => $category->id,
@@ -271,7 +275,7 @@ class HodCockpitAndAdminTest extends TestCase
         $this->assertEquals(2, $ticketCrit->getTargetResolveHours());
 
         $ticketLow = Ticket::create([
-            'ticket_code' => 'IT-TEST-LOW-' . time(),
+            'ticket_code' => 'IT-TEST-LOW-'.time(),
             'requester_id' => $requester->id,
             'branch_id' => $branch->id,
             'category_id' => $category->id,
@@ -388,8 +392,8 @@ class HodCockpitAndAdminTest extends TestCase
         $this->assertTrue($createdUser->hasRole('helpdesk'));
 
         // 7. Register new TMA Requester Employee
-        $dept = \App\Models\Department::firstOrFail();
-        $branch = \App\Models\Branch::firstOrFail();
+        $dept = Department::firstOrFail();
+        $branch = Branch::firstOrFail();
 
         $tmaRequesterResponse = $this->post(route('portal.admin.users.tma.store'), [
             'name' => 'Dina Requester Test',
@@ -448,7 +452,7 @@ class HodCockpitAndAdminTest extends TestCase
             'code' => 'COMP',
             'is_active' => true,
         ]);
-        $createdDept = \App\Models\Department::where('code', 'COMP')->firstOrFail();
+        $createdDept = Department::where('code', 'COMP')->firstOrFail();
 
         // 3. Update Department
         $updateDeptResponse = $this->put(route('portal.admin.departments.update', $createdDept->id), [
@@ -479,7 +483,7 @@ class HodCockpitAndAdminTest extends TestCase
             'code' => 'KC-01',
             'is_active' => true,
         ]);
-        $createdBranch = \App\Models\Branch::where('code', 'KC-01')->firstOrFail();
+        $createdBranch = Branch::where('code', 'KC-01')->firstOrFail();
 
         // 6. Update Branch
         $updateBranchResponse = $this->put(route('portal.admin.branches.update', $createdBranch->id), [
@@ -669,10 +673,10 @@ class HodCockpitAndAdminTest extends TestCase
         $this->actingAs($this->adminUser);
 
         // 1. Create a bank employee whose department is Information Technology (code IT)
-        $itDept = \App\Models\Department::firstOrCreate(['code' => 'IT'], ['name' => 'Information Technology', 'is_active' => true]);
-        $hqBranch = \App\Models\Branch::firstOrCreate(['code' => 'HQ-PP'], ['name' => 'Headquarters', 'is_active' => true]);
+        $itDept = Department::firstOrCreate(['code' => 'IT'], ['name' => 'Information Technology', 'is_active' => true]);
+        $hqBranch = Branch::firstOrCreate(['code' => 'HQ-PP'], ['name' => 'Headquarters', 'is_active' => true]);
 
-        $employee = \App\Models\Employee::create([
+        $employee = Employee::create([
             'employee_code' => 'EMP-IT-99',
             'full_name' => 'Dina Lim (IT Dept Employee)',
             'email' => 'dina.lim.emp@cbvh.com.kh',
@@ -680,7 +684,7 @@ class HodCockpitAndAdminTest extends TestCase
             'branch_id' => $hqBranch->id,
         ]);
 
-        $user = \App\Models\User::create([
+        $user = User::create([
             'name' => 'Dina Lim (IT Dept Employee)',
             'email' => 'dina.lim.emp@cbvh.com.kh',
             'password' => bcrypt('Password123!'),
@@ -688,8 +692,8 @@ class HodCockpitAndAdminTest extends TestCase
             'is_active' => true,
         ]);
 
-        $requesterRole = \App\Models\Role::firstOrCreate(['name' => 'requester'], ['display_name' => 'Requester']);
-        $hodRole = \App\Models\Role::firstOrCreate(['name' => 'hod'], ['display_name' => 'Head of Department']);
+        $requesterRole = Role::firstOrCreate(['name' => 'requester'], ['display_name' => 'Requester']);
+        $hodRole = Role::firstOrCreate(['name' => 'hod'], ['display_name' => 'Head of Department']);
         $user->roles()->sync([$requesterRole->id, $hodRole->id]);
 
         // 2. Verify account is classified as TMA Requester, NOT IT Staff, but holds IT HOD authority
@@ -707,12 +711,12 @@ class HodCockpitAndAdminTest extends TestCase
         $portalListResponse->assertDontSee('dina.lim.emp@cbvh.com.kh');
 
         // 4. When this IT department employee submits a Service Request, Step 1 is auto-passed directly to Central IT HOD
-        $category = \App\Models\TicketCategory::firstOrCreate(
+        $category = TicketCategory::firstOrCreate(
             ['name' => 'IT Hardware Request'],
             ['type' => 'service_request', 'requires_approval' => true, 'is_active' => true]
         );
 
-        $ticket = \App\Models\Ticket::create([
+        $ticket = Ticket::create([
             'ticket_code' => 'SR-IT-001',
             'ticket_type' => 'service_request',
             'requester_id' => $user->id,
@@ -724,7 +728,7 @@ class HodCockpitAndAdminTest extends TestCase
             'priority' => 'medium',
         ]);
 
-        $approvalService = app(\App\Services\TicketApprovalService::class);
+        $approvalService = app(TicketApprovalService::class);
         $approvalService->createApprovalChain($ticket);
         $ticket->refresh();
 
@@ -744,13 +748,13 @@ class HodCockpitAndAdminTest extends TestCase
         $this->assertEquals(1, $approvalService->getPendingApprovalTicketsForUser($user)->count());
 
         // Create Mr. Rithy Seng (an IT HOD colleague with employee profile)
-        $employeeRithy = \App\Models\Employee::create([
+        $employeeRithy = Employee::create([
             'employee_code' => '100399',
             'full_name' => 'Mr. Rithy Seng',
             'department_id' => $itDept->id,
             'branch_id' => $hqBranch->id,
         ]);
-        $rithyUser = \App\Models\User::create([
+        $rithyUser = User::create([
             'name' => 'Mr. Rithy Seng',
             'email' => 'rithyseng.cbvh@gmail.com',
             'password' => bcrypt('Password123!'),
@@ -815,4 +819,3 @@ class HodCockpitAndAdminTest extends TestCase
         $approverResponse->assertStatus(200);
     }
 }
-

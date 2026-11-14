@@ -13,7 +13,7 @@ return new class extends Migration
     public function up(): void
     {
         // 1. Create department_approvers table for multi-level department bosses (Level 1, Level 2, Level 3...)
-        if (!Schema::hasTable('department_approvers')) {
+        if (! Schema::hasTable('department_approvers')) {
             Schema::create('department_approvers', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('department_id')->constrained('departments')->cascadeOnDelete();
@@ -29,7 +29,7 @@ return new class extends Migration
         }
 
         // 2. Add line_manager_user_id to employees table (Option B: direct mapping to Team Leader / Line Manager)
-        if (!Schema::hasColumn('employees', 'line_manager_user_id')) {
+        if (! Schema::hasColumn('employees', 'line_manager_user_id')) {
             Schema::table('employees', function (Blueprint $table) {
                 $table->foreignId('line_manager_user_id')
                     ->nullable()
@@ -69,7 +69,7 @@ return new class extends Migration
                 ->where('user_id', $dept->head_user_id)
                 ->exists();
 
-            if (!$exists) {
+            if (! $exists) {
                 DB::table('department_approvers')->insert([
                     'department_id' => $dept->id,
                     'user_id' => $dept->head_user_id,

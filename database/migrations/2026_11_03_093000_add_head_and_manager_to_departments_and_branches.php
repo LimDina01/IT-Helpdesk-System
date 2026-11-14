@@ -13,7 +13,7 @@ return new class extends Migration
     public function up(): void
     {
         // 1. Add head_user_id to departments
-        if (!Schema::hasColumn('departments', 'head_user_id')) {
+        if (! Schema::hasColumn('departments', 'head_user_id')) {
             Schema::table('departments', function (Blueprint $table) {
                 $table->foreignId('head_user_id')
                     ->nullable()
@@ -24,7 +24,7 @@ return new class extends Migration
         }
 
         // 2. Add manager_user_id to branches
-        if (!Schema::hasColumn('branches', 'manager_user_id')) {
+        if (! Schema::hasColumn('branches', 'manager_user_id')) {
             Schema::table('branches', function (Blueprint $table) {
                 $table->foreignId('manager_user_id')
                     ->nullable()
@@ -87,4 +87,3 @@ return new class extends Migration
         }
     }
 };
-

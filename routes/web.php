@@ -104,6 +104,7 @@ Route::prefix('portal')->group(function () {
         // IT Asset & Component Inventory
         Route::prefix('assets')->group(function () {
             Route::get('/', [PortalAssetController::class, 'index'])->name('portal.assets.index');
+            Route::get('/export', [PortalAssetController::class, 'exportCsv'])->name('portal.assets.export');
             Route::post('/', [PortalAssetController::class, 'store'])->name('portal.assets.store');
             Route::get('/{asset}', [PortalAssetController::class, 'show'])->name('portal.assets.show');
             Route::put('/{asset}', [PortalAssetController::class, 'update'])->name('portal.assets.update');

@@ -12,6 +12,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\View\View;
 
 class PortalLinkRequestController extends Controller
@@ -24,7 +25,7 @@ class PortalLinkRequestController extends Controller
         $status = $request->input('status', 'pending');
 
         $perPage = (int) $request->input('per_page', 15);
-        if (!in_array($perPage, [10, 15, 25, 50], true)) {
+        if (! in_array($perPage, [10, 15, 25, 50], true)) {
             $perPage = 15;
         }
 
@@ -59,7 +60,7 @@ class PortalLinkRequestController extends Controller
 
         $employee = Employee::where('employee_code', $linkRequest->employee_code)->first();
 
-        if (!$employee) {
+        if (! $employee) {
             return back()->withErrors(['error' => 'Associated employee record was not found.']);
         }
 
@@ -77,20 +78,20 @@ class PortalLinkRequestController extends Controller
             $appUser = User::firstOrNew(['employee_id' => $employee->id]);
             $appUser->name = $appUser->exists && $appUser->id === 1 ? $appUser->name : $employee->full_name;
             // Protect primary test admin email from being overwritten
-            if (!$appUser->exists || ($appUser->id !== 1 && $appUser->email !== 'admin@cbvh.com.kh')) {
+            if (! $appUser->exists || ($appUser->id !== 1 && $appUser->email !== 'admin@cbvh.com.kh')) {
                 $appUser->email = $employee->email;
             }
             $appUser->telegram_id = $linkRequest->telegram_id;
             $appUser->telegram_username = $linkRequest->telegram_username;
             $appUser->is_active = true;
-            if (!$appUser->password) {
-                $appUser->password = \Illuminate\Support\Facades\Hash::make('Password123!');
+            if (! $appUser->password) {
+                $appUser->password = Hash::make('Password123!');
             }
             $appUser->save();
 
             // 3. Ensure requester role is assigned
             $requesterRole = Role::firstOrCreate(['name' => 'requester'], ['label' => 'Requester']);
-            if (!$appUser->roles->contains($requesterRole->id)) {
+            if (! $appUser->roles->contains($requesterRole->id)) {
                 $appUser->roles()->attach($requesterRole->id);
             }
         });
@@ -100,12 +101,12 @@ class PortalLinkRequestController extends Controller
             app(TelegramNotificationService::class)->sendMessage(
                 $linkRequest->telegram_id,
                 "🎉 *Welcome to CBVH IT Help Desk!*\n\n"
-                . "Your Telegram account has been approved and linked to Employee Code *{$linkRequest->employee_code}*.\n\n"
-                . "You can now submit tickets, track status, and chat with IT support directly from Telegram.",
+                ."Your Telegram account has been approved and linked to Employee Code *{$linkRequest->employee_code}*.\n\n"
+                .'You can now submit tickets, track status, and chat with IT support directly from Telegram.',
                 [
                     [
-                        ['text' => '📱 Open IT Help Desk', 'web_app' => ['url' => rtrim(config('app.url'), '/') . '/tma']]
-                    ]
+                        ['text' => '📱 Open IT Help Desk', 'web_app' => ['url' => rtrim(config('app.url'), '/').'/tma']],
+                    ],
                 ],
                 null,
                 'account_linked'

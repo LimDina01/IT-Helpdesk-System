@@ -52,11 +52,12 @@ class TicketCategory extends Model
     public function getResolveHoursForPriority(?string $priority = null): int
     {
         $p = strtolower($priority ?? $this->default_priority ?? 'medium');
-        return match($p) {
+
+        return match ($p) {
             'critical' => (int) ($this->sla_critical_hours ?? $this->target_resolve_hours ?? 4),
-            'high'     => (int) ($this->sla_high_hours ?? $this->target_resolve_hours ?? 8),
-            'low'      => (int) ($this->sla_low_hours ?? $this->target_resolve_hours ?? 48),
-            default    => (int) ($this->sla_medium_hours ?? $this->target_resolve_hours ?? 24),
+            'high' => (int) ($this->sla_high_hours ?? $this->target_resolve_hours ?? 8),
+            'low' => (int) ($this->sla_low_hours ?? $this->target_resolve_hours ?? 48),
+            default => (int) ($this->sla_medium_hours ?? $this->target_resolve_hours ?? 24),
         };
     }
 

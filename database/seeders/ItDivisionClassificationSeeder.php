@@ -38,8 +38,8 @@ class ItDivisionClassificationSeeder extends Seeder
 
         // 2. Map existing top-level parent categories
         $parentMap = [
-            1  => ['code' => 'OPR-01', 'div' => 'opr'], // POS & Cashier Hardware
-            7  => ['code' => 'OPR-01', 'div' => 'opr'], // Hardware & Office Equipment
+            1 => ['code' => 'OPR-01', 'div' => 'opr'], // POS & Cashier Hardware
+            7 => ['code' => 'OPR-01', 'div' => 'opr'], // Hardware & Office Equipment
             14 => ['code' => 'OPR-03', 'div' => 'opr'], // Network & Internet Connectivity
             20 => ['code' => 'OPR-02', 'div' => 'opr'], // Software & Applications
             27 => ['code' => 'PRD-01', 'div' => 'prd'], // Business Systems & POS
@@ -61,15 +61,15 @@ class ItDivisionClassificationSeeder extends Seeder
         // 3. Map individual existing subcategories
         $subMap = [
             // POS & Cashier Hardware
-            2  => ['code' => 'OPR-07', 'div' => 'opr'], // Thermal Receipt Printer Offline
-            3  => ['code' => 'OPR-01', 'div' => 'opr'], // Barcode Scanner Not Reading
-            4  => ['code' => 'OPR-01', 'div' => 'opr'], // Cash Drawer Jammed / Not Ejecting
-            5  => ['code' => 'PRD-03', 'div' => 'prd'], // POS Touch Terminal Freezing
-            6  => ['code' => 'OPR-01', 'div' => 'opr'], // RFID Reader Not Scanning
+            2 => ['code' => 'OPR-07', 'div' => 'opr'], // Thermal Receipt Printer Offline
+            3 => ['code' => 'OPR-01', 'div' => 'opr'], // Barcode Scanner Not Reading
+            4 => ['code' => 'OPR-01', 'div' => 'opr'], // Cash Drawer Jammed / Not Ejecting
+            5 => ['code' => 'PRD-03', 'div' => 'prd'], // POS Touch Terminal Freezing
+            6 => ['code' => 'OPR-01', 'div' => 'opr'], // RFID Reader Not Scanning
 
             // Hardware & Office Equipment
-            8  => ['code' => 'OPR-01', 'div' => 'opr'], // Hardware Failure
-            9  => ['code' => 'OPR-01', 'div' => 'opr'], // Desktop PC / Laptop Won't Boot
+            8 => ['code' => 'OPR-01', 'div' => 'opr'], // Hardware Failure
+            9 => ['code' => 'OPR-01', 'div' => 'opr'], // Desktop PC / Laptop Won't Boot
             10 => ['code' => 'OPR-01', 'div' => 'opr'], // Monitor Blank or Flickering
             11 => ['code' => 'OPR-07', 'div' => 'opr'], // Office Network Printer Paper Jam
             12 => ['code' => 'OPR-01', 'div' => 'opr'], // Mouse / Keyboard Replacement
@@ -210,7 +210,7 @@ class ItDivisionClassificationSeeder extends Seeder
             unset($catData['subcategories']);
 
             $existing = TicketCategory::where('code', $catData['code'])->first();
-            if (!$existing) {
+            if (! $existing) {
                 $parent = TicketCategory::create(array_merge($catData, [
                     'default_priority' => 'high',
                     'sla_critical_hours' => 2,
@@ -256,4 +256,3 @@ class ItDivisionClassificationSeeder extends Seeder
         }
     }
 }
-

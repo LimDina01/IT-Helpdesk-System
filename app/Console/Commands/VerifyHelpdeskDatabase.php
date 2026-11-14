@@ -73,13 +73,14 @@ class VerifyHelpdeskDatabase extends Command
         // 3. Ticket Categories & SLA
         $this->comment('3. SAMPLE TICKET CATEGORIES & SLA RULES:');
         $categories = TicketCategory::whereNull('parent_id')->with('children')->get()->map(function ($parent) {
-            $childrenNames = $parent->children->pluck('name')->take(2)->implode(', ') . '...';
+            $childrenNames = $parent->children->pluck('name')->take(2)->implode(', ').'...';
+
             return [
                 'Category' => $parent->name,
                 'Type' => $parent->type,
                 'Default Priority' => $parent->default_priority,
-                'Ack SLA' => $parent->target_acknowledge_minutes . ' mins',
-                'Resolve SLA' => $parent->target_resolve_hours . ' hrs',
+                'Ack SLA' => $parent->target_acknowledge_minutes.' mins',
+                'Resolve SLA' => $parent->target_resolve_hours.' hrs',
                 'Sample Subcategories' => $childrenNames,
             ];
         });

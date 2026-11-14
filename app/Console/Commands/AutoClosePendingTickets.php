@@ -40,6 +40,7 @@ class AutoClosePendingTickets extends Command
 
         if ($expiredTickets->isEmpty()) {
             $this->info('No expired tickets awaiting auto-closure.');
+
             return self::SUCCESS;
         }
 

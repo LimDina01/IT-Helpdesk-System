@@ -412,4 +412,34 @@ class AssetManagementTest extends TestCase
         $responseEol->assertOk();
         $responseEol->assertSee('CBVH-PC-0035');
     }
+
+    public function test_it_staff_can_view_management_stock_report_tab(): void
+    {
+        $this->actingAs($this->techUser);
+        $this->seed(ItAssetSampleSeeder::class);
+
+        $response = $this->get(route('portal.assets.index', ['tab' => 'report']));
+        $response->assertOk();
+        $response->assertSee('Management Inventory &amp; Lifecycle Report', false);
+        $response->assertSee('Total Hardware Valuation');
+        $response->assertSee('CBVH Head Office Phnom Penh');
+    }
+
+    public function test_it_staff_can_export_assets_to_csv(): void
+    {
+        $this->actingAs($this->techUser);
+        $this->seed(ItAssetSampleSeeder::class);
+
+        $response = $this->get(route('portal.assets.export'));
+        $response->assertOk();
+        $this->assertStringContainsString('text/csv', (string) $response->headers->get('content-type'));
+        $this->assertStringContainsString('attachment;', (string) $response->headers->get('content-disposition'));
+        $this->assertStringContainsString('IT_Asset_Stock_Report_', (string) $response->headers->get('content-disposition'));
+
+        $content = $response->streamedContent();
+        $this->assertStringContainsString('Asset Tag', $content);
+        $this->assertStringContainsString('EOD Depreciation Date', $content);
+        $this->assertStringContainsString('EOL Target Date', $content);
+        $this->assertStringContainsString('CBVH-PC-0101', $content);
+    }
 }

@@ -34,7 +34,7 @@ class PortalDashboardController extends Controller
         $myTasksCount = Ticket::where('current_technician_id', $user->id)
             ->whereIn('status', ['assigned', 'in_progress', 'blocked', 'reopened'])
             ->count();
-        
+
         // 30-minute acknowledgement SLA breach count
         $slaBreachCount = Ticket::where('status', 'assigned')
             ->whereNull('acknowledged_at')
@@ -47,13 +47,13 @@ class PortalDashboardController extends Controller
         $pendingApprovalsCount = Ticket::where('status', 'pending_approval')->count() + $pendingHoldCount;
         $pendingLinkRequestsCount = TelegramLinkRequest::where('status', 'pending')->count();
         $allActiveCount = Ticket::whereIn('status', [
-            'pending_approval', 'submitted', 'clarifying', 'assigned', 'in_progress', 'blocked', 'pending_confirmation', 'reopened'
+            'pending_approval', 'submitted', 'clarifying', 'assigned', 'in_progress', 'blocked', 'pending_confirmation', 'reopened',
         ])->count();
         $oprCount = Ticket::whereIn('status', [
-            'pending_approval', 'submitted', 'clarifying', 'assigned', 'in_progress', 'blocked', 'pending_confirmation', 'reopened'
+            'pending_approval', 'submitted', 'clarifying', 'assigned', 'in_progress', 'blocked', 'pending_confirmation', 'reopened',
         ])->where('it_division', 'opr')->count();
         $prdCount = Ticket::whereIn('status', [
-            'pending_approval', 'submitted', 'clarifying', 'assigned', 'in_progress', 'blocked', 'pending_confirmation', 'reopened'
+            'pending_approval', 'submitted', 'clarifying', 'assigned', 'in_progress', 'blocked', 'pending_confirmation', 'reopened',
         ])->where('it_division', 'prd')->count();
         $solvedCount = Ticket::whereIn('status', ['resolved_confirmed', 'resolved_auto_closed', 'closed'])->count();
 
@@ -80,10 +80,10 @@ class PortalDashboardController extends Controller
         if ($searchQuery) {
             $query->where(function ($q) use ($searchQuery) {
                 $q->where('ticket_code', 'like', "%{$searchQuery}%")
-                  ->orWhere('subject', 'like', "%{$searchQuery}%")
-                  ->orWhere('description', 'like', "%{$searchQuery}%")
-                  ->orWhereHas('requester', fn($rq) => $rq->where('name', 'like', "%{$searchQuery}%"))
-                  ->orWhereHas('branch', fn($bq) => $bq->where('name', 'like', "%{$searchQuery}%")->orWhere('code', 'like', "%{$searchQuery}%"));
+                    ->orWhere('subject', 'like', "%{$searchQuery}%")
+                    ->orWhere('description', 'like', "%{$searchQuery}%")
+                    ->orWhereHas('requester', fn ($rq) => $rq->where('name', 'like', "%{$searchQuery}%"))
+                    ->orWhereHas('branch', fn ($bq) => $bq->where('name', 'like', "%{$searchQuery}%")->orWhere('code', 'like', "%{$searchQuery}%"));
             });
         }
 
@@ -91,10 +91,10 @@ class PortalDashboardController extends Controller
             case 'pending_approvals':
                 $query->where(function ($q) {
                     $q->where('status', 'pending_approval')
-                      ->orWhereNotNull('hold_requested_at');
+                        ->orWhereNotNull('hold_requested_at');
                 })
-                ->orderByRaw("CASE WHEN hold_requested_at IS NOT NULL THEN 0 ELSE 1 END")
-                ->orderByDesc('created_at');
+                    ->orderByRaw('CASE WHEN hold_requested_at IS NOT NULL THEN 0 ELSE 1 END')
+                    ->orderByDesc('created_at');
                 break;
 
             case 'my_tasks':
@@ -115,10 +115,10 @@ class PortalDashboardController extends Controller
             case 'blocked':
                 $query->where(function ($q) {
                     $q->where('status', 'blocked')
-                      ->orWhereNotNull('hold_requested_at');
+                        ->orWhereNotNull('hold_requested_at');
                 })
-                ->orderByRaw("CASE WHEN hold_requested_at IS NOT NULL THEN 0 ELSE 1 END")
-                ->orderByDesc('updated_at');
+                    ->orderByRaw('CASE WHEN hold_requested_at IS NOT NULL THEN 0 ELSE 1 END')
+                    ->orderByDesc('updated_at');
                 break;
 
             case 'pending_confirmation':
@@ -159,14 +159,14 @@ class PortalDashboardController extends Controller
         }
 
         $perPage = (int) $request->input('per_page', 15);
-        if (!in_array($perPage, [10, 15, 25, 50], true)) {
+        if (! in_array($perPage, [10, 15, 25, 50], true)) {
             $perPage = 15;
         }
 
         $tickets = $query->paginate($perPage)->withQueryString();
 
         // 3. Technicians available for assignment
-        $technicians = User::whereHas('roles', fn($q) => $q->where('name', 'technician'))
+        $technicians = User::whereHas('roles', fn ($q) => $q->where('name', 'technician'))
             ->where('is_active', true)
             ->withCount(['assignedTickets as active_tasks_count' => function ($q) {
                 $q->whereIn('status', ['assigned', 'in_progress', 'blocked', 'reopened']);

@@ -19,7 +19,7 @@ class BusinessHoursServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->service = new BusinessHoursService();
+        $this->service = new BusinessHoursService;
     }
 
     public function test_monday_through_saturday_are_working_days_and_sunday_is_rest_day(): void
@@ -142,7 +142,7 @@ class BusinessHoursServiceTest extends TestCase
         Carbon::setTestNow(Carbon::parse('2026-10-26 10:00:00'));
 
         // Ticket created Saturday 2026-10-24 at 16:30 (4:30 PM)
-        $ticket = new Ticket();
+        $ticket = new Ticket;
         $ticket->category_id = $category->id;
         $ticket->created_at = Carbon::parse('2026-10-24 16:30:00');
         $ticket->status = 'in_progress';

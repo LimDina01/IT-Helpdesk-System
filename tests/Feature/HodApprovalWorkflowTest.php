@@ -15,10 +15,15 @@ class HodApprovalWorkflowTest extends TestCase
     use RefreshDatabase;
 
     protected User $requester;     // EMP-1001: Sokha Chan (Operations Dept)
+
     protected User $opsHod;        // EMP-1008: Chantha Som (Operations HOD - Process 1 Approver)
+
     protected User $itHod;         // EMP-1007: Vannak Ouk (IT HOD / Admin - Process 2 Approver)
+
     protected User $technician;    // EMP-1005: Dara Sam (IT Technician)
+
     protected Branch $branch;
+
     protected TicketCategory $serviceCategory;
 
     protected function setUp(): void

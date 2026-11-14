@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Branch;
 use App\Models\Department;
+use App\Models\DepartmentApprover;
 use App\Models\Employee;
 use App\Models\Role;
 use App\Models\Ticket;
@@ -19,7 +20,9 @@ class DepartmentApproverAssignmentTest extends TestCase
     use RefreshDatabase;
 
     protected User $adminUser;
+
     protected User $requesterUser;
+
     protected TicketApprovalService $approvalService;
 
     protected function setUp(): void
@@ -326,7 +329,7 @@ class DepartmentApproverAssignmentTest extends TestCase
             'is_active' => true,
         ]);
 
-        \App\Models\DepartmentApprover::create([
+        DepartmentApprover::create([
             'department_id' => $dept->id,
             'branch_id' => $branch->id,
             'user_id' => $supervisorUser->id,

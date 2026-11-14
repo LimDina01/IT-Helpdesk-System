@@ -5,12 +5,14 @@ namespace App\Http\Controllers\Tma;
 use App\Http\Controllers\Controller;
 use App\Models\Branch;
 use App\Models\Ticket;
+use App\Models\TicketApproval;
 use App\Models\TicketAttachment;
 use App\Models\TicketAuditLog;
 use App\Models\TicketCategory;
 use App\Models\TicketMessage;
-use App\Models\TicketApproval;
 use App\Models\User;
+use App\Services\TelegramNotificationService;
+use App\Services\TicketApprovalService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -19,9 +21,8 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
-use App\Services\TelegramNotificationService;
 use Illuminate\Support\Str;
-use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\HttpFoundation\Response;
 
 class TmaTicketController extends Controller
 {
@@ -38,7 +39,7 @@ class TmaTicketController extends Controller
     /**
      * Get tickets for the authenticated employee across all categories.
      */
-    public function index(Request $request, \App\Services\TicketApprovalService $approvalService): JsonResponse
+    public function index(Request $request, TicketApprovalService $approvalService): JsonResponse
     {
         $user = $this->getTmaUser();
         $isStaff = $user->isStaff();
@@ -67,7 +68,7 @@ class TmaTicketController extends Controller
             ->orderByDesc('created_at')
             ->with(['branch', 'category.parent', 'technician', 'requester.employee.department', 'approvals.approver', 'latestRequesterMessage.sender'])
             ->get()
-            ->map(fn(Ticket $t) => $this->formatTicketSummary($t, $user));
+            ->map(fn (Ticket $t) => $this->formatTicketSummary($t, $user));
 
         // History tickets (Resolved / Completed / Rejected), strictly ordered by date
         $historyQuery = Ticket::query();
@@ -75,9 +76,9 @@ class TmaTicketController extends Controller
             // For HODs: include tickets personally requested OR tickets they actioned as approver that are resolved/cancelled/rejected
             $historyQuery->where(function ($q) use ($user) {
                 $q->where('requester_id', $user->id)
-                  ->orWhereHas('approvals', function ($aq) use ($user) {
-                      $aq->where('approver_id', $user->id);
-                  });
+                    ->orWhereHas('approvals', function ($aq) use ($user) {
+                        $aq->where('approver_id', $user->id);
+                    });
             });
         } else {
             $applyVisibilityScope($historyQuery);
@@ -88,24 +89,24 @@ class TmaTicketController extends Controller
             ->orderByRaw('COALESCE(closed_at, updated_at) DESC')
             ->with(['branch', 'category.parent', 'technician', 'requester.employee.department', 'approvals.approver', 'latestRequesterMessage.sender'])
             ->get()
-            ->map(fn(Ticket $t) => $this->formatTicketSummary($t, $user));
+            ->map(fn (Ticket $t) => $this->formatTicketSummary($t, $user));
 
         // Counts matching user specification
-        $openCount = $activeTickets->filter(fn($t) => in_array($t['status'], $openStatuses))->count();
-        $inProgressCount = $activeTickets->filter(fn($t) => in_array($t['status'], $inProgressStatuses))->count();
+        $openCount = $activeTickets->filter(fn ($t) => in_array($t['status'], $openStatuses))->count();
+        $inProgressCount = $activeTickets->filter(fn ($t) => in_array($t['status'], $inProgressStatuses))->count();
         $resolvedCount = $historyTickets->count();
 
         $tab = $request->input('tab', 'active');
-        $tabTickets = match($tab) {
+        $tabTickets = match ($tab) {
             'history' => $historyTickets,
             default => $activeTickets,
         };
 
-        $approvalService = app(\App\Services\TicketApprovalService::class);
+        $approvalService = app(TicketApprovalService::class);
         $pendingApprovals = $approvalService->getPendingApprovalTicketsForUser($user)
-            ->map(fn(Ticket $t) => $this->formatTicketSummary($t, $user));
+            ->map(fn (Ticket $t) => $this->formatTicketSummary($t, $user));
         $approvedByMe = $approvalService->getApprovedTicketsForUser($user)
-            ->map(fn(Ticket $t) => $this->formatTicketSummary($t, $user));
+            ->map(fn (Ticket $t) => $this->formatTicketSummary($t, $user));
 
         return response()->json([
             'tab' => $tab,
@@ -136,7 +137,7 @@ class TmaTicketController extends Controller
         $myApproval = $t->approvals->where('approver_id', $user->id)->first();
         $canApprove = false;
         if ($currentApproval) {
-            $canApprove = app(\App\Services\TicketApprovalService::class)->canUserApprove($user, $currentApproval);
+            $canApprove = app(TicketApprovalService::class)->canUserApprove($user, $currentApproval);
         }
 
         return [
@@ -151,7 +152,7 @@ class TmaTicketController extends Controller
             'category_name_km' => $t->category->name_km ?? null,
             'parent_category_name' => $t->category->parent->name ?? null,
             'parent_category_name_km' => $t->category->parent->name_km ?? null,
-            'has_technician' => !empty($t->current_technician_id),
+            'has_technician' => ! empty($t->current_technician_id),
             'technician_name' => $t->technician?->name ?? null,
             'requester_name' => $t->requester->name ?? 'N/A',
             'requester_dept' => $t->requester->employee?->department?->name ?? 'N/A',
@@ -169,7 +170,7 @@ class TmaTicketController extends Controller
             'my_approval_step' => $myApproval?->step_name,
             'my_approval_comments' => $myApproval?->comments,
             'cancellation_reason' => $t->cancellation_reason,
-            'approvals' => $t->approvals->map(fn($a) => [
+            'approvals' => $t->approvals->map(fn ($a) => [
                 'id' => $a->id,
                 'step_number' => $a->step_number,
                 'step_name' => $a->step_name,
@@ -193,7 +194,7 @@ class TmaTicketController extends Controller
                 'is_staff' => $isStaff,
                 'created_at_human' => $latestMsg->created_at->diffForHumans(),
             ] : null,
-            'has_new_reply' => $isStaff && !in_array($t->status, ['resolved_confirmed', 'resolved_auto_closed', 'cancelled', 'rejected']),
+            'has_new_reply' => $isStaff && ! in_array($t->status, ['resolved_confirmed', 'resolved_auto_closed', 'cancelled', 'rejected']),
         ];
     }
 
@@ -206,7 +207,7 @@ class TmaTicketController extends Controller
 
         // Record heartbeat: User is actively looking at this ticket chat (8s TTL, sustained by 3.5s poller)
         if (Auth::check()) {
-            Cache::put("ticket_presence_{$ticket->id}_" . Auth::id(), now()->timestamp, 8);
+            Cache::put("ticket_presence_{$ticket->id}_".Auth::id(), now()->timestamp, 8);
         }
 
         $ticket->load([
@@ -238,7 +239,7 @@ class TmaTicketController extends Controller
                     'created_at' => $m->created_at->format('d-M-Y H:i'),
                     'created_at_human' => $m->created_at->diffForHumans(),
                     'full_timestamp' => $m->created_at->format('d-M-Y H:i'),
-                    'attachments' => $m->attachments->map(fn(TicketAttachment $a) => [
+                    'attachments' => $m->attachments->map(fn (TicketAttachment $a) => [
                         'id' => $a->id,
                         'original_filename' => $a->original_filename,
                         'mime_type' => $a->mime_type,
@@ -273,17 +274,17 @@ class TmaTicketController extends Controller
         $eligibleEscalateUsers = [];
 
         if ($currentApproval && $tmaUser) {
-            $approvalService = app(\App\Services\TicketApprovalService::class);
+            $approvalService = app(TicketApprovalService::class);
             $canApprove = $approvalService->canUserApprove($tmaUser, $currentApproval);
 
             if ($canApprove) {
-                $eligibleForwardUsers = $approvalService->getEligibleForwardUsers($currentApproval, $tmaUser)->map(fn($u) => [
+                $eligibleForwardUsers = $approvalService->getEligibleForwardUsers($currentApproval, $tmaUser)->map(fn ($u) => [
                     'id' => $u->id,
                     'name' => $u->name,
                     'email' => $u->email,
                 ])->values();
 
-                $eligibleEscalateUsers = $approvalService->getEligibleEscalateUsers($currentApproval, $tmaUser)->map(fn($u) => [
+                $eligibleEscalateUsers = $approvalService->getEligibleEscalateUsers($currentApproval, $tmaUser)->map(fn ($u) => [
                     'id' => $u->id,
                     'name' => $u->name,
                     'email' => $u->email,
@@ -306,7 +307,7 @@ class TmaTicketController extends Controller
                 'parent_category_name' => $ticket->category->parent->name ?? null,
                 'parent_category_name_km' => $ticket->category->parent->name_km ?? null,
                 'category_type' => $ticket->category->type ?? 'incident_issue',
-                'has_technician' => !empty($ticket->current_technician_id),
+                'has_technician' => ! empty($ticket->current_technician_id),
                 'technician_name' => $ticket->technician?->name ?? null,
                 'helpdesk_name' => $ticket->helpdesk->name ?? null,
                 'requester_name' => $ticket->requester->name,
@@ -344,7 +345,7 @@ class TmaTicketController extends Controller
     public function leaveChat(Ticket $ticket): JsonResponse
     {
         if (Auth::check()) {
-            Cache::forget("ticket_presence_{$ticket->id}_" . Auth::id());
+            Cache::forget("ticket_presence_{$ticket->id}_".Auth::id());
         }
 
         return response()->json(['status' => 'left']);
@@ -353,7 +354,7 @@ class TmaTicketController extends Controller
     /**
      * Submit a new ticket with optional multi-file attachments.
      */
-    public function store(Request $request, \App\Services\TicketApprovalService $approvalService): JsonResponse
+    public function store(Request $request, TicketApprovalService $approvalService): JsonResponse
     {
         $user = $this->getTmaUser();
         $userBranchId = $user?->employee?->branch_id ?? $user?->branch_id ?? Branch::first()?->id ?? 1;
@@ -401,7 +402,7 @@ class TmaTicketController extends Controller
             if ($request->hasFile('attachments')) {
                 foreach ($request->file('attachments') as $file) {
                     $yearMonth = date('Y/m');
-                    $storedName = (string) Str::uuid() . '.' . $file->getClientOriginalExtension();
+                    $storedName = (string) Str::uuid().'.'.$file->getClientOriginalExtension();
                     $storagePath = $file->storeAs("attachments/{$yearMonth}", $storedName, 'attachments');
 
                     TicketAttachment::create([
@@ -455,19 +456,19 @@ class TmaTicketController extends Controller
     /**
      * Approve a pending approval step via TMA.
      */
-    public function approveStep(Request $request, \App\Models\TicketApproval $approval, \App\Services\TicketApprovalService $approvalService): JsonResponse
+    public function approveStep(Request $request, TicketApproval $approval, TicketApprovalService $approvalService): JsonResponse
     {
         $validated = $request->validate([
             'comments' => 'required|string|min:3|max:500',
         ]);
 
         $approver = $this->getTmaUser();
-        if (!$approver) {
+        if (! $approver) {
             return response()->json(['error' => 'Unauthenticated.'], 401);
         }
         $success = $approvalService->approve($approval, $approver, $validated['comments']);
 
-        if (!$success) {
+        if (! $success) {
             return response()->json(['error' => 'Unauthorized or invalid approval step.'], 403);
         }
 
@@ -480,19 +481,19 @@ class TmaTicketController extends Controller
     /**
      * Reject a pending approval step via TMA.
      */
-    public function rejectStep(Request $request, \App\Models\TicketApproval $approval, \App\Services\TicketApprovalService $approvalService): JsonResponse
+    public function rejectStep(Request $request, TicketApproval $approval, TicketApprovalService $approvalService): JsonResponse
     {
         $validated = $request->validate([
             'reason' => 'required|string|min:3|max:500',
         ]);
 
         $approver = $this->getTmaUser();
-        if (!$approver) {
+        if (! $approver) {
             return response()->json(['error' => 'Unauthenticated.'], 401);
         }
         $success = $approvalService->reject($approval, $approver, $validated['reason']);
 
-        if (!$success) {
+        if (! $success) {
             return response()->json(['error' => 'Unauthorized or invalid approval step.'], 403);
         }
 
@@ -505,7 +506,7 @@ class TmaTicketController extends Controller
     /**
      * Escalate a pending approval step via TMA (e.g. Team Leader escalates to Supervisor).
      */
-    public function escalateStep(Request $request, \App\Models\TicketApproval $approval, \App\Services\TicketApprovalService $approvalService): JsonResponse
+    public function escalateStep(Request $request, TicketApproval $approval, TicketApprovalService $approvalService): JsonResponse
     {
         $validated = $request->validate([
             'comments' => 'required|string|min:3|max:500',
@@ -513,14 +514,14 @@ class TmaTicketController extends Controller
         ]);
 
         $approver = $this->getTmaUser();
-        if (!$approver) {
+        if (! $approver) {
             return response()->json(['error' => 'Unauthenticated.'], 401);
         }
 
-        $targetUserId = !empty($validated['target_user_id']) ? (int) $validated['target_user_id'] : null;
+        $targetUserId = ! empty($validated['target_user_id']) ? (int) $validated['target_user_id'] : null;
         $success = $approvalService->escalate($approval, $approver, $validated['comments'], $targetUserId);
 
-        if (!$success) {
+        if (! $success) {
             return response()->json(['error' => 'Unauthorized or invalid approval step for escalation.'], 403);
         }
 
@@ -533,7 +534,7 @@ class TmaTicketController extends Controller
     /**
      * Forward / Delegate a pending approval step via TMA to another approver.
      */
-    public function forwardStep(Request $request, \App\Models\TicketApproval $approval, \App\Services\TicketApprovalService $approvalService): JsonResponse
+    public function forwardStep(Request $request, TicketApproval $approval, TicketApprovalService $approvalService): JsonResponse
     {
         $validated = $request->validate([
             'target_user_id' => 'required|exists:users,id',
@@ -541,14 +542,14 @@ class TmaTicketController extends Controller
         ]);
 
         $approver = $this->getTmaUser();
-        if (!$approver) {
+        if (! $approver) {
             return response()->json(['error' => 'Unauthenticated.'], 401);
         }
 
-        $targetUser = \App\Models\User::findOrFail($validated['target_user_id']);
+        $targetUser = User::findOrFail($validated['target_user_id']);
         $success = $approvalService->forward($approval, $approver, $targetUser, $validated['comments']);
 
-        if (!$success) {
+        if (! $success) {
             return response()->json(['error' => 'Unauthorized or invalid approval step for forwarding.'], 403);
         }
 
@@ -585,7 +586,7 @@ class TmaTicketController extends Controller
             if ($request->hasFile('attachments')) {
                 foreach ($request->file('attachments') as $file) {
                     $yearMonth = date('Y/m');
-                    $storedName = (string) Str::uuid() . '.' . $file->getClientOriginalExtension();
+                    $storedName = (string) Str::uuid().'.'.$file->getClientOriginalExtension();
                     $storagePath = $file->storeAs("attachments/{$yearMonth}", $storedName, 'attachments');
 
                     TicketAttachment::create([
@@ -687,7 +688,7 @@ class TmaTicketController extends Controller
                 'sender_id' => $user->id,
                 'visibility' => 'requester_visible',
                 'message_type' => 'text',
-                'body' => "⚠️ REOPENED BY REQUESTER: " . $validated['reason'],
+                'body' => '⚠️ REOPENED BY REQUESTER: '.$validated['reason'],
             ]);
 
             TicketAuditLog::create([
@@ -715,13 +716,13 @@ class TmaTicketController extends Controller
     /**
      * Download or stream authorized private file attachment.
      */
-    public function downloadAttachment(Ticket $ticket, TicketAttachment $attachment, Request $request): \Symfony\Component\HttpFoundation\Response
+    public function downloadAttachment(Ticket $ticket, TicketAttachment $attachment, Request $request): Response
     {
         $isTmaAuth = Auth::guard('tma')->check();
         $isWebAuth = Auth::guard('web')->check();
         $hasValidSig = $request->hasValidSignature();
 
-        if (!$isTmaAuth && !$isWebAuth && !$hasValidSig) {
+        if (! $isTmaAuth && ! $isWebAuth && ! $hasValidSig) {
             abort(403, 'Unauthorized or expired attachment link.');
         }
 
@@ -737,7 +738,7 @@ class TmaTicketController extends Controller
             }
         }
 
-        if (!Storage::disk('attachments')->exists($attachment->storage_path)) {
+        if (! Storage::disk('attachments')->exists($attachment->storage_path)) {
             abort(404, 'File not found on storage disk.');
         }
 
@@ -753,7 +754,7 @@ class TmaTicketController extends Controller
                 $attachment->original_filename,
                 [
                     'Content-Type' => $attachment->mime_type,
-                    'Content-Disposition' => 'inline; filename="' . $attachment->original_filename . '"',
+                    'Content-Disposition' => 'inline; filename="'.$attachment->original_filename.'"',
                     'Cache-Control' => 'private, max-age=86400, stale-while-revalidate=604800',
                 ]
             );
@@ -768,34 +769,34 @@ class TmaTicketController extends Controller
     /**
      * Return a fast resized thumbnail response for image attachments.
      */
-    protected function getThumbnailResponse(TicketAttachment $attachment): \Symfony\Component\HttpFoundation\Response
+    protected function getThumbnailResponse(TicketAttachment $attachment): Response
     {
         $storage = Storage::disk('attachments');
         $fullPath = $storage->path($attachment->storage_path);
 
-        if (!file_exists($fullPath)) {
+        if (! file_exists($fullPath)) {
             abort(404, 'File not found on storage disk.');
         }
 
         $thumbDir = storage_path('app/attachments/thumbs');
-        if (!is_dir($thumbDir)) {
+        if (! is_dir($thumbDir)) {
             @mkdir($thumbDir, 0755, true);
         }
 
-        $thumbFileName = 'thumb_' . $attachment->id . '_' . md5($attachment->storage_path) . '.jpg';
-        $thumbFilePath = $thumbDir . DIRECTORY_SEPARATOR . $thumbFileName;
+        $thumbFileName = 'thumb_'.$attachment->id.'_'.md5($attachment->storage_path).'.jpg';
+        $thumbFilePath = $thumbDir.DIRECTORY_SEPARATOR.$thumbFileName;
 
-        if (!file_exists($thumbFilePath)) {
+        if (! file_exists($thumbFilePath)) {
             $info = @getimagesize($fullPath);
             if ($info && in_array($info['mime'], ['image/jpeg', 'image/png', 'image/webp', 'image/gif'])) {
                 $origW = $info[0];
                 $origH = $info[1];
                 $maxDim = 320;
                 $scale = min($maxDim / max($origW, 1), $maxDim / max($origH, 1), 1.0);
-                $newW = max(1, (int)($origW * $scale));
-                $newH = max(1, (int)($origH * $scale));
+                $newW = max(1, (int) ($origW * $scale));
+                $newH = max(1, (int) ($origH * $scale));
 
-                $srcImg = match($info['mime']) {
+                $srcImg = match ($info['mime']) {
                     'image/jpeg' => @imagecreatefromjpeg($fullPath),
                     'image/png' => @imagecreatefrompng($fullPath),
                     'image/webp' => @imagecreatefromwebp($fullPath),
@@ -854,7 +855,7 @@ class TmaTicketController extends Controller
 
         $pendingApprovalsCount = 0;
         if ($isHod) {
-            $pendingApprovalsCount = app(\App\Services\TicketApprovalService::class)->getPendingApprovalTicketsForUser($user)->count();
+            $pendingApprovalsCount = app(TicketApprovalService::class)->getPendingApprovalTicketsForUser($user)->count();
         }
 
         return response()->json([
