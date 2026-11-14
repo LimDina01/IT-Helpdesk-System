@@ -518,7 +518,7 @@
             </div>
         </div>
 
-    @else
+    @elseif($currentTab === 'report')
         <!-- TAB 3: MANAGEMENT STOCK & LIFECYCLE REPORT -->
         <div class="space-y-5">
             <!-- Executive Report Header Banner -->
@@ -920,9 +920,7 @@
                 </div>
             </div>
         </div>
-    @endif
-
-    @if($currentTab === 'licenses')
+    @elseif($currentTab === 'licenses')
         <!-- TAB 4: SOFTWARE & DIGITAL LICENSES (GLPI LEAN ITAM) -->
         <div class="space-y-6">
             

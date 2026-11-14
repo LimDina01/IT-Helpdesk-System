@@ -26,6 +26,12 @@ class PortalAssetController extends Controller
     public function index(Request $request): View
     {
         $currentTab = $request->input('tab', 'assets');
+        if ($currentTab === 'spares') {
+            $currentTab = 'components';
+        }
+        if (! in_array($currentTab, ['assets', 'components', 'report', 'licenses'])) {
+            $currentTab = 'assets';
+        }
         $search = trim($request->input('search', ''));
         $categoryId = $request->input('category_id');
         $branchId = $request->input('branch_id');

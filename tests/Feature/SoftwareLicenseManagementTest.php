@@ -60,6 +60,7 @@ class SoftwareLicenseManagementTest extends TestCase
         $response->assertSee('Adobe Creative Cloud');
         $response->assertSee('Kaspersky Endpoint Security');
         $response->assertSee('[Management Confidential]');
+        $response->assertDontSee('Management Inventory &amp; Lifecycle Report', false);
     }
 
     public function test_admin_can_view_full_software_budget(): void

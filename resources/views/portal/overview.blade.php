@@ -176,7 +176,7 @@
         </a>
 
         <!-- 6. Spare Components & Parts (Green) -->
-        <a href="{{ route('portal.assets.index', ['tab' => 'spares']) }}" 
+        <a href="{{ route('portal.assets.index', ['tab' => 'components']) }}" 
            class="bg-gradient-to-br from-emerald-600 to-green-700 text-white p-4 rounded-2xl shadow-sm hover:shadow-md transition transform hover:-translate-y-0.5 block group relative overflow-hidden">
             <div class="flex items-center justify-between">
                 <div class="text-3xl font-black tracking-tight">{{ $sparesInStock }}</div>
