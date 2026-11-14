@@ -7,6 +7,7 @@
     editAssetModal: false, 
     installCompModal: false,
     assetOwnership: '{{ $asset->ownership_type }}',
+    assetStatus: '{{ $asset->status }}',
     compSourceMode: 'from_stock'
 }" class="space-y-6">
 
@@ -158,15 +159,27 @@
                     <span>📍</span>
                     <span>Location &amp; Custody</span>
                 </div>
-                @if($asset->ownership_type === 'shared' || empty($asset->assigned_user_id))
+                @if($asset->status === 'spare_stock')
+                    <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200">📦 Spare Stock</span>
+                @elseif($asset->status === 'under_repair')
+                    <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200">🟡 Under Repair</span>
+                @elseif($asset->status === 'decommissioned')
+                    <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 border border-slate-300">⚪ Decommissioned</span>
+                @elseif($asset->ownership_type === 'shared' || empty($asset->assigned_user_id))
                     <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200">Shared / Room</span>
                 @else
-                    <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200">Personal Device</span>
+                    <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200">Personal Device</span>
                 @endif
             </div>
 
             <div class="space-y-2 text-xs">
-                @if($asset->ownership_type === 'shared' || empty($asset->assigned_user_id))
+                @if($asset->status === 'spare_stock')
+                    <div class="p-3 bg-blue-50/70 rounded-xl border border-blue-100">
+                        <div class="text-[10px] font-bold text-blue-700 uppercase tracking-wider">Storage &amp; Backup Status</div>
+                        <div class="text-xs font-bold text-slate-900 mt-0.5">📦 IT Shelf / Spare Stock</div>
+                        <div class="text-[11px] text-slate-500 mt-0.5">Unassigned backup machine ready for deployment or hot-swap replacement.</div>
+                    </div>
+                @elseif($asset->ownership_type === 'shared' || empty($asset->assigned_user_id))
                     <div class="p-3 bg-purple-50/70 rounded-xl border border-purple-100">
                         <div class="text-[10px] font-bold text-purple-700 uppercase tracking-wider">Shared Location / Area</div>
                         <div class="text-xs font-bold text-slate-900 mt-0.5">{{ $asset->location_details ?: 'Meeting Room / Common Floor' }}</div>
@@ -192,7 +205,7 @@
                     <span class="font-semibold text-slate-800">{{ $asset->department?->name ?? 'Company-Wide' }}</span>
                 </div>
                 <div class="flex justify-between py-1">
-                    <span class="text-slate-400">Room / Floor Details</span>
+                    <span class="text-slate-400">Room / Shelf Details</span>
                     <span class="text-slate-700 font-medium">{{ $asset->location_details ?: '—' }}</span>
                 </div>
             </div>
@@ -461,192 +474,260 @@
     <!-- ======================================================== -->
     <div x-show="editAssetModal" 
          x-transition:enter="transition ease-out duration-200" 
+         x-transition:enter-start="opacity-0 scale-95"
+         x-transition:enter-end="opacity-100 scale-100"
          x-transition:leave="transition ease-in duration-150" 
-         class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto" 
+         x-transition:leave-start="opacity-100 scale-100"
+         x-transition:leave-end="opacity-0 scale-95"
+         class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-3 sm:p-4" 
          x-cloak>
-        <div @click.away="editAssetModal = false" class="bg-white rounded-3xl max-w-2xl w-full shadow-2xl p-6 space-y-4 my-8">
-            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-                <div class="flex items-center space-x-2.5">
-                    <div class="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-lg font-bold">
+        <div @click.away="editAssetModal = false" class="bg-white rounded-3xl max-w-2xl w-full shadow-2xl flex flex-col max-h-[92vh] overflow-hidden my-auto border border-slate-100">
+            <!-- Fixed Pinned Header -->
+            <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/80 shrink-0">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-2xl bg-blue-100 text-blue-700 flex items-center justify-center text-lg font-bold shadow-2xs">
                         ✏️
                     </div>
                     <div>
-                        <h3 class="text-sm font-bold text-slate-900">Edit Asset Profile: {{ $asset->asset_tag }}</h3>
-                        <p class="text-[11px] text-slate-500">Update custody, location, specs, and status.</p>
+                        <div class="flex items-center space-x-2">
+                            <h3 class="text-sm font-extrabold text-slate-900">Edit Asset Profile</h3>
+                            <span class="font-mono text-xs font-bold px-2 py-0.5 rounded-lg bg-blue-50 text-blue-700 border border-blue-200">{{ $asset->asset_tag }}</span>
+                            @php $badge = $asset->status_badge; @endphp
+                            <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full border {{ $badge['class'] }}">
+                                {{ $badge['label'] }}
+                            </span>
+                        </div>
+                        <p class="text-[11px] text-slate-500 mt-0.5">Update custody, operational status, lifecycle dates, and hardware specs.</p>
                     </div>
                 </div>
-                <button type="button" @click="editAssetModal = false" class="text-slate-400 hover:text-slate-600 text-lg font-bold">&times;</button>
+                <button type="button" @click="editAssetModal = false" class="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-400 hover:text-slate-700 flex items-center justify-center transition cursor-pointer text-sm font-bold" title="Close">&times;</button>
             </div>
 
-            <form method="POST" action="{{ route('portal.assets.update', $asset->id) }}" class="space-y-4">
+            <!-- Scrollable Body with Form -->
+            <form id="editAssetForm" method="POST" action="{{ route('portal.assets.update', $asset->id) }}" class="flex flex-col flex-1 overflow-hidden">
                 @csrf
                 @method('PUT')
 
-                <!-- Ownership Choice -->
-                <div class="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
-                    <label class="block text-[11px] font-bold text-slate-700 uppercase">Equipment Ownership Type</label>
-                    <div class="grid grid-cols-2 gap-3">
-                        <label class="flex items-center space-x-2 p-2.5 bg-white rounded-xl border border-slate-200 hover:border-blue-400 cursor-pointer transition shadow-2xs">
-                            <input type="radio" name="ownership_type" value="personal" x-model="assetOwnership" class="rounded text-blue-600 focus:ring-blue-500">
+                <div class="flex-1 overflow-y-auto px-6 py-5 space-y-4 text-xs">
+                    <!-- Section 1: Operational Status & Financials -->
+                    <div class="p-3.5 bg-slate-50/80 rounded-2xl border border-slate-200/80 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <label class="block text-[11px] font-bold text-slate-800 uppercase tracking-wider">Operational Status &amp; Financials</label>
+                            <span class="text-[10px] text-slate-400">Controls deployment &amp; availability</span>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                             <div>
-                                <div class="text-xs font-bold text-slate-800">👤 Personal Custody</div>
-                                <div class="text-[10px] text-slate-400">Assigned to specific staff</div>
+                                <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Status</label>
+                                <select name="status" x-model="assetStatus" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-bold text-slate-800">
+                                    <option value="in_use">🟢 In Use / Active</option>
+                                    <option value="spare_stock">🔵 Spare in Stock</option>
+                                    <option value="under_repair">🟡 Under Repair / RMA</option>
+                                    <option value="decommissioned">⚪ Decommissioned</option>
+                                </select>
                             </div>
-                        </label>
-                        <label class="flex items-center space-x-2 p-2.5 bg-white rounded-xl border border-slate-200 hover:border-blue-400 cursor-pointer transition shadow-2xs">
-                            <input type="radio" name="ownership_type" value="shared" x-model="assetOwnership" class="rounded text-blue-600 focus:ring-blue-500">
                             <div>
-                                <div class="text-xs font-bold text-slate-800">🏢 Shared Room / Floor</div>
-                                <div class="text-[10px] text-slate-400">Meeting room, printing area</div>
+                                <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Purchase Date</label>
+                                <input type="date" name="purchase_date" value="{{ $asset->purchase_date ? $asset->purchase_date->format('Y-m-d') : '' }}" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
                             </div>
-                        </label>
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Purchase Cost (USD)</label>
+                                <input type="number" step="0.01" min="0" name="purchase_cost" value="{{ $asset->purchase_cost }}" placeholder="e.g. 850.00" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                            </div>
+                        </div>
+
+                        <!-- Dynamic Status Helper Banner -->
+                        <div x-show="assetStatus === 'spare_stock'" class="p-2.5 bg-blue-50 rounded-xl border border-blue-200/80 text-[11px] text-blue-800 flex items-start space-x-2">
+                            <span class="text-sm">💡</span>
+                            <div>
+                                <strong class="font-bold">Spare in Stock:</strong> This asset is in the IT storage room / shelf ready for hot-swap or assignment to staff. If previously assigned to a person, consider clearing Custodian below.
+                            </div>
+                        </div>
+                        <div x-show="assetStatus === 'under_repair'" class="p-2.5 bg-amber-50 rounded-xl border border-amber-200/80 text-[11px] text-amber-900 flex items-start space-x-2" x-cloak>
+                            <span class="text-sm">⚠️</span>
+                            <div>
+                                <strong class="font-bold">Under Repair / RMA:</strong> Asset is flagged as defective or sent to supplier. Will be highlighted in technical triage.
+                            </div>
+                        </div>
+                        <div x-show="assetStatus === 'decommissioned'" class="p-2.5 bg-rose-50 rounded-xl border border-rose-200/80 text-[11px] text-rose-900 flex items-start space-x-2" x-cloak>
+                            <span class="text-sm">🛑</span>
+                            <div>
+                                <strong class="font-bold">Decommissioned:</strong> Asset is retired from active service. Will be excluded from regular operational counts.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section 2: Ownership & Location -->
+                    <div class="p-3.5 bg-slate-50/80 rounded-2xl border border-slate-200/80 space-y-3">
+                        <label class="block text-[11px] font-bold text-slate-800 uppercase tracking-wider">Equipment Ownership &amp; Location</label>
+                        <div class="grid grid-cols-2 gap-3">
+                            <label class="flex items-center space-x-2 p-2.5 bg-white rounded-xl border border-slate-200 hover:border-blue-400 cursor-pointer transition shadow-2xs">
+                                <input type="radio" name="ownership_type" value="personal" x-model="assetOwnership" class="rounded text-blue-600 focus:ring-blue-500">
+                                <div>
+                                    <div class="text-xs font-bold text-slate-800">👤 Personal Custody</div>
+                                    <div class="text-[10px] text-slate-400">Assigned to specific staff</div>
+                                </div>
+                            </label>
+                            <label class="flex items-center space-x-2 p-2.5 bg-white rounded-xl border border-slate-200 hover:border-blue-400 cursor-pointer transition shadow-2xs">
+                                <input type="radio" name="ownership_type" value="shared" x-model="assetOwnership" class="rounded text-blue-600 focus:ring-blue-500">
+                                <div>
+                                    <div class="text-xs font-bold text-slate-800">🏢 Shared Room / Floor</div>
+                                    <div class="text-[10px] text-slate-400">Meeting room, printing area</div>
+                                </div>
+                            </label>
+                        </div>
+
+                        <!-- Conditional Ownership User field -->
+                        <div x-show="assetOwnership === 'personal'" class="p-3 bg-blue-50/70 rounded-xl border border-blue-200/70 space-y-1">
+                            <label class="block text-[11px] font-bold text-blue-900 uppercase">Assigned Employee (Custodian)</label>
+                            <select name="assigned_user_id" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                                <option value="">-- Unassigned (or Spare in IT Stock) --</option>
+                                @foreach($users as $u)
+                                    <option value="{{ $u->id }}" {{ $asset->assigned_user_id == $u->id ? 'selected' : '' }}>👤 {{ $u->name }} ({{ $u->email }})</option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Branch</label>
+                                <select name="branch_id" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                                    <option value="">-- Select Branch --</option>
+                                    @foreach($branches as $b)
+                                        <option value="{{ $b->id }}" {{ $asset->branch_id == $b->id ? 'selected' : '' }}>📍 {{ $b->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Department</label>
+                                <select name="department_id" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                                    <option value="">-- Select Department --</option>
+                                    @foreach($departments as $d)
+                                        <option value="{{ $d->id }}" {{ $asset->department_id == $d->id ? 'selected' : '' }}>{{ $d->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Specific Room / Shelf / Desk</label>
+                                <input type="text" name="location_details" value="{{ $asset->location_details }}" placeholder="e.g. IT Stock Shelf B or Meeting Room B" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section 3: Asset Identification -->
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Asset Tag</label>
+                            <input type="text" name="asset_tag" value="{{ $asset->asset_tag }}" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono font-bold">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Category</label>
+                            <select name="category_id" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-medium">
+                                @foreach($categories as $cat)
+                                    <option value="{{ $cat->id }}" {{ $asset->category_id == $cat->id ? 'selected' : '' }}>{{ $cat->icon }} {{ $cat->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Asset Name</label>
+                            <input type="text" name="name" value="{{ $asset->name }}" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium">
+                        </div>
+                    </div>
+
+                    <!-- Section 4: Hardware Lifecycle Dates (EOW / EOD / EOL) -->
+                    <div class="p-3.5 bg-amber-50/50 rounded-2xl border border-amber-200/70 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <label class="block text-[11px] font-bold text-amber-950 uppercase tracking-wider">Hardware Lifecycle &amp; Depreciation</label>
+                            <span class="text-[10px] text-amber-700 font-semibold">Warranty vs EOD vs EOL</span>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-800 uppercase mb-0.5">Warranty Expiry (EOW)</label>
+                                <span class="text-[10px] text-slate-500 block mb-1">Free supplier repair end</span>
+                                <input type="date" name="warranty_expiry" value="{{ $asset->warranty_expiry ? $asset->warranty_expiry->format('Y-m-d') : '' }}" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-amber-900 uppercase mb-0.5">EOD Date (Depreciation)</label>
+                                <span class="text-[10px] text-amber-700 block mb-1">Recommended overhaul / $0 book</span>
+                                <input type="date" name="eod_date" value="{{ $asset->eod_date ? $asset->eod_date->format('Y-m-d') : '' }}" class="w-full text-xs px-3 py-2 rounded-xl border border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-rose-900 uppercase mb-0.5">EOL Date (End of Life)</label>
+                                <span class="text-[10px] text-rose-700 block mb-1">Obsolescence / retirement target</span>
+                                <input type="date" name="eol_date" value="{{ $asset->eol_date ? $asset->eol_date->format('Y-m-d') : '' }}" class="w-full text-xs px-3 py-2 rounded-xl border border-rose-300 focus:outline-none focus:ring-2 focus:ring-rose-500 bg-white">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section 5: Hardware Specifications -->
+                    <div class="p-3.5 bg-slate-50/80 rounded-2xl border border-slate-200/80 space-y-3">
+                        <label class="block text-[11px] font-bold text-slate-800 uppercase tracking-wider">Hardware Specifications</label>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Brand</label>
+                                <input type="text" name="brand" value="{{ $asset->brand }}" placeholder="e.g. Dell, LG, Epson" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Model</label>
+                                <input type="text" name="model" value="{{ $asset->model }}" placeholder="e.g. OptiPlex 7010, 75UR8050" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Serial Number</label>
+                                <input type="text" name="serial_number" value="{{ $asset->serial_number }}" placeholder="e.g. SN-498120" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono bg-white">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">CPU</label>
+                                <input type="text" name="specs_cpu" value="{{ $asset->specs['cpu'] ?? '' }}" placeholder="i5 / i7 / M2" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">RAM</label>
+                                <input type="text" name="specs_ram" value="{{ $asset->specs['ram'] ?? '' }}" placeholder="16GB DDR4" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">Storage</label>
+                                <input type="text" name="specs_storage" value="{{ $asset->specs['storage'] ?? '' }}" placeholder="512GB SSD" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">OS</label>
+                                <input type="text" name="specs_os" value="{{ $asset->specs['os'] ?? '' }}" placeholder="Win 11 Pro" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                            </div>
+                            <div class="col-span-2 sm:col-span-1">
+                                <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">IP Address</label>
+                                <input type="text" name="specs_ip" value="{{ $asset->specs['ip'] ?? '' }}" placeholder="192.168.10.x" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-mono">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section 6: Supplier & Notes -->
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Supplier / Vendor</label>
+                            <input type="text" name="vendor_supplier" value="{{ $asset->vendor_supplier }}" placeholder="e.g. Anana Computer, Epson Cambodia, Kfour" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                        </div>
+
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Technical Notes</label>
+                            <textarea name="notes" rows="2" placeholder="e.g. Dedicated for board meetings, spare stock shelf location, setup notes..." class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">{{ $asset->notes }}</textarea>
+                        </div>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Asset Tag</label>
-                        <input type="text" name="asset_tag" value="{{ $asset->asset_tag }}" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono">
+                <!-- Fixed Pinned Footer (Always visible, never cut off!) -->
+                <div class="flex items-center justify-between px-6 py-3.5 border-t border-slate-200/80 bg-slate-50/95 shrink-0">
+                    <div class="text-[11px] text-slate-500 hidden sm:flex items-center space-x-2">
+                        <span class="inline-block w-2 h-2 rounded-full bg-blue-500"></span>
+                        <span>Saving immediately updates registry, history, and status badges.</span>
                     </div>
-                    <div>
-                        <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Category</label>
-                        <select name="category_id" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-medium">
-                            @foreach($categories as $cat)
-                                <option value="{{ $cat->id }}" {{ $asset->category_id == $cat->id ? 'selected' : '' }}>{{ $cat->icon }} {{ $cat->name }}</option>
-                            @endforeach
-                        </select>
+                    <div class="flex items-center space-x-2 w-full sm:w-auto justify-end">
+                        <button type="button" @click="editAssetModal = false" class="px-4 py-2.5 text-xs text-slate-600 font-bold hover:bg-slate-200/70 rounded-xl transition cursor-pointer">Cancel</button>
+                        <button type="submit" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition cursor-pointer flex items-center space-x-1.5">
+                            <span>💾</span>
+                            <span>Update Profile</span>
+                        </button>
                     </div>
-                </div>
-
-                <div>
-                    <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Asset Name</label>
-                    <input type="text" name="name" value="{{ $asset->name }}" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium">
-                </div>
-
-                <!-- Conditional Ownership User field -->
-                <div x-show="assetOwnership === 'personal'" class="grid grid-cols-1 gap-3 p-3 bg-blue-50/60 rounded-xl border border-blue-100">
-                    <div>
-                        <label class="block text-[11px] font-bold text-blue-900 uppercase mb-1">Assigned Employee (Custodian)</label>
-                        <select name="assigned_user_id" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                            <option value="">-- Choose Employee --</option>
-                            @foreach($users as $u)
-                                <option value="{{ $u->id }}" {{ $asset->assigned_user_id == $u->id ? 'selected' : '' }}>{{ $u->name }} ({{ $u->email }})</option>
-                            @endforeach
-                        </select>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div>
-                        <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Branch</label>
-                        <select name="branch_id" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                            <option value="">-- Select Branch --</option>
-                            @foreach($branches as $b)
-                                <option value="{{ $b->id }}" {{ $asset->branch_id == $b->id ? 'selected' : '' }}>📍 {{ $b->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Department</label>
-                        <select name="department_id" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                            <option value="">-- Select Department --</option>
-                            @foreach($departments as $d)
-                                <option value="{{ $d->id }}" {{ $asset->department_id == $d->id ? 'selected' : '' }}>{{ $d->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Specific Room / Area</label>
-                        <input type="text" name="location_details" value="{{ $asset->location_details }}" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div>
-                        <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Brand</label>
-                        <input type="text" name="brand" value="{{ $asset->brand }}" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    <div>
-                        <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Model</label>
-                        <input type="text" name="model" value="{{ $asset->model }}" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    <div>
-                        <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Serial Number</label>
-                        <input type="text" name="serial_number" value="{{ $asset->serial_number }}" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono">
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                    <div>
-                        <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">CPU</label>
-                        <input type="text" name="specs_cpu" value="{{ $asset->specs['cpu'] ?? '' }}" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    <div>
-                        <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">RAM</label>
-                        <input type="text" name="specs_ram" value="{{ $asset->specs['ram'] ?? '' }}" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    <div>
-                        <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Storage</label>
-                        <input type="text" name="specs_storage" value="{{ $asset->specs['storage'] ?? '' }}" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    <div>
-                        <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">OS</label>
-                        <input type="text" name="specs_os" value="{{ $asset->specs['os'] ?? '' }}" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div>
-                        <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Status</label>
-                        <select name="status" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-medium">
-                            <option value="in_use" {{ $asset->status === 'in_use' ? 'selected' : '' }}>🟢 In Use / Active</option>
-                            <option value="spare_stock" {{ $asset->status === 'spare_stock' ? 'selected' : '' }}>🔵 Spare in Stock</option>
-                            <option value="under_repair" {{ $asset->status === 'under_repair' ? 'selected' : '' }}>🟡 Under Repair / RMA</option>
-                            <option value="decommissioned" {{ $asset->status === 'decommissioned' ? 'selected' : '' }}>⚪ Decommissioned</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Purchase Date</label>
-                        <input type="date" name="purchase_date" value="{{ $asset->purchase_date ? $asset->purchase_date->format('Y-m-d') : '' }}" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    <div>
-                        <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Purchase Cost (USD)</label>
-                        <input type="number" step="0.01" min="0" name="purchase_cost" value="{{ $asset->purchase_cost }}" placeholder="e.g. 850.00" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-                </div>
-
-                <!-- Lifecycle & Warranty Dates -->
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 bg-amber-50/50 rounded-2xl border border-amber-200/70">
-                    <div>
-                        <label class="block text-[11px] font-bold text-slate-800 uppercase mb-0.5">Warranty Expiry (EOW)</label>
-                        <span class="text-[10px] text-slate-500 block mb-1">Free supplier repair end</span>
-                        <input type="date" name="warranty_expiry" value="{{ $asset->warranty_expiry ? $asset->warranty_expiry->format('Y-m-d') : '' }}" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white">
-                    </div>
-                    <div>
-                        <label class="block text-[11px] font-bold text-amber-900 uppercase mb-0.5">EOD Date (Depreciation)</label>
-                        <span class="text-[10px] text-amber-700 block mb-1">Recommended overhaul / $0 book</span>
-                        <input type="date" name="eod_date" value="{{ $asset->eod_date ? $asset->eod_date->format('Y-m-d') : '' }}" class="w-full text-xs px-3 py-2 rounded-xl border border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white">
-                    </div>
-                    <div>
-                        <label class="block text-[11px] font-bold text-rose-900 uppercase mb-0.5">EOL Date (End of Life)</label>
-                        <span class="text-[10px] text-rose-700 block mb-1">Obsolescence / retirement target</span>
-                        <input type="date" name="eol_date" value="{{ $asset->eol_date ? $asset->eol_date->format('Y-m-d') : '' }}" class="w-full text-xs px-3 py-2 rounded-xl border border-rose-300 focus:outline-none focus:ring-2 focus:ring-rose-500 bg-white">
-                    </div>
-                </div>
-
-                <div>
-                    <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Supplier / Vendor</label>
-                    <input type="text" name="vendor_supplier" value="{{ $asset->vendor_supplier }}" placeholder="e.g. Anana Computer, Epson Cambodia" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-
-                <div>
-                    <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Technical Notes</label>
-                    <textarea name="notes" rows="2" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">{{ $asset->notes }}</textarea>
-                </div>
-
-                <div class="flex items-center justify-end space-x-2 pt-3 border-t border-slate-100">
-                    <button type="button" @click="editAssetModal = false" class="px-4 py-2 text-xs text-slate-600 font-semibold hover:bg-slate-100 rounded-xl transition">Cancel</button>
-                    <button type="submit" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition">Update Profile</button>
                 </div>
             </form>
         </div>
