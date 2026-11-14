@@ -96,13 +96,13 @@
                     </div>
                 </div>
             </div>
-        @elseif($asset->warranty_expiry && $asset->warranty_expiry->isFuture() && now()->diffInDays($asset->warranty_expiry) <= 60)
+        @elseif($asset->warranty_expiry && $asset->warranty_expiry->isFuture() && (int) ceil(now()->diffInDays($asset->warranty_expiry)) <= 60)
             <div class="bg-blue-50 border border-blue-200 rounded-2xl p-4 text-xs text-blue-900 flex items-start space-x-3 shadow-2xs">
                 <span class="text-xl">🛡️</span>
                 <div>
                     <div class="font-bold">Supplier Warranty Expiring Soon</div>
                     <div class="text-blue-700 mt-0.5">
-                        Free vendor repair warranty ends in <strong>{{ now()->diffInDays($asset->warranty_expiry) }} days</strong> ({{ $asset->warranty_expiry->format('d-M-Y') }}). Inspect machine for any hardware flaws to claim manufacturer warranty repair before expiration.
+                        Free vendor repair warranty ends in <strong>{{ (int) ceil(now()->diffInDays($asset->warranty_expiry)) }} days</strong> ({{ $asset->warranty_expiry->format('d-M-Y') }}). Inspect machine for any hardware flaws to claim manufacturer warranty repair before expiration.
                     </div>
                 </div>
             </div>
@@ -246,7 +246,7 @@
                             @if($asset->warranty_expiry->isPast())
                                 <span class="text-[10px] text-rose-600 font-bold ml-1">(Expired)</span>
                             @else
-                                <span class="text-[10px] text-emerald-600 font-bold ml-1">({{ now()->diffInDays($asset->warranty_expiry) }}d left)</span>
+                                <span class="text-[10px] text-emerald-600 font-bold ml-1">({{ (int) ceil(now()->diffInDays($asset->warranty_expiry)) }}d left)</span>
                             @endif
                         @else
                             —
@@ -261,7 +261,7 @@
                             @if($asset->isPastEod())
                                 <span class="text-[10px] text-amber-700 font-bold ml-1">(Past EOD • Fully Depreciated)</span>
                             @else
-                                <span class="text-[10px] text-slate-500 font-medium ml-1">({{ now()->diffInDays($asset->eod_date) }}d left)</span>
+                                <span class="text-[10px] text-slate-500 font-medium ml-1">({{ (int) ceil(now()->diffInDays($asset->eod_date)) }}d left)</span>
                             @endif
                         @else
                             <span class="text-slate-400">—</span>
@@ -276,7 +276,7 @@
                             @if($asset->isPastEol())
                                 <span class="text-[10px] text-rose-600 font-bold ml-1">(Obsolete / EOL)</span>
                             @else
-                                <span class="text-[10px] text-slate-500 font-medium ml-1">({{ now()->diffInDays($asset->eol_date) }}d left)</span>
+                                <span class="text-[10px] text-slate-500 font-medium ml-1">({{ (int) ceil(now()->diffInDays($asset->eol_date)) }}d left)</span>
                             @endif
                         @else
                             <span class="text-slate-400">—</span>

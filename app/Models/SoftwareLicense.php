@@ -78,7 +78,7 @@ class SoftwareLicense extends Model
             return false;
         }
 
-        return $this->expiry_date->isFuture() && $this->expiry_date->diffInDays(Carbon::now()) <= 30;
+        return $this->expiry_date->isFuture() && (int) ceil($this->expiry_date->diffInDays(Carbon::now())) <= 30;
     }
 
     /**
@@ -116,7 +116,7 @@ class SoftwareLicense extends Model
 
         if ($this->isExpiringSoon()) {
             return [
-                'label' => 'Expiring Soon ('.Carbon::now()->diffInDays($this->expiry_date).'d)',
+                'label' => 'Expiring Soon ('.(int) ceil(Carbon::now()->diffInDays($this->expiry_date)).'d)',
                 'class' => 'bg-amber-100 text-amber-800 border-amber-300',
             ];
         }

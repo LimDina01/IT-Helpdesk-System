@@ -686,17 +686,17 @@ class PortalAssetController extends Controller
 
                 $warrantyStatus = 'N/A';
                 if ($asset->warranty_expiry) {
-                    $warrantyStatus = $asset->warranty_expiry->isPast() ? 'Expired' : 'Active ('.now()->diffInDays($asset->warranty_expiry).'d left)';
+                    $warrantyStatus = $asset->warranty_expiry->isPast() ? 'Expired' : 'Active ('.(int) ceil(now()->diffInDays($asset->warranty_expiry)).'d left)';
                 }
 
                 $eodStatus = 'N/A';
                 if ($asset->eod_date) {
-                    $eodStatus = $asset->isPastEod() ? 'Past EOD (Depreciated / Overhaul Due)' : 'Normal ('.now()->diffInDays($asset->eod_date).'d left)';
+                    $eodStatus = $asset->isPastEod() ? 'Past EOD (Depreciated / Overhaul Due)' : 'Normal ('.(int) ceil(now()->diffInDays($asset->eod_date)).'d left)';
                 }
 
                 $eolStatus = 'N/A';
                 if ($asset->eol_date) {
-                    $eolStatus = $asset->isPastEol() ? 'Past EOL (Obsolete / Retirement Target)' : 'Normal ('.now()->diffInDays($asset->eol_date).'d left)';
+                    $eolStatus = $asset->isPastEol() ? 'Past EOL (Obsolete / Retirement Target)' : 'Normal ('.(int) ceil(now()->diffInDays($asset->eol_date)).'d left)';
                 }
 
                 fputcsv($handle, [

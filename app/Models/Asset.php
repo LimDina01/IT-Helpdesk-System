@@ -155,7 +155,7 @@ class Asset extends Model
         }
 
         if ($this->isWarrantyActive()) {
-            $daysLeft = now()->diffInDays($this->warranty_expiry);
+            $daysLeft = (int) ceil(now()->diffInDays($this->warranty_expiry));
 
             return [
                 'state' => 'under_warranty',

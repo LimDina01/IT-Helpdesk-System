@@ -834,7 +834,7 @@
                                                 {{ $asset->warranty_expiry->format('d-M-Y') }}
                                             </div>
                                             <div class="text-[10px] {{ $asset->warranty_expiry->isPast() ? 'text-rose-600' : 'text-emerald-600' }}">
-                                                {{ $asset->warranty_expiry->isPast() ? 'Expired' : now()->diffInDays($asset->warranty_expiry) . 'd left' }}
+                                                {{ $asset->warranty_expiry->isPast() ? 'Expired' : (int) ceil(now()->diffInDays($asset->warranty_expiry)) . 'd left' }}
                                             </div>
                                         @else
                                             <span class="text-slate-400">—</span>
@@ -846,7 +846,7 @@
                                                 {{ $asset->eod_date->format('d-M-Y') }}
                                             </div>
                                             <div class="text-[10px] {{ $asset->isPastEod() ? 'text-amber-700 font-bold' : 'text-slate-400' }}">
-                                                {{ $asset->isPastEod() ? '⚠️ Past EOD (100% Depreciated)' : now()->diffInDays($asset->eod_date) . 'd left' }}
+                                                {{ $asset->isPastEod() ? '⚠️ Past EOD (100% Depreciated)' : (int) ceil(now()->diffInDays($asset->eod_date)) . 'd left' }}
                                             </div>
                                         @else
                                             <span class="text-slate-400">—</span>
@@ -858,7 +858,7 @@
                                                 {{ $asset->eol_date->format('d-M-Y') }}
                                             </div>
                                             <div class="text-[10px] {{ $asset->isPastEol() ? 'text-rose-600 font-bold' : 'text-slate-400' }}">
-                                                {{ $asset->isPastEol() ? '🛑 Past EOL (Obsolete)' : now()->diffInDays($asset->eol_date) . 'd left' }}
+                                                {{ $asset->isPastEol() ? '🛑 Past EOL (Obsolete)' : (int) ceil(now()->diffInDays($asset->eol_date)) . 'd left' }}
                                             </div>
                                         @else
                                             <span class="text-slate-400">—</span>
