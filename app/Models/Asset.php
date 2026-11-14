@@ -29,6 +29,8 @@ class Asset extends Model
         'purchase_date',
         'purchase_cost',
         'warranty_expiry',
+        'eod_date',
+        'eol_date',
         'vendor_supplier',
         'notes',
     ];
@@ -37,6 +39,8 @@ class Asset extends Model
         'specs' => 'array',
         'purchase_date' => 'date',
         'warranty_expiry' => 'date',
+        'eod_date' => 'date',
+        'eol_date' => 'date',
         'purchase_cost' => 'decimal:2',
     ];
 
@@ -81,6 +85,94 @@ class Asset extends Model
     public function isShared(): bool
     {
         return $this->ownership_type === 'shared' || empty($this->assigned_user_id);
+    }
+
+    public function isPastEol(): bool
+    {
+        return $this->eol_date !== null && $this->eol_date->isPast();
+    }
+
+    public function isPastEod(): bool
+    {
+        return $this->eod_date !== null && $this->eod_date->isPast();
+    }
+
+    public function isWarrantyExpired(): bool
+    {
+        return $this->warranty_expiry !== null && $this->warranty_expiry->isPast();
+    }
+
+    public function isWarrantyActive(): bool
+    {
+        return $this->warranty_expiry !== null && ! $this->warranty_expiry->isPast();
+    }
+
+    /**
+     * Get lifecycle condition assessment (Warranty vs EOD vs EOL).
+     *
+     * @return array{state: string, label: string, class: string, icon: string, description: string}
+     */
+    public function getLifecycleStatusAttribute(): array
+    {
+        if ($this->status === 'decommissioned') {
+            return [
+                'state' => 'decommissioned',
+                'label' => 'Decommissioned',
+                'class' => 'bg-slate-100 text-slate-600 border-slate-300',
+                'icon' => '⚪',
+                'description' => 'Permanently retired from active inventory.',
+            ];
+        }
+
+        if ($this->isPastEol()) {
+            return [
+                'state' => 'eol',
+                'label' => 'End of Life (EOL)',
+                'class' => 'bg-rose-100 text-rose-800 border-rose-300',
+                'icon' => '🛑',
+                'description' => 'Hardware has reached End of Life (obsolete). Plan complete decommissioning.',
+            ];
+        }
+
+        if ($this->isPastEod()) {
+            return [
+                'state' => 'past_eod',
+                'label' => 'Past EOD (Due for Review/Fix)',
+                'class' => 'bg-amber-100 text-amber-900 border-amber-300',
+                'icon' => '⚠️',
+                'description' => 'Fully depreciated & recommended duty threshold reached. Check performance, overhaul, or budget replacement.',
+            ];
+        }
+
+        if ($this->isWarrantyExpired()) {
+            return [
+                'state' => 'out_of_warranty',
+                'label' => 'Out of Warranty',
+                'class' => 'bg-slate-100 text-slate-700 border-slate-300',
+                'icon' => '🛡️',
+                'description' => 'Supplier warranty ended, but still within normal useful operating lifecycle.',
+            ];
+        }
+
+        if ($this->isWarrantyActive()) {
+            $daysLeft = now()->diffInDays($this->warranty_expiry);
+
+            return [
+                'state' => 'under_warranty',
+                'label' => "Under Warranty ({$daysLeft}d left)",
+                'class' => 'bg-emerald-50 text-emerald-800 border-emerald-200',
+                'icon' => '🟢',
+                'description' => 'Covered under free supplier/manufacturer warranty.',
+            ];
+        }
+
+        return [
+            'state' => 'active',
+            'label' => 'Standard Lifecycle',
+            'class' => 'bg-blue-50 text-blue-700 border-blue-200',
+            'icon' => '✨',
+            'description' => 'Active hardware in regular operating rotation.',
+        ];
     }
 
     public function getStatusBadgeAttribute(): array

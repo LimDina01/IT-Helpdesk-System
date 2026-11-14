@@ -28,6 +28,7 @@ class PortalAssetController extends Controller
         $departmentId = $request->input('department_id');
         $ownershipType = $request->input('ownership_type');
         $status = $request->input('status');
+        $lifecycle = $request->input('lifecycle');
         $perPage = (int) $request->input('per_page', 10);
         if (! in_array($perPage, [10, 25, 50, 100])) {
             $perPage = 10;
@@ -69,6 +70,20 @@ class PortalAssetController extends Controller
             $assetsQuery->where('status', $status);
         }
 
+        if (! empty($lifecycle)) {
+            if ($lifecycle === 'past_eod') {
+                $assetsQuery->whereNotNull('eod_date')->where('eod_date', '<=', now()->toDateString());
+            } elseif ($lifecycle === 'past_eol') {
+                $assetsQuery->whereNotNull('eol_date')->where('eol_date', '<=', now()->toDateString());
+            } elseif ($lifecycle === 'expiring_warranty') {
+                $assetsQuery->whereNotNull('warranty_expiry')->whereBetween('warranty_expiry', [now()->toDateString(), now()->addDays(60)->toDateString()]);
+            } elseif ($lifecycle === 'out_of_warranty') {
+                $assetsQuery->whereNotNull('warranty_expiry')->where('warranty_expiry', '<', now()->toDateString());
+            } elseif ($lifecycle === 'under_warranty') {
+                $assetsQuery->whereNotNull('warranty_expiry')->where('warranty_expiry', '>=', now()->toDateString());
+            }
+        }
+
         $assets = $assetsQuery->paginate($perPage, ['*'], 'assets_page')->withQueryString();
 
         // 2. Spare Components Stock Query
@@ -104,6 +119,9 @@ class PortalAssetController extends Controller
         $spareAssetsCount = Asset::where('status', 'spare_stock')->count();
         $sharedLocationsCount = Asset::where('ownership_type', 'shared')->count();
         $spareComponentsCount = AssetComponent::where('status', 'in_stock')->count();
+        $pastEodCount = Asset::whereNotNull('eod_date')->where('eod_date', '<=', now()->toDateString())->where('status', '!=', 'decommissioned')->count();
+        $pastEolCount = Asset::whereNotNull('eol_date')->where('eol_date', '<=', now()->toDateString())->where('status', '!=', 'decommissioned')->count();
+        $expiringWarrantyCount = Asset::whereNotNull('warranty_expiry')->whereBetween('warranty_expiry', [now()->toDateString(), now()->addDays(60)->toDateString()])->where('status', '!=', 'decommissioned')->count();
 
         // Lookups for Modals & Filters
         $categories = AssetCategory::where('is_active', true)->orderBy('name')->get();
@@ -121,6 +139,7 @@ class PortalAssetController extends Controller
             'departmentId',
             'ownershipType',
             'status',
+            'lifecycle',
             'perPage',
             'compSearch',
             'compType',
@@ -130,6 +149,9 @@ class PortalAssetController extends Controller
             'spareAssetsCount',
             'sharedLocationsCount',
             'spareComponentsCount',
+            'pastEodCount',
+            'pastEolCount',
+            'expiringWarrantyCount',
             'categories',
             'branches',
             'departments',
@@ -163,6 +185,8 @@ class PortalAssetController extends Controller
             'purchase_date' => 'nullable|date',
             'purchase_cost' => 'nullable|numeric|min:0',
             'warranty_expiry' => 'nullable|date',
+            'eod_date' => 'nullable|date',
+            'eol_date' => 'nullable|date',
             'vendor_supplier' => 'nullable|string|max:150',
             'notes' => 'nullable|string',
         ]);
@@ -206,6 +230,8 @@ class PortalAssetController extends Controller
             'purchase_date' => $validated['purchase_date'] ?? null,
             'purchase_cost' => $validated['purchase_cost'] ?? null,
             'warranty_expiry' => $validated['warranty_expiry'] ?? null,
+            'eod_date' => $validated['eod_date'] ?? null,
+            'eol_date' => $validated['eol_date'] ?? null,
             'vendor_supplier' => $validated['vendor_supplier'] ?? null,
             'notes' => $validated['notes'] ?? null,
         ]);
@@ -278,6 +304,8 @@ class PortalAssetController extends Controller
             'purchase_date' => 'nullable|date',
             'purchase_cost' => 'nullable|numeric|min:0',
             'warranty_expiry' => 'nullable|date',
+            'eod_date' => 'nullable|date',
+            'eol_date' => 'nullable|date',
             'vendor_supplier' => 'nullable|string|max:150',
             'notes' => 'nullable|string',
         ]);
@@ -311,6 +339,8 @@ class PortalAssetController extends Controller
             'purchase_date' => $validated['purchase_date'] ?? null,
             'purchase_cost' => $validated['purchase_cost'] ?? null,
             'warranty_expiry' => $validated['warranty_expiry'] ?? null,
+            'eod_date' => $validated['eod_date'] ?? null,
+            'eol_date' => $validated['eol_date'] ?? null,
             'vendor_supplier' => $validated['vendor_supplier'] ?? null,
             'notes' => $validated['notes'] ?? null,
         ]);

@@ -12,6 +12,7 @@ use App\Models\Ticket;
 use App\Models\TicketCategory;
 use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
+use Database\Seeders\ItAssetSampleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -341,5 +342,74 @@ class AssetManagementTest extends TestCase
         $spareRam->refresh();
         $this->assertEquals($asset->id, $spareRam->asset_id);
         $this->assertEquals('installed', $spareRam->status);
+    }
+
+    public function test_asset_lifecycle_tracking_eod_and_eol_dates(): void
+    {
+        $this->actingAs($this->techUser);
+
+        $cat = AssetCategory::where('code', 'MEETING')->firstOrFail();
+
+        // 1. Register with EOD and EOL dates
+        $response = $this->post(route('portal.assets.store'), [
+            'asset_tag' => 'CBVH-PROJ-TEST',
+            'name' => 'Test Meeting Room Projector',
+            'category_id' => $cat->id,
+            'ownership_type' => 'shared',
+            'branch_id' => $this->hqBranch->id,
+            'status' => 'in_use',
+            'purchase_date' => '2023-01-15',
+            'purchase_cost' => 1200.00,
+            'warranty_expiry' => '2025-01-15',
+            'eod_date' => '2026-01-15',
+            'eol_date' => '2028-01-15',
+        ]);
+
+        $response->assertRedirect();
+        $asset = Asset::where('asset_tag', 'CBVH-PROJ-TEST')->firstOrFail();
+
+        $this->assertEquals('2026-01-15', $asset->eod_date->format('Y-m-d'));
+        $this->assertEquals('2028-01-15', $asset->eol_date->format('Y-m-d'));
+        $this->assertTrue($asset->isPastEod());
+        $this->assertFalse($asset->isPastEol());
+        $this->assertEquals('past_eod', $asset->lifecycle_status['state']);
+
+        // 2. Update Asset Profile with new dates
+        $updateResponse = $this->put(route('portal.assets.update', $asset->id), [
+            'asset_tag' => 'CBVH-PROJ-TEST',
+            'name' => 'Updated Projector Title',
+            'category_id' => $cat->id,
+            'ownership_type' => 'shared',
+            'branch_id' => $this->hqBranch->id,
+            'status' => 'in_use',
+            'purchase_date' => '2020-01-01',
+            'purchase_cost' => 1200.00,
+            'warranty_expiry' => '2022-01-01',
+            'eod_date' => '2023-01-01',
+            'eol_date' => '2025-01-01',
+        ]);
+
+        $updateResponse->assertRedirect();
+        $asset->refresh();
+
+        $this->assertEquals('2025-01-01', $asset->eol_date->format('Y-m-d'));
+        $this->assertTrue($asset->isPastEol());
+        $this->assertEquals('eol', $asset->lifecycle_status['state']);
+    }
+
+    public function test_asset_index_filters_by_lifecycle_status(): void
+    {
+        $this->actingAs($this->techUser);
+        $this->seed(ItAssetSampleSeeder::class);
+
+        // Index with past_eod filter
+        $responseEod = $this->get(route('portal.assets.index', ['lifecycle' => 'past_eod']));
+        $responseEod->assertOk();
+        $responseEod->assertSee('CBVH-DISP-0001');
+
+        // Index with past_eol filter
+        $responseEol = $this->get(route('portal.assets.index', ['lifecycle' => 'past_eol']));
+        $responseEol->assertOk();
+        $responseEol->assertSee('CBVH-PC-0035');
     }
 }

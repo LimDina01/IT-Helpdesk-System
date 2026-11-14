@@ -34,7 +34,7 @@
     </div>
 
     <!-- KPI Metric Cards -->
-    <div class="grid grid-cols-2 sm:grid-cols-5 gap-3.5">
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
         <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs">
             <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Hardware</div>
             <div class="text-xl font-black text-slate-900 mt-1">{{ $totalAssetsCount }}</div>
@@ -56,9 +56,14 @@
             <div class="text-[10px] text-slate-500 mt-0.5">Ready for deployment</div>
         </div>
         <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs">
-            <div class="text-[10px] font-bold text-amber-600 uppercase tracking-wider">Loose Spare Parts</div>
-            <div class="text-xl font-black text-amber-700 mt-1">{{ $spareComponentsCount }}</div>
-            <div class="text-[10px] text-slate-500 mt-0.5">RAM, SSDs, PSUs in storage</div>
+            <div class="text-[10px] font-bold text-amber-600 uppercase tracking-wider">Past EOD (Review)</div>
+            <div class="text-xl font-black text-amber-700 mt-1">{{ $pastEodCount }}</div>
+            <div class="text-[10px] text-slate-500 mt-0.5">Due for overhaul/budget</div>
+        </div>
+        <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs">
+            <div class="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Loose Spare Stock</div>
+            <div class="text-xl font-black text-slate-800 mt-1">{{ $spareComponentsCount }}</div>
+            <div class="text-[10px] text-slate-500 mt-0.5">RAM, SSDs, PSUs</div>
         </div>
     </div>
 
@@ -90,7 +95,7 @@
         <div class="space-y-4">
             <!-- Filter & Search Toolbar -->
             <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
-                <form method="GET" action="{{ route('portal.assets.index') }}" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-2.5">
+                <form method="GET" action="{{ route('portal.assets.index') }}" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-2.5">
                     <input type="hidden" name="tab" value="assets">
                     @if(isset($perPage) && $perPage != 10)
                         <input type="hidden" name="per_page" value="{{ $perPage }}">
@@ -104,7 +109,7 @@
                                placeholder="Search tag, name, serial, model... (Enter)"
                                class="w-full text-xs pl-8 pr-7 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-2xs">
                         <span class="absolute left-2.5 top-2.5 text-slate-400 text-xs">🔍</span>
-                        @if(!empty($search))
+                        @if(!empty($search) || !empty($lifecycle))
                             <a href="{{ route('portal.assets.index', array_filter(['tab' => 'assets', 'category_id' => $categoryId, 'branch_id' => $branchId, 'department_id' => $departmentId, 'ownership_type' => $ownershipType, 'status' => $status])) }}"
                                class="absolute right-2.5 top-2 text-xs text-slate-400 hover:text-slate-600 font-bold" title="Clear">✕</a>
                         @endif
@@ -129,17 +134,27 @@
                     <!-- Ownership Type (Personal vs Shared) -->
                     <select name="ownership_type" onchange="this.form.submit()" class="text-xs font-semibold px-2.5 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white text-slate-700">
                         <option value="">All Types (Personal &amp; Shared)</option>
-                        <option value="personal" {{ $ownershipType === 'personal' ? 'selected' : '' }}>👤 Personal (Assigned to Staff)</option>
-                        <option value="shared" {{ $ownershipType === 'shared' ? 'selected' : '' }}>🏢 Shared (Floor / Room / Area)</option>
+                        <option value="personal" {{ $ownershipType === 'personal' ? 'selected' : '' }}>👤 Personal (Staff)</option>
+                        <option value="shared" {{ $ownershipType === 'shared' ? 'selected' : '' }}>🏢 Shared (Area/Room)</option>
                     </select>
 
                     <!-- Status Filter -->
                     <select name="status" onchange="this.form.submit()" class="text-xs font-semibold px-2.5 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white text-slate-700">
                         <option value="">All Statuses</option>
-                        <option value="in_use" {{ $status === 'in_use' ? 'selected' : '' }}>🟢 In Use / Active</option>
-                        <option value="spare_stock" {{ $status === 'spare_stock' ? 'selected' : '' }}>🔵 Spare in Stock</option>
-                        <option value="under_repair" {{ $status === 'under_repair' ? 'selected' : '' }}>🟡 Under Repair / RMA</option>
+                        <option value="in_use" {{ $status === 'in_use' ? 'selected' : '' }}>🟢 In Use</option>
+                        <option value="spare_stock" {{ $status === 'spare_stock' ? 'selected' : '' }}>🔵 Spare Stock</option>
+                        <option value="under_repair" {{ $status === 'under_repair' ? 'selected' : '' }}>🟡 Under Repair</option>
                         <option value="decommissioned" {{ $status === 'decommissioned' ? 'selected' : '' }}>⚪ Decommissioned</option>
+                    </select>
+
+                    <!-- Lifecycle Filter (EOD / EOL / Warranty) -->
+                    <select name="lifecycle" onchange="this.form.submit()" class="text-xs font-semibold px-2.5 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white text-slate-700">
+                        <option value="">All Lifecycles</option>
+                        <option value="past_eod" {{ $lifecycle === 'past_eod' ? 'selected' : '' }}>⚠️ Past EOD (Due for Review)</option>
+                        <option value="past_eol" {{ $lifecycle === 'past_eol' ? 'selected' : '' }}>🛑 End of Life (EOL)</option>
+                        <option value="expiring_warranty" {{ $lifecycle === 'expiring_warranty' ? 'selected' : '' }}>🛡️ Warranty Expiring (&lt;60d)</option>
+                        <option value="under_warranty" {{ $lifecycle === 'under_warranty' ? 'selected' : '' }}>🟢 Under Active Warranty</option>
+                        <option value="out_of_warranty" {{ $lifecycle === 'out_of_warranty' ? 'selected' : '' }}>❌ Out of Warranty</option>
                     </select>
                 </form>
             </div>
@@ -214,10 +229,21 @@
                                     </td>
 
                                     <td class="py-3.5 px-4">
-                                        @php $badge = $asset->status_badge; @endphp
-                                        <span class="inline-flex items-center text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border {{ $badge['class'] }}">
-                                            {{ $badge['label'] }}
-                                        </span>
+                                        @php
+                                            $badge = $asset->status_badge;
+                                            $life = $asset->lifecycle_status;
+                                        @endphp
+                                        <div class="space-y-1">
+                                            <span class="inline-flex items-center text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border {{ $badge['class'] }}">
+                                                {{ $badge['label'] }}
+                                            </span>
+                                            <div>
+                                                <span class="inline-flex items-center space-x-1 text-[9px] font-bold px-2 py-0.5 rounded-md border {{ $life['class'] }}" title="{{ $life['description'] }}">
+                                                    <span>{{ $life['icon'] }}</span>
+                                                    <span>{{ $life['label'] }}</span>
+                                                </span>
+                                            </div>
+                                        </div>
                                     </td>
 
                                     <td class="py-3.5 px-4">
@@ -566,9 +592,33 @@
                         <input type="date" name="purchase_date" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
                     <div>
-                        <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Warranty Expiry</label>
-                        <input type="date" name="warranty_expiry" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Purchase Cost (USD)</label>
+                        <input type="number" step="0.01" min="0" name="purchase_cost" placeholder="e.g. 850.00" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
+                </div>
+
+                <!-- Lifecycle & Warranty Dates -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 bg-amber-50/50 rounded-2xl border border-amber-200/70">
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-800 uppercase mb-0.5">Warranty Expiry (EOW)</label>
+                        <span class="text-[10px] text-slate-500 block mb-1">Free supplier repair end</span>
+                        <input type="date" name="warranty_expiry" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-amber-900 uppercase mb-0.5">EOD Date (Depreciation)</label>
+                        <span class="text-[10px] text-amber-700 block mb-1">Recommended overhaul / $0 book</span>
+                        <input type="date" name="eod_date" class="w-full text-xs px-3 py-2 rounded-xl border border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-rose-900 uppercase mb-0.5">EOL Date (End of Life)</label>
+                        <span class="text-[10px] text-rose-700 block mb-1">Obsolescence / retirement target</span>
+                        <input type="date" name="eol_date" class="w-full text-xs px-3 py-2 rounded-xl border border-rose-300 focus:outline-none focus:ring-2 focus:ring-rose-500 bg-white">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Supplier / Vendor</label>
+                    <input type="text" name="vendor_supplier" placeholder="e.g. Anana Computer, Epson Cambodia" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
 
                 <div>

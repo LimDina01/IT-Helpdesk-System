@@ -73,6 +73,41 @@
         </div>
     @endif
 
+    <!-- Lifecycle Degradation & EOL Alert Banners -->
+    @if($asset->status !== 'decommissioned')
+        @if($asset->isPastEol())
+            <div class="bg-rose-50 border border-rose-200 rounded-2xl p-4 text-xs text-rose-900 flex items-start space-x-3 shadow-2xs">
+                <span class="text-xl">🛑</span>
+                <div>
+                    <div class="font-bold">Hardware End of Life (EOL) Reached</div>
+                    <div class="text-rose-700 mt-0.5">
+                        This equipment reached its designated End of Life on <strong>{{ $asset->eol_date->format('d-M-Y') }}</strong>. It is now considered obsolete, carries high risk of unrepairable component failure, and should be scheduled for formal decommissioning or replacement.
+                    </div>
+                </div>
+            </div>
+        @elseif($asset->isPastEod())
+            <div class="bg-amber-50 border border-amber-300/80 rounded-2xl p-4 text-xs text-amber-950 flex items-start space-x-3 shadow-2xs">
+                <span class="text-xl">⚠️</span>
+                <div>
+                    <div class="font-bold text-amber-900">End of Depreciation (EOD) / Recommended Useful Duty Life Reached</div>
+                    <div class="text-amber-800 mt-0.5">
+                        This machine passed its End of Depreciation threshold on <strong>{{ $asset->eod_date->format('d-M-Y') }}</strong> (financial book value is $0). While the device may still operate (e.g. projector bulb, older PC), performance degradation is expected. Recommend scheduling maintenance, bulb/part overhaul, or planning budget replacement.
+                    </div>
+                </div>
+            </div>
+        @elseif($asset->warranty_expiry && $asset->warranty_expiry->isFuture() && now()->diffInDays($asset->warranty_expiry) <= 60)
+            <div class="bg-blue-50 border border-blue-200 rounded-2xl p-4 text-xs text-blue-900 flex items-start space-x-3 shadow-2xs">
+                <span class="text-xl">🛡️</span>
+                <div>
+                    <div class="font-bold">Supplier Warranty Expiring Soon</div>
+                    <div class="text-blue-700 mt-0.5">
+                        Free vendor repair warranty ends in <strong>{{ now()->diffInDays($asset->warranty_expiry) }} days</strong> ({{ $asset->warranty_expiry->format('d-M-Y') }}). Inspect machine for any hardware flaws to claim manufacturer warranty repair before expiration.
+                    </div>
+                </div>
+            </div>
+        @endif
+    @endif
+
     <!-- 3-Column Asset Overview Cards -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <!-- 1. Hardware Specifications -->
@@ -163,13 +198,18 @@
             </div>
         </div>
 
-        <!-- 3. Purchase & Warranty Information -->
+        <!-- 3. Purchase & Lifecycle Information -->
         <div class="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs space-y-3">
             <div class="flex items-center justify-between border-b border-slate-100 pb-2.5">
                 <div class="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center space-x-1.5">
                     <span>🧾</span>
-                    <span>Purchase &amp; Warranty</span>
+                    <span>Purchase &amp; Lifecycle</span>
                 </div>
+                @php $life = $asset->lifecycle_status; @endphp
+                <span class="inline-flex items-center space-x-1 text-[10px] font-extrabold px-2 py-0.5 rounded-md border {{ $life['class'] }}">
+                    <span>{{ $life['icon'] }}</span>
+                    <span>{{ $life['label'] }}</span>
+                </span>
             </div>
 
             <div class="space-y-2 text-xs">
@@ -178,14 +218,18 @@
                     <span class="font-semibold text-slate-800">{{ $asset->purchase_date ? $asset->purchase_date->format('d-M-Y') : '—' }}</span>
                 </div>
                 <div class="flex justify-between py-1 border-b border-slate-50">
-                    <span class="text-slate-400">Warranty Expiry</span>
+                    <span class="text-slate-400">Purchase Cost</span>
+                    <span class="font-semibold text-slate-800">{{ $asset->purchase_cost ? '$' . number_format($asset->purchase_cost, 2) : '—' }}</span>
+                </div>
+                <div class="flex justify-between py-1 border-b border-slate-50">
+                    <span class="text-slate-400">Warranty Expiry (EOW)</span>
                     <span class="font-semibold text-slate-800">
                         @if($asset->warranty_expiry)
                             {{ $asset->warranty_expiry->format('d-M-Y') }}
                             @if($asset->warranty_expiry->isPast())
                                 <span class="text-[10px] text-rose-600 font-bold ml-1">(Expired)</span>
                             @else
-                                <span class="text-[10px] text-emerald-600 font-bold ml-1">({{ now()->diffInDays($asset->warranty_expiry) }} days left)</span>
+                                <span class="text-[10px] text-emerald-600 font-bold ml-1">({{ now()->diffInDays($asset->warranty_expiry) }}d left)</span>
                             @endif
                         @else
                             —
@@ -193,8 +237,34 @@
                     </span>
                 </div>
                 <div class="flex justify-between py-1 border-b border-slate-50">
-                    <span class="text-slate-400">Purchase Cost</span>
-                    <span class="font-semibold text-slate-800">{{ $asset->purchase_cost ? '$' . number_format($asset->purchase_cost, 2) : '—' }}</span>
+                    <span class="text-slate-400" title="End of Depreciation / Recommended Useful Duty Life">EOD (Depreciation)</span>
+                    <span class="font-semibold text-slate-800">
+                        @if($asset->eod_date)
+                            {{ $asset->eod_date->format('d-M-Y') }}
+                            @if($asset->isPastEod())
+                                <span class="text-[10px] text-amber-700 font-bold ml-1">(Past EOD • Fully Depreciated)</span>
+                            @else
+                                <span class="text-[10px] text-slate-500 font-medium ml-1">({{ now()->diffInDays($asset->eod_date) }}d left)</span>
+                            @endif
+                        @else
+                            <span class="text-slate-400">—</span>
+                        @endif
+                    </span>
+                </div>
+                <div class="flex justify-between py-1 border-b border-slate-50">
+                    <span class="text-slate-400" title="End of Life / Obsolescence Cutoff">EOL (End of Life)</span>
+                    <span class="font-semibold text-slate-800">
+                        @if($asset->eol_date)
+                            {{ $asset->eol_date->format('d-M-Y') }}
+                            @if($asset->isPastEol())
+                                <span class="text-[10px] text-rose-600 font-bold ml-1">(Obsolete / EOL)</span>
+                            @else
+                                <span class="text-[10px] text-slate-500 font-medium ml-1">({{ now()->diffInDays($asset->eol_date) }}d left)</span>
+                            @endif
+                        @else
+                            <span class="text-slate-400">—</span>
+                        @endif
+                    </span>
                 </div>
                 <div class="flex justify-between py-1">
                     <span class="text-slate-400">Supplier / Vendor</span>
@@ -536,13 +606,37 @@
                         </select>
                     </div>
                     <div>
-                        <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Warranty Expiry</label>
-                        <input type="date" name="warranty_expiry" value="{{ $asset->warranty_expiry ? $asset->warranty_expiry->format('Y-m-d') : '' }}" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Purchase Date</label>
+                        <input type="date" name="purchase_date" value="{{ $asset->purchase_date ? $asset->purchase_date->format('Y-m-d') : '' }}" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
                     <div>
-                        <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Supplier</label>
-                        <input type="text" name="vendor_supplier" value="{{ $asset->vendor_supplier }}" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Purchase Cost (USD)</label>
+                        <input type="number" step="0.01" min="0" name="purchase_cost" value="{{ $asset->purchase_cost }}" placeholder="e.g. 850.00" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
+                </div>
+
+                <!-- Lifecycle & Warranty Dates -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 bg-amber-50/50 rounded-2xl border border-amber-200/70">
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-800 uppercase mb-0.5">Warranty Expiry (EOW)</label>
+                        <span class="text-[10px] text-slate-500 block mb-1">Free supplier repair end</span>
+                        <input type="date" name="warranty_expiry" value="{{ $asset->warranty_expiry ? $asset->warranty_expiry->format('Y-m-d') : '' }}" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-amber-900 uppercase mb-0.5">EOD Date (Depreciation)</label>
+                        <span class="text-[10px] text-amber-700 block mb-1">Recommended overhaul / $0 book</span>
+                        <input type="date" name="eod_date" value="{{ $asset->eod_date ? $asset->eod_date->format('Y-m-d') : '' }}" class="w-full text-xs px-3 py-2 rounded-xl border border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-rose-900 uppercase mb-0.5">EOL Date (End of Life)</label>
+                        <span class="text-[10px] text-rose-700 block mb-1">Obsolescence / retirement target</span>
+                        <input type="date" name="eol_date" value="{{ $asset->eol_date ? $asset->eol_date->format('Y-m-d') : '' }}" class="w-full text-xs px-3 py-2 rounded-xl border border-rose-300 focus:outline-none focus:ring-2 focus:ring-rose-500 bg-white">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Supplier / Vendor</label>
+                    <input type="text" name="vendor_supplier" value="{{ $asset->vendor_supplier }}" placeholder="e.g. Anana Computer, Epson Cambodia" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
 
                 <div>

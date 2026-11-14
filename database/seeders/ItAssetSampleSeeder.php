@@ -73,6 +73,8 @@ class ItAssetSampleSeeder extends Seeder
                 'purchase_date' => '2024-03-15',
                 'purchase_cost' => 1250.00,
                 'warranty_expiry' => '2027-03-15',
+                'eod_date' => '2028-03-15',
+                'eol_date' => '2029-03-15',
                 'vendor_supplier' => 'Anana Computer Cambodia',
                 'notes' => 'High-performance workstation configured for graphic design, CAD jewelry rendering, and system management.',
             ]
@@ -101,7 +103,9 @@ class ItAssetSampleSeeder extends Seeder
                 ],
                 'purchase_date' => '2024-01-10',
                 'purchase_cost' => 1120.00,
-                'warranty_expiry' => '2027-01-10',
+                'warranty_expiry' => '2026-12-15',
+                'eod_date' => '2027-01-10',
+                'eol_date' => '2028-01-10',
                 'vendor_supplier' => 'Chantrea Technology',
                 'notes' => 'Executive laptop with BitLocker encryption and ERP financial module access.',
             ]
@@ -131,6 +135,8 @@ class ItAssetSampleSeeder extends Seeder
                 'purchase_date' => '2023-08-20',
                 'purchase_cost' => 690.00,
                 'warranty_expiry' => '2026-08-20',
+                'eod_date' => '2026-08-20',
+                'eol_date' => '2028-08-20',
                 'vendor_supplier' => 'Anana Computer Cambodia',
             ]
         );
@@ -159,6 +165,8 @@ class ItAssetSampleSeeder extends Seeder
                 'purchase_date' => '2023-04-10',
                 'purchase_cost' => 640.00,
                 'warranty_expiry' => '2026-04-10',
+                'eod_date' => '2026-04-10',
+                'eol_date' => '2026-10-30',
                 'vendor_supplier' => 'Anana Computer Cambodia',
                 'notes' => 'Assigned to Ops Staff Meng. Previously experienced HDD slowdowns and memory blue screens.',
             ]
@@ -188,6 +196,8 @@ class ItAssetSampleSeeder extends Seeder
                 'purchase_date' => '2024-02-01',
                 'purchase_cost' => 740.00,
                 'warranty_expiry' => '2027-02-01',
+                'eod_date' => '2027-02-01',
+                'eol_date' => '2028-02-01',
                 'vendor_supplier' => 'Chantrea Technology',
             ]
         );
@@ -215,6 +225,8 @@ class ItAssetSampleSeeder extends Seeder
                 'purchase_date' => '2024-06-12',
                 'purchase_cost' => 760.00,
                 'warranty_expiry' => '2026-06-12',
+                'eod_date' => '2027-06-12',
+                'eol_date' => '2028-06-12',
                 'vendor_supplier' => 'PTC Computer',
             ]
         );
@@ -244,6 +256,8 @@ class ItAssetSampleSeeder extends Seeder
                 'purchase_date' => '2023-11-05',
                 'purchase_cost' => 1480.00,
                 'warranty_expiry' => '2025-11-05',
+                'eod_date' => '2026-11-05',
+                'eol_date' => '2028-11-05',
                 'vendor_supplier' => 'Epson Cambodia Authorized Distributor',
                 'notes' => 'Dedicated for board meetings, slide presentations, and company town halls. Remote is kept on the podium.',
             ]
@@ -272,6 +286,8 @@ class ItAssetSampleSeeder extends Seeder
                 'purchase_date' => '2024-02-18',
                 'purchase_cost' => 1350.00,
                 'warranty_expiry' => '2026-02-18',
+                'eod_date' => '2027-02-18',
+                'eol_date' => '2029-02-18',
                 'vendor_supplier' => 'Kfour Group Cambodia',
                 'notes' => 'Used for team sprint meetings, Google Meet video conferences, and slides.',
             ]
@@ -301,6 +317,8 @@ class ItAssetSampleSeeder extends Seeder
                 'purchase_date' => '2023-05-12',
                 'purchase_cost' => 2850.00,
                 'warranty_expiry' => '2026-05-12',
+                'eod_date' => '2026-11-12',
+                'eol_date' => '2028-05-12',
                 'vendor_supplier' => 'Royal Cambodia Co., Ltd.',
                 'notes' => 'Shared heavy-duty floor copier. Toner model: NPG-84 (Cyan, Magenta, Yellow, Black).',
             ]
@@ -329,6 +347,8 @@ class ItAssetSampleSeeder extends Seeder
                 'purchase_date' => '2024-04-01',
                 'purchase_cost' => 720.00,
                 'warranty_expiry' => '2025-04-01',
+                'eod_date' => '2027-04-01',
+                'eol_date' => '2029-04-01',
                 'vendor_supplier' => 'Smart POS Solutions Cambodia',
                 'notes' => 'Connected to retail sales billing software and thermal receipt printing.',
             ]
@@ -357,6 +377,8 @@ class ItAssetSampleSeeder extends Seeder
                 'purchase_date' => '2023-09-10',
                 'purchase_cost' => 960.00,
                 'warranty_expiry' => '2026-09-10',
+                'eod_date' => '2028-09-10',
+                'eol_date' => '2030-09-10',
                 'vendor_supplier' => 'First Cambodia Co., Ltd.',
                 'notes' => 'Powers CCTV cameras, branch VoIP phones, and Aruba Wi-Fi Access Points.',
             ]
