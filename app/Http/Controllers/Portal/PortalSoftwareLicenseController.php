@@ -76,6 +76,10 @@ class PortalSoftwareLicenseController extends Controller
      */
     public function destroy(SoftwareLicense $license): RedirectResponse
     {
+        if (! Auth::user()->hasRole(['hod', 'system_admin'])) {
+            abort(403, 'Only HOD or System Admin can permanently delete software licenses.');
+        }
+
         $name = $license->name;
         $license->delete();
 

@@ -193,4 +193,27 @@ class SoftwareLicenseManagementTest extends TestCase
         $duplicateResponse->assertSessionHas('error');
         $this->assertEquals(1, SoftwareLicenseAssignment::where('software_license_id', $license->id)->where('user_id', $this->regularUser->id)->count());
     }
+
+    public function test_technician_cannot_delete_software_license_but_admin_can(): void
+    {
+        $license = SoftwareLicense::create([
+            'name' => 'Canva Enterprise Team',
+            'license_type' => 'subscription',
+            'seats_total' => 5,
+            'billing_cycle' => 'annual',
+            'status' => 'active',
+        ]);
+
+        // 1. Technician tries to delete license -> 403 Forbidden
+        $this->actingAs($this->techUser);
+        $techResponse = $this->delete(route('portal.assets.licenses.destroy', $license->id));
+        $techResponse->assertForbidden();
+        $this->assertDatabaseHas('software_licenses', ['id' => $license->id]);
+
+        // 2. Admin deletes license -> Succeeds
+        $this->actingAs($this->adminUser);
+        $adminResponse = $this->delete(route('portal.assets.licenses.destroy', $license->id));
+        $adminResponse->assertRedirect(route('portal.assets.index', ['tab' => 'licenses']));
+        $this->assertDatabaseMissing('software_licenses', ['id' => $license->id]);
+    }
 }

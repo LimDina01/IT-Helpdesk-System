@@ -513,6 +513,10 @@ class PortalAssetController extends Controller
      */
     public function destroy(Asset $asset): RedirectResponse
     {
+        if (! Auth::user()->hasRole(['hod', 'system_admin'])) {
+            abort(403, 'Only HOD or System Admin can permanently delete assets.');
+        }
+
         $tag = $asset->asset_tag;
         $asset->delete();
 

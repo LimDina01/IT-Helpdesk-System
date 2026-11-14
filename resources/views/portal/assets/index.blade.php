@@ -1120,6 +1120,7 @@
                                                 title="Edit License">
                                             ✏️ Edit
                                         </button>
+                                        @if(Auth::user()->hasRole(['hod', 'system_admin']))
                                         <form method="POST" action="{{ route('portal.assets.licenses.destroy', $lic->id) }}" class="inline" onsubmit="return confirm('Delete software license &quot;{{ $lic->name }}&quot;?');">
                                             @csrf
                                             @method('DELETE')
@@ -1127,6 +1128,7 @@
                                                 ✕
                                             </button>
                                         </form>
+                                        @endif
                                     </td>
                                 </tr>
                                 <!-- Sub-row: Allocated Seats Breakdown -->

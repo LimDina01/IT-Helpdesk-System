@@ -501,4 +501,29 @@ class AssetManagementTest extends TestCase
         $this->assertEquals(1500.00, (float) $adminAsset->purchase_cost);
         $this->assertEquals('Admin Registered Laptop (Updated by Tech)', $adminAsset->name);
     }
+
+    public function test_technician_cannot_delete_asset_but_admin_can(): void
+    {
+        $cat = AssetCategory::where('code', 'WORKSTATION')->firstOrFail();
+
+        $asset = Asset::create([
+            'asset_tag' => 'CBVH-DEL-TEST',
+            'name' => 'To Be Deleted PC',
+            'category_id' => $cat->id,
+            'ownership_type' => 'shared',
+            'status' => 'spare_stock',
+        ]);
+
+        // 1. Technician tries to delete asset -> 403 Forbidden
+        $this->actingAs($this->techUser);
+        $techResponse = $this->delete(route('portal.assets.destroy', $asset->id));
+        $techResponse->assertForbidden();
+        $this->assertDatabaseHas('assets', ['id' => $asset->id]);
+
+        // 2. Admin deletes asset -> Succeeds
+        $this->actingAs($this->adminUser);
+        $adminResponse = $this->delete(route('portal.assets.destroy', $asset->id));
+        $adminResponse->assertRedirect(route('portal.assets.index'));
+        $this->assertDatabaseMissing('assets', ['id' => $asset->id]);
+    }
 }

@@ -48,6 +48,7 @@
                 <span>✏️</span>
                 <span>Edit Asset</span>
             </button>
+            @if(Auth::user()->hasRole(['hod', 'system_admin']))
             <form method="POST" action="{{ route('portal.assets.destroy', $asset->id) }}" onsubmit="return confirm('Are you sure you want to delete asset {{ $asset->asset_tag }}?');">
                 @csrf
                 @method('DELETE')
@@ -55,6 +56,7 @@
                     <span>🗑️</span>
                 </button>
             </form>
+            @endif
         </div>
     </div>
 
