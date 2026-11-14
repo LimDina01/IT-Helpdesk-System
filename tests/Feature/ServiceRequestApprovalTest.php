@@ -432,11 +432,17 @@ class ServiceRequestApprovalTest extends TestCase
         $step1 = $ticket->approvals()->where('step_number', 1)->first();
         $step2 = $ticket->approvals()->where('step_number', 2)->first();
 
-        // Step 1 should be auto-passed since Bak Touk branch has no local Finance HOD
-        $this->assertEquals('approved', $step1->status);
-        $this->assertStringContainsString('Branch department has no designated HOD', $step1->comments);
+        // Step 1 is intelligent Auto-Assigned to department HOD fallback as PENDING (never skips as no approver!)
+        $this->assertEquals('pending', $step1->status);
+        $this->assertNotNull($step1->approver_id);
 
-        // Step 2 is immediately pending and Central IT HOD can approve right away
+        // Department fallback approver approves Step 1
+        $assignedApprover = User::find($step1->approver_id);
+        $this->assertTrue($approvalService->canUserApprove($assignedApprover, $step1));
+        $this->assertTrue($approvalService->approve($step1, $assignedApprover, 'Approved by Department Approver'));
+
+        // Step 2 is now pending and Central IT HOD can approve
+        $step2->refresh();
         $this->assertEquals('pending', $step2->status);
         $this->assertTrue($approvalService->canUserApprove($this->itHodUser, $step2));
 

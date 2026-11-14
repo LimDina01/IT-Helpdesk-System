@@ -684,6 +684,9 @@
                     @if($ticket->isPendingApproval() && $currentApproval)
                         <span class="bg-purple-100 text-purple-800 font-bold text-xs px-3 py-1 rounded-full border border-purple-200">
                             Waiting on: {{ $currentApproval->step_name }}
+                            @if($currentApproval->approver)
+                                ({{ $currentApproval->approver->name }})
+                            @endif
                         </span>
                     @elseif($ticket->isRejected())
                         <span class="bg-rose-100 text-rose-800 font-bold text-xs px-3 py-1 rounded-full border border-rose-200">
@@ -740,7 +743,18 @@
                             @endif
                         </div>
 
-                        @if($approval->status !== 'pending')
+                        @if($approval->status === 'pending' && $approval->approver)
+                            <div class="mt-2 pt-2 border-t border-purple-200/60 text-[11px] space-y-1">
+                                <div class="text-purple-900 font-semibold">
+                                    Assigned Approver: <strong>{{ $approval->approver->name }}</strong>
+                                </div>
+                                @if($approval->comments)
+                                    <div class="text-purple-800 italic text-[11px] bg-purple-100/60 p-1.5 rounded">
+                                        "{{ $approval->comments }}"
+                                    </div>
+                                @endif
+                            </div>
+                        @elseif($approval->status !== 'pending')
                             <div class="mt-2 pt-2 border-t border-slate-200/60 text-[11px] space-y-1">
                                 <div class="text-slate-600">
                                     Actioned by: <strong>{{ $approval->approver->name ?? 'System' }}</strong>

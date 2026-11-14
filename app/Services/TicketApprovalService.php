@@ -239,13 +239,67 @@ class TicketApprovalService
             }
         }
 
-        if (! $hasDeptHod && ! $isItDept && $deptId && $branchId) {
-            $hasDeptHod = User::whereHas('roles', fn ($q) => $q->where('name', 'hod'))
-                ->whereNotNull('employee_id')
-                ->where('email', '!=', 'admin@cbvh.com.kh')
-                ->where('id', '!=', $requester->id)
-                ->whereHas('employee', fn ($q) => $q->where('department_id', $deptId)->where('branch_id', $branchId))
-                ->exists();
+        if (! $hasDeptHod && ! $isItDept) {
+            // Intelligent Auto / Role Fallback:
+            // 1. Parent Department Head (e.g. IT-SOL -> IT Department Head)
+            if ($department && $department->parent && $department->parent->head_user_id && $department->parent->head_user_id !== $requester->id) {
+                $step1ApproverId = $department->parent->head_user_id;
+                $step1Name = "Department Manager Approval ({$department->parent->name})";
+                $step1Role = 'department_hod';
+                $hasDeptHod = true;
+            }
+
+            // 2. Any designated HOD user in this department (branch-specific first, then any branch)
+            if (! $hasDeptHod && $deptId) {
+                $deptHodUser = null;
+                if ($branchId) {
+                    $deptHodUser = User::whereHas('roles', fn ($q) => $q->where('name', 'hod'))
+                        ->where('id', '!=', $requester->id)
+                        ->whereHas('employee', fn ($q) => $q->where('department_id', $deptId)->where('branch_id', $branchId))
+                        ->first();
+                }
+
+                if (! $deptHodUser) {
+                    $deptHodUser = User::whereHas('roles', fn ($q) => $q->where('name', 'hod'))
+                        ->where('id', '!=', $requester->id)
+                        ->whereHas('employee', fn ($q) => $q->where('department_id', $deptId))
+                        ->first();
+                }
+
+                if ($deptHodUser) {
+                    $step1ApproverId = $deptHodUser->id;
+                    $step1Name = 'Department HOD Approval';
+                    $step1Role = 'department_hod';
+                    $hasDeptHod = true;
+                }
+            }
+
+            // 3. Branch Manager (for physical bank branch requests)
+            if (! $hasDeptHod && $branchId) {
+                $branch = Branch::find($branchId);
+                if ($branch && $branch->manager_user_id && $branch->manager_user_id !== $requester->id) {
+                    $step1ApproverId = $branch->manager_user_id;
+                    $step1Name = "Branch Manager Approval ({$branch->name})";
+                    $step1Role = 'department_supervisor';
+                    $hasDeptHod = true;
+                }
+            }
+
+            // 4. Central Management / System Admin (Company-wide fallback when department has no local manager)
+            // Creates a real PENDING Step 1 for Central Management rather than skipping approval!
+            if (! $hasDeptHod) {
+                $centralAdmin = User::whereHas('roles', fn ($q) => $q->whereIn('name', ['system_admin', 'hod']))
+                    ->where('id', '!=', $requester->id)
+                    ->orderBy('id')
+                    ->first();
+
+                if ($centralAdmin) {
+                    $step1ApproverId = $centralAdmin->id;
+                    $step1Name = 'Management Approval (Central Fallback)';
+                    $step1Role = 'department_hod';
+                    $hasDeptHod = true;
+                }
+            }
         }
 
         $itDivision = $ticket->it_division ?? $ticket->category?->it_division ?? 'opr';
@@ -390,8 +444,36 @@ class TicketApprovalService
             return true;
         }
 
+        // Escalation endorsement check:
+        // An approver who just endorsed and escalated this step cannot self-approve their own escalation!
+        if ($approval->step_number > 1) {
+            $previousStep = $ticket->approvals()
+                ->where('step_number', $approval->step_number - 1)
+                ->first();
+            if ($previousStep && $previousStep->approver_id === $user->id && str_contains(strtolower($previousStep->comments ?? ''), 'escalat') && ! $user->hasRole('system_admin')) {
+                return false;
+            }
+        }
+
+        // 1. Direct Assigned Approver Match (Forwarded, Explicitly Assigned, or Auto-assigned fallback)
         if ($approval->approver_id && $approval->approver_id === $user->id) {
             return true;
+        }
+
+        // 2. System Administrator Superuser Override (Can approve escalated steps, intermediate steps, IT steps, or fallback steps)
+        if ($user->hasRole('system_admin')) {
+            $isEscalatedStep = str_contains(strtolower($approval->step_name ?? ''), 'escalat') || str_contains(strtolower($approval->step_name ?? ''), 'central management');
+            $isBusinessStep1 = $approval->step_number === 1 && in_array($approval->role_name, ['department_hod', 'department_supervisor']);
+            $targetDeptId = $approval->department_id ?? $ticket->requester->employee?->department_id;
+            $targetDeptCode = $targetDeptId ? Department::where('id', $targetDeptId)->value('code') : null;
+            $isNonItBusiness = $targetDeptCode && ! in_array($targetDeptCode, ['IT', 'IT-OPR', 'IT-PRD']) && $targetDeptId != 2;
+
+            // If it's a regular, non-escalated Step 1 for an external business department (e.g. Operations), the business HOD must approve first!
+            if (! $isEscalatedStep && $isBusinessStep1 && $isNonItBusiness) {
+                // Do not auto-approve as system_admin; let business department rules decide below
+            } else {
+                return true;
+            }
         }
 
         $userDeptCode = $user->employee?->department?->code;
@@ -784,7 +866,7 @@ class TicketApprovalService
     }
 
     /**
-     * Get current approval step's logical level (1 = Team Leader, 2 = Supervisor, 3 = Manager/HOD).
+     * Get current approval step's logical level (1 = Team Leader, 2 = Supervisor, 3 = Manager/HOD, 4 = Central Management/Admin).
      */
     public function getApprovalStepLevel(TicketApproval $approval): int
     {
@@ -794,36 +876,62 @@ class TicketApprovalService
 
         $deptId = $approval->department_id ?? $approval->ticket->department_id ?? $approval->ticket->requester->employee?->department_id;
         $branchId = $approval->branch_id ?? $approval->ticket->branch_id ?? $approval->ticket->requester->employee?->branch_id;
+        $dept = $deptId ? Department::find($deptId) : null;
 
-        // 1. If an approver is explicitly assigned, check if they have a card in this dept & branch
-        if ($approval->approver_id && $deptId) {
-            $card = DepartmentApprover::where('department_id', $deptId)
-                ->where('user_id', $approval->approver_id)
-                ->where('is_active', true)
-                ->when($branchId, fn ($q) => $q->where(fn ($sub) => $sub->where('branch_id', $branchId)->orWhereNull('branch_id')))
-                ->orderBy('level')
-                ->first();
+        // 1. If an approver is explicitly assigned, check their card/role
+        if ($approval->approver_id) {
+            if ($deptId) {
+                $card = DepartmentApprover::where('department_id', $deptId)
+                    ->where('user_id', $approval->approver_id)
+                    ->where('is_active', true)
+                    ->when($branchId, fn ($q) => $q->where(fn ($sub) => $sub->where('branch_id', $branchId)->orWhereNull('branch_id')))
+                    ->orderBy('level', 'desc')
+                    ->first();
 
-            if ($card) {
-                return (int) $card->level;
+                if ($card) {
+                    return (int) $card->level;
+                }
             }
 
             // If assigned approver is line manager of the requester -> Level 1 (Team Leader)
             if ($approval->ticket->requester->employee?->line_manager_user_id === $approval->approver_id) {
                 return 1;
             }
+
+            if ($dept && $dept->head_user_id === $approval->approver_id) {
+                return 3;
+            }
+
+            $assignedUser = User::find($approval->approver_id);
+            if ($assignedUser?->hasRole('system_admin')) {
+                return 4;
+            }
+            if ($assignedUser?->hasRole('hod')) {
+                return 3;
+            }
         }
 
-        // 2. Infer from step name if it contains level indicator
+        // 2. Infer from role_name
+        if ($approval->role_name === 'department_hod') {
+            return 3;
+        }
+        if (in_array($approval->role_name, ['branch_manager', 'division_head'])) {
+            return 4;
+        }
+
+        // 3. Infer from step name if it contains level indicator
         $name = strtolower($approval->step_name ?? '');
-        if (str_contains($name, 'level 1') || str_contains($name, 'team leader')) {
+        if (str_contains($name, 'level 1') || str_contains($name, 'team leader') || str_contains($name, 'line manager')) {
             return 1;
         }
         if (str_contains($name, 'level 2') || str_contains($name, 'supervisor')) {
             return 2;
         }
-        if (str_contains($name, 'level 3') || str_contains($name, 'department manager') || str_contains($name, 'hod')) {
+        if (str_contains($name, 'level 3') || str_contains($name, 'department manager') || str_contains($name, 'head') || str_contains($name, 'hod')) {
             return 3;
+        }
+        if (str_contains($name, 'branch manager') || str_contains($name, 'division') || str_contains($name, 'general manager') || str_contains($name, 'director') || str_contains($name, 'central management')) {
+            return 4;
         }
 
         return 1;
@@ -836,10 +944,14 @@ class TicketApprovalService
      * 1 = Team Leader / Line Manager
      * 2 = Supervisor
      * 3 = Department Manager / HOD
-     * 4 = General Manager / Director
+     * 4 = General Manager / Director / System Admin
      */
     public function getUserApproverLevel(User $user, ?int $departmentId = null, ?int $branchId = null): int
     {
+        if ($user->hasRole('system_admin')) {
+            return 4;
+        }
+
         if ($user->isItHod()) {
             return 3;
         }
@@ -915,18 +1027,33 @@ class TicketApprovalService
             if ($targetApprover && ! $this->canEscalateTo($targetApprover, $approval, $actor)) {
                 return false;
             }
-            if ($targetApprover && $department) {
-                $card = DepartmentApprover::where('department_id', $department->id)
-                    ->where('user_id', $targetApprover->id)
-                    ->where('is_active', true)
-                    ->when($approval->branch_id, fn ($q) => $q->where(fn ($sub) => $sub->where('branch_id', $approval->branch_id)->orWhereNull('branch_id')))
-                    ->orderBy('level')
-                    ->first();
+            if ($targetApprover) {
+                $titleConfigured = false;
+                if ($department) {
+                    $card = DepartmentApprover::where('department_id', $department->id)
+                        ->where('user_id', $targetApprover->id)
+                        ->where('is_active', true)
+                        ->when($approval->branch_id, fn ($q) => $q->where(fn ($sub) => $sub->where('branch_id', $approval->branch_id)->orWhereNull('branch_id')))
+                        ->orderBy('level')
+                        ->first();
 
-                if ($card && $card->title) {
-                    $stepTitle = "{$card->title} Approval";
-                } elseif ($card) {
-                    $stepTitle = "Level {$card->level} Approval";
+                    if ($card && $card->title) {
+                        $stepTitle = "{$card->title} Approval";
+                        $titleConfigured = true;
+                    } elseif ($card) {
+                        $stepTitle = "Level {$card->level} Approval";
+                        $titleConfigured = true;
+                    }
+                }
+
+                if (! $titleConfigured) {
+                    if ($targetApprover->hasRole('system_admin')) {
+                        $stepTitle = 'Central Management Approval';
+                        $roleName = 'department_supervisor';
+                    } elseif ($targetApprover->hasRole('hod')) {
+                        $stepTitle = 'Department Head Approval';
+                        $roleName = 'department_hod';
+                    }
                 }
             }
         }
@@ -964,9 +1091,31 @@ class TicketApprovalService
             } elseif ($department->head_user_id && $department->head_user_id !== $actor->id && $department->head_user_id !== $ticket->requester_id) {
                 $targetApprover = User::find($department->head_user_id);
                 $stepTitle = 'Department Head Approval';
+                $roleName = 'department_hod';
             } elseif ($department->parent && $department->parent->head_user_id && $department->parent->head_user_id !== $actor->id) {
                 $targetApprover = User::find($department->parent->head_user_id);
                 $stepTitle = "Parent Department Head ({$department->parent->name}) Approval";
+                $roleName = 'department_hod';
+            } elseif ($approval->branch_id) {
+                $branch = Branch::find($approval->branch_id);
+                if ($branch && $branch->manager_user_id && $branch->manager_user_id !== $actor->id) {
+                    $targetApprover = User::find($branch->manager_user_id);
+                    $stepTitle = "Branch Manager Approval ({$branch->name})";
+                    $roleName = 'department_supervisor';
+                }
+            }
+
+            // Central Management / System Admin fallback
+            if (! $targetApprover) {
+                $targetApprover = User::whereHas('roles', fn ($q) => $q->where('name', 'system_admin'))
+                    ->where('id', '!=', $actor->id)
+                    ->where('id', '!=', $ticket->requester_id)
+                    ->orderBy('id')
+                    ->first();
+                if ($targetApprover) {
+                    $stepTitle = 'Central Management Approval';
+                    $roleName = 'department_supervisor';
+                }
             }
         }
 
@@ -1000,7 +1149,7 @@ class TicketApprovalService
             'branch_id' => $approval->branch_id,
             'approver_id' => $targetApprover?->id,
             'status' => 'pending',
-            'comments' => null,
+            'comments' => "Escalated from {$actor->name}".($comment ? ": {$comment}" : ''),
         ]);
 
         // 5. Audit Log & Ticket Chat Message
@@ -1233,6 +1382,14 @@ class TicketApprovalService
             ->when($parentHeadId, fn ($c) => $c->push($parentHeadId))
             ->unique()
             ->reject(fn ($id) => $id == $currentUser->id || $id == $requesterId);
+
+        // Fallback to System Admins ONLY if no departmental or branch superiors exist (e.g. for top-level HODs)
+        if ($superiorIds->isEmpty()) {
+            $adminSuperiorIds = User::where('is_active', true)
+                ->whereHas('roles', fn ($r) => $r->where('name', 'system_admin'))
+                ->pluck('id');
+            $superiorIds = $adminSuperiorIds->reject(fn ($id) => $id == $currentUser->id || $id == $requesterId);
+        }
 
         if ($superiorIds->isEmpty()) {
             return collect();

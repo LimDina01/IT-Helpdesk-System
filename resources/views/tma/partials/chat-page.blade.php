@@ -85,8 +85,16 @@
                         <span class="text-amber-600 font-bold">🔔</span>
                         <span class="font-bold text-xs text-amber-900" x-text="locale === 'km' ? 'តម្រូវឱ្យមានការអនុម័តរបស់អ្នក' : 'Your Approval is Required'">Your Approval is Required</span>
                     </div>
-                    <span class="text-[10px] bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full font-bold" x-text="selectedTicket?.current_approval_step?.step_name"></span>
+                    <div class="flex items-center space-x-1">
+                        <span class="text-[10px] bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full font-bold" x-text="selectedTicket?.current_approval_step?.step_name"></span>
+                        <template x-if="selectedTicket?.current_approval_step?.approver_name">
+                            <span class="text-[10px] bg-amber-100 border border-amber-300 text-amber-900 px-2 py-0.5 rounded-full font-semibold" x-text="selectedTicket.current_approval_step.approver_name"></span>
+                        </template>
+                    </div>
                 </div>
+                <template x-if="selectedTicket?.current_approval_step?.comments">
+                    <div class="text-[11px] text-amber-900 bg-amber-100/90 border border-amber-300/70 p-2 rounded-xl italic leading-tight" x-text="selectedTicket.current_approval_step.comments"></div>
+                </template>
                 <p class="text-[11px] text-amber-800 leading-snug">
                     <span x-text="locale === 'km' ? 'អ្នកស្នើ' : 'Requester'"></span> <span class="font-bold" x-text="selectedTicket?.requester_name"></span> (<span x-text="selectedTicket?.requester_dept"></span>) <span x-text="locale === 'km' ? 'បានដាក់ស្នើសុំសេវាកម្មនេះដើម្បីឱ្យមានការអនុម័ត។' : 'has submitted this service request for company approval.'">has submitted this service request for company approval.</span>
                 </p>
