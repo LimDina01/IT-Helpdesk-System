@@ -64,20 +64,21 @@ class PortalOverviewController extends Controller
             ->count();
         $totalSoftwareValuation = (float) SoftwareLicense::sum('purchase_cost');
 
-        // 2. Hardware Lifecycle & Capital Valuation
-        $totalValuation = (float) (clone $assetQuery)->sum('purchase_cost');
+        // 2. Hardware Lifecycle & Capital Valuation (Excluding decommissioned assets)
+        $activeAssetQuery = (clone $assetQuery)->where('status', '!=', 'decommissioned');
+        $totalValuation = (float) (clone $activeAssetQuery)->sum('purchase_cost');
 
-        $activeWarrantyCount = (clone $assetQuery)->where('warranty_expiry', '>=', $todayDate)->count();
-        $activeWarrantyValuation = (float) (clone $assetQuery)->where('warranty_expiry', '>=', $todayDate)->sum('purchase_cost');
+        $activeWarrantyCount = (clone $activeAssetQuery)->whereNotNull('warranty_expiry')->where('warranty_expiry', '>=', $todayDate)->count();
+        $activeWarrantyValuation = (float) (clone $activeAssetQuery)->whereNotNull('warranty_expiry')->where('warranty_expiry', '>=', $todayDate)->sum('purchase_cost');
 
-        $outOfWarrantyCount = (clone $assetQuery)->where('warranty_expiry', '<', $todayDate)->count();
-        $outOfWarrantyValuation = (float) (clone $assetQuery)->where('warranty_expiry', '<', $todayDate)->sum('purchase_cost');
+        $outOfWarrantyCount = (clone $activeAssetQuery)->whereNotNull('warranty_expiry')->where('warranty_expiry', '<', $todayDate)->count();
+        $outOfWarrantyValuation = (float) (clone $activeAssetQuery)->whereNotNull('warranty_expiry')->where('warranty_expiry', '<', $todayDate)->sum('purchase_cost');
 
-        $pastEodCount = (clone $assetQuery)->where('eod_date', '<', $todayDate)->count();
-        $pastEodValuation = (float) (clone $assetQuery)->where('eod_date', '<', $todayDate)->sum('purchase_cost');
+        $pastEodCount = (clone $activeAssetQuery)->whereNotNull('eod_date')->where('eod_date', '<', $todayDate)->count();
+        $pastEodValuation = (float) (clone $activeAssetQuery)->whereNotNull('eod_date')->where('eod_date', '<', $todayDate)->sum('purchase_cost');
 
-        $pastEolCount = (clone $assetQuery)->where('eol_date', '<', $todayDate)->count();
-        $pastEolValuation = (float) (clone $assetQuery)->where('eol_date', '<', $todayDate)->sum('purchase_cost');
+        $pastEolCount = (clone $activeAssetQuery)->whereNotNull('eol_date')->where('eol_date', '<', $todayDate)->count();
+        $pastEolValuation = (float) (clone $activeAssetQuery)->whereNotNull('eol_date')->where('eol_date', '<', $todayDate)->sum('purchase_cost');
 
         // 3. Helpdesk Operations Pulse (GLPI Assistance / Tickets)
         $activeStatuses = ['pending_approval', 'submitted', 'clarifying', 'assigned', 'in_progress', 'blocked', 'pending_confirmation', 'reopened'];
@@ -111,7 +112,7 @@ class PortalOverviewController extends Controller
 
         // 4. Branch Cross-Matrix (GLPI Multi-Entity View)
         $branches = Branch::where('is_active', true)->get()->map(function (Branch $branch) use ($todayDate, $activeStatuses) {
-            $branchAssets = Asset::where('branch_id', $branch->id);
+            $branchAssets = Asset::where('branch_id', $branch->id)->where('status', '!=', 'decommissioned');
             $branchTickets = Ticket::where('branch_id', $branch->id);
 
             return [

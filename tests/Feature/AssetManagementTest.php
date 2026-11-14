@@ -453,4 +453,52 @@ class AssetManagementTest extends TestCase
         $adminContent = $adminResponse->streamedContent();
         $this->assertStringContainsString('1250.00', $adminContent);
     }
+
+    public function test_technician_cannot_set_asset_financial_cost_but_admin_can(): void
+    {
+        $cat = AssetCategory::where('code', 'WORKSTATION')->firstOrFail();
+
+        // 1. Technician tries to register with purchase_cost
+        $this->actingAs($this->techUser);
+        $this->post(route('portal.assets.store'), [
+            'asset_tag' => 'CBVH-TECH-SEC',
+            'name' => 'Tech Registered Laptop',
+            'category_id' => $cat->id,
+            'ownership_type' => 'shared',
+            'status' => 'in_use',
+            'purchase_cost' => 9999.00,
+        ]);
+
+        $techAsset = Asset::where('asset_tag', 'CBVH-TECH-SEC')->firstOrFail();
+        $this->assertNull($techAsset->purchase_cost);
+
+        // 2. Admin registers with purchase_cost
+        $this->actingAs($this->adminUser);
+        $this->post(route('portal.assets.store'), [
+            'asset_tag' => 'CBVH-ADMIN-SEC',
+            'name' => 'Admin Registered Laptop',
+            'category_id' => $cat->id,
+            'ownership_type' => 'shared',
+            'status' => 'in_use',
+            'purchase_cost' => 1500.00,
+        ]);
+
+        $adminAsset = Asset::where('asset_tag', 'CBVH-ADMIN-SEC')->firstOrFail();
+        $this->assertEquals(1500.00, (float) $adminAsset->purchase_cost);
+
+        // 3. Technician updates the asset -> purchase_cost is preserved, not overwritten
+        $this->actingAs($this->techUser);
+        $this->put(route('portal.assets.update', $adminAsset->id), [
+            'asset_tag' => 'CBVH-ADMIN-SEC',
+            'name' => 'Admin Registered Laptop (Updated by Tech)',
+            'category_id' => $cat->id,
+            'ownership_type' => 'shared',
+            'status' => 'in_use',
+            'purchase_cost' => 50.00, // Should be ignored
+        ]);
+
+        $adminAsset->refresh();
+        $this->assertEquals(1500.00, (float) $adminAsset->purchase_cost);
+        $this->assertEquals('Admin Registered Laptop (Updated by Tech)', $adminAsset->name);
+    }
 }

@@ -160,5 +160,37 @@ class SoftwareLicenseManagementTest extends TestCase
         $filterResponse->assertOk();
         $filterResponse->assertSee('Windows 11 Pro OEM');
         $filterResponse->assertDontSee('Adobe Creative Cloud');
+
+        // Filter by expiring soon status (<30d)
+        $expiringResponse = $this->get(route('portal.assets.index', [
+            'tab' => 'licenses',
+            'license_status' => 'expiring_soon',
+        ]));
+        $expiringResponse->assertOk();
+        $expiringResponse->assertSee('Adobe Creative Cloud');
+        $expiringResponse->assertDontSee('Kaspersky Endpoint Security');
+    }
+
+    public function test_duplicate_seat_allocation_to_same_employee_is_rejected(): void
+    {
+        $this->actingAs($this->techUser);
+
+        $license = SoftwareLicense::where('name', 'Microsoft 365 Business Standard')->firstOrFail();
+
+        // First assignment succeeds
+        $firstResponse = $this->post(route('portal.assets.licenses.assign', $license->id), [
+            'user_id' => $this->regularUser->id,
+            'notes' => 'First seat',
+        ]);
+        $firstResponse->assertRedirect(route('portal.assets.index', ['tab' => 'licenses']));
+        $this->assertEquals(1, SoftwareLicenseAssignment::where('software_license_id', $license->id)->where('user_id', $this->regularUser->id)->count());
+
+        // Second assignment to the same employee is rejected
+        $duplicateResponse = $this->post(route('portal.assets.licenses.assign', $license->id), [
+            'user_id' => $this->regularUser->id,
+            'notes' => 'Second duplicate seat',
+        ]);
+        $duplicateResponse->assertSessionHas('error');
+        $this->assertEquals(1, SoftwareLicenseAssignment::where('software_license_id', $license->id)->where('user_id', $this->regularUser->id)->count());
     }
 }

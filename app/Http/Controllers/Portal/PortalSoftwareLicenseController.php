@@ -8,6 +8,7 @@ use App\Models\SoftwareLicenseAssignment;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class PortalSoftwareLicenseController extends Controller
 {
@@ -97,14 +98,49 @@ class PortalSoftwareLicenseController extends Controller
             return back()->with('error', 'Please select either an employee or a computer asset to allocate this license seat.');
         }
 
-        if ($license->seats_available <= 0) {
-            return back()->with('error', 'All '.$license->seats_total.' seats for "'.$license->name.'" are fully allocated. Increase total seats before assigning more.');
+        // Prevent duplicate assignment of the same user to this license
+        if (! empty($validated['user_id'])) {
+            $duplicateUser = SoftwareLicenseAssignment::where('software_license_id', $license->id)
+                ->where('user_id', $validated['user_id'])
+                ->exists();
+
+            if ($duplicateUser) {
+                return back()->with('error', 'This employee already has a seat assigned for "'.$license->name.'".');
+            }
         }
 
-        $validated['software_license_id'] = $license->id;
-        $validated['assigned_date'] = now()->toDateString();
+        // Prevent duplicate assignment of the same asset to this license
+        if (! empty($validated['asset_id'])) {
+            $duplicateAsset = SoftwareLicenseAssignment::where('software_license_id', $license->id)
+                ->where('asset_id', $validated['asset_id'])
+                ->exists();
 
-        SoftwareLicenseAssignment::create($validated);
+            if ($duplicateAsset) {
+                return back()->with('error', 'This computer asset already has a seat assigned for "'.$license->name.'".');
+            }
+        }
+
+        $allocated = DB::transaction(function () use ($license, $validated) {
+            $lockedLicense = SoftwareLicense::lockForUpdate()->find($license->id);
+
+            if (! $lockedLicense || $lockedLicense->seats_available <= 0) {
+                return false;
+            }
+
+            SoftwareLicenseAssignment::create([
+                'software_license_id' => $lockedLicense->id,
+                'user_id' => $validated['user_id'] ?? null,
+                'asset_id' => $validated['asset_id'] ?? null,
+                'notes' => $validated['notes'] ?? null,
+                'assigned_date' => now()->toDateString(),
+            ]);
+
+            return true;
+        });
+
+        if (! $allocated) {
+            return back()->with('error', 'All '.$license->seats_total.' seats for "'.$license->name.'" are fully allocated. Increase total seats before assigning more.');
+        }
 
         return redirect()->route('portal.assets.index', ['tab' => 'licenses'])
             ->with('status', 'License seat successfully allocated for "'.$license->name.'".');

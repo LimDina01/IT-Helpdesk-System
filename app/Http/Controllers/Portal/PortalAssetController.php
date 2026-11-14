@@ -202,7 +202,28 @@ class PortalAssetController extends Controller
         }
 
         if (! empty($licenseStatus)) {
-            $licensesQuery->where('status', $licenseStatus);
+            if ($licenseStatus === 'expiring_soon') {
+                $licensesQuery->where('status', '!=', 'cancelled')
+                    ->whereNotNull('expiry_date')
+                    ->whereBetween('expiry_date', [now()->toDateString(), now()->addDays(30)->toDateString()]);
+            } elseif ($licenseStatus === 'expired') {
+                $licensesQuery->where(function ($q) {
+                    $q->where('status', 'expired')
+                        ->orWhere(function ($sq) {
+                            $sq->whereNotNull('expiry_date')
+                                ->where('expiry_date', '<', now()->toDateString())
+                                ->where('status', '!=', 'cancelled');
+                        });
+                });
+            } elseif ($licenseStatus === 'active') {
+                $licensesQuery->where('status', 'active')
+                    ->where(function ($q) {
+                        $q->whereNull('expiry_date')
+                            ->orWhere('expiry_date', '>=', now()->toDateString());
+                    });
+            } else {
+                $licensesQuery->where('status', $licenseStatus);
+            }
         }
 
         $licenses = $licensesQuery->get();
@@ -214,7 +235,6 @@ class PortalAssetController extends Controller
             ->count();
         $totalSoftwareValuation = (float) SoftwareLicense::sum('purchase_cost');
 
-        $allAssetsList = Asset::orderBy('asset_tag')->get(['id', 'asset_tag', 'name']);
         $allAssetsJson = Asset::with('branch')->orderBy('asset_tag')->get()->map(fn ($a) => [
             'id' => $a->id,
             'tag' => $a->asset_tag,
@@ -226,7 +246,6 @@ class PortalAssetController extends Controller
 
         return view('portal.assets.index', compact(
             'canViewFinancials',
-            'allAssetsList',
             'allAssetsJson',
             'assets',
             'components',
@@ -308,8 +327,13 @@ class PortalAssetController extends Controller
             'eod_date' => 'nullable|date',
             'eol_date' => 'nullable|date',
             'vendor_supplier' => 'nullable|string|max:150',
-            'notes' => 'nullable|string',
+            'notes' => 'nullable|string|max:2000',
         ]);
+
+        // Security check: Only HOD / System Admin can record financial cost
+        if (! Auth::user()->hasRole(['hod', 'system_admin'])) {
+            unset($validated['purchase_cost']);
+        }
 
         // Auto-generate asset tag if left blank
         if (empty($validated['asset_tag'])) {
@@ -438,8 +462,13 @@ class PortalAssetController extends Controller
             'eod_date' => 'nullable|date',
             'eol_date' => 'nullable|date',
             'vendor_supplier' => 'nullable|string|max:150',
-            'notes' => 'nullable|string',
+            'notes' => 'nullable|string|max:2000',
         ]);
+
+        // Security check: Only HOD / System Admin can edit financial cost
+        if (! Auth::user()->hasRole(['hod', 'system_admin'])) {
+            unset($validated['purchase_cost']);
+        }
 
         $specs = array_filter([
             'cpu' => $validated['specs_cpu'] ?? null,
@@ -468,7 +497,7 @@ class PortalAssetController extends Controller
             'status' => $validated['status'],
             'specs' => ! empty($specs) ? $specs : null,
             'purchase_date' => $validated['purchase_date'] ?? null,
-            'purchase_cost' => $validated['purchase_cost'] ?? null,
+            'purchase_cost' => array_key_exists('purchase_cost', $validated) ? $validated['purchase_cost'] : $asset->purchase_cost,
             'warranty_expiry' => $validated['warranty_expiry'] ?? null,
             'eod_date' => $validated['eod_date'] ?? null,
             'eol_date' => $validated['eol_date'] ?? null,
