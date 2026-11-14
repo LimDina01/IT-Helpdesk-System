@@ -527,7 +527,11 @@
                 <div class="mt-4 pt-3 border-t border-white/10 flex flex-wrap gap-x-6 gap-y-1 text-[11px] text-indigo-200">
                     <div>Report As Of: <strong>{{ now()->format('d-M-Y, H:i') }}</strong></div>
                     <div>Active Assets: <strong>{{ $totalAssetsCount }}</strong></div>
-                    <div>Total Fleet Valuation: <strong>${{ number_format($totalValuation, 2) }}</strong></div>
+                    @if($canViewFinancials)
+                        <div>Total Fleet Valuation: <strong>${{ number_format($totalValuation, 2) }}</strong></div>
+                    @else
+                        <div>Total Fleet Size: <strong>{{ $totalAssetsCount }} Units</strong></div>
+                    @endif
                     <div>Spare Parts in Stock: <strong>{{ $spareComponentsCount }}</strong></div>
                 </div>
             </div>
@@ -537,14 +541,18 @@
                 <!-- Total Valuation -->
                 <div class="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs">
                     <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
-                        <span>Total Hardware Valuation</span>
-                        <span class="text-base">💰</span>
+                        <span>{{ $canViewFinancials ? 'Total Hardware Valuation' : 'Total Fleet Size' }}</span>
+                        <span class="text-base">{{ $canViewFinancials ? '💰' : '🖥️' }}</span>
                     </div>
                     <div class="text-2xl font-black text-slate-900 mt-1.5">
-                        ${{ number_format($totalValuation, 2) }}
+                        @if($canViewFinancials)
+                            ${{ number_format($totalValuation, 2) }}
+                        @else
+                            {{ $totalAssetsCount }} <span class="text-xs font-bold text-slate-500">Units</span>
+                        @endif
                     </div>
                     <div class="text-[11px] text-slate-500 mt-1">
-                        Active capital invested across all equipment
+                        {{ $canViewFinancials ? 'Active capital invested across all equipment' : 'Equipment under active management' }}
                     </div>
                 </div>
 
@@ -575,7 +583,11 @@
                         {{ $pastEodCount }} <span class="text-xs font-bold text-amber-600">Assets</span>
                     </div>
                     <div class="text-[11px] text-amber-900/80 mt-1">
-                        ${{ number_format($pastEodValuation, 2) }} original cost &bull; 100% depreciated, check wear / bulb / overhaul
+                        @if($canViewFinancials)
+                            ${{ number_format($pastEodValuation, 2) }} original cost &bull; 100% depreciated, check wear / overhaul
+                        @else
+                            100% depreciated &bull; check component wear, perform overhaul
+                        @endif
                     </div>
                 </div>
 
@@ -589,7 +601,11 @@
                         {{ $pastEolCount }} <span class="text-xs font-bold text-rose-600">Assets</span>
                     </div>
                     <div class="text-[11px] text-rose-900/80 mt-1">
-                        ${{ number_format($pastEolValuation, 2) }} original cost &bull; Critical obsolescence, plan formal capex replacement
+                        @if($canViewFinancials)
+                            ${{ number_format($pastEolValuation, 2) }} original cost &bull; Critical obsolescence, plan formal replacement
+                        @else
+                            Critical obsolescence &bull; plan formal equipment replacement
+                        @endif
                     </div>
                 </div>
             </div>
@@ -612,7 +628,7 @@
                                 <tr class="text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">
                                     <th class="pb-2">Department</th>
                                     <th class="pb-2 text-center">Equipment</th>
-                                    <th class="pb-2 text-right">Capital Value</th>
+                                    <th class="pb-2 text-right">{{ $canViewFinancials ? 'Capital Value' : 'Hardware Share' }}</th>
                                     <th class="pb-2 text-right">% Fleet</th>
                                 </tr>
                             </thead>
@@ -620,7 +636,9 @@
                                 @forelse($deptBreakdown as $dept)
                                     @php
                                         $cost = (float) ($dept->assets_sum_purchase_cost ?? 0);
-                                        $pct = $totalValuation > 0 ? round(($cost / $totalValuation) * 100, 1) : 0;
+                                        $pct = $canViewFinancials
+                                            ? ($totalValuation > 0 ? round(($cost / $totalValuation) * 100, 1) : 0)
+                                            : ($totalAssetsCount > 0 ? round(($dept->assets_count / $totalAssetsCount) * 100, 1) : 0);
                                     @endphp
                                     <tr class="hover:bg-slate-50/60">
                                         <td class="py-2.5 font-bold text-slate-800">
@@ -630,7 +648,11 @@
                                             {{ $dept->assets_count }}
                                         </td>
                                         <td class="py-2.5 text-right font-mono font-bold text-slate-800">
-                                            ${{ number_format($cost, 2) }}
+                                            @if($canViewFinancials)
+                                                ${{ number_format($cost, 2) }}
+                                            @else
+                                                {{ $dept->assets_count }} Units
+                                            @endif
                                         </td>
                                         <td class="py-2.5 text-right text-slate-500 font-medium">
                                             {{ $pct }}%
@@ -662,7 +684,7 @@
                                 <tr class="text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">
                                     <th class="pb-2">Branch Location</th>
                                     <th class="pb-2 text-center">Equipment</th>
-                                    <th class="pb-2 text-right">Capital Value</th>
+                                    <th class="pb-2 text-right">{{ $canViewFinancials ? 'Capital Value' : 'Hardware Share' }}</th>
                                     <th class="pb-2 text-right">% Fleet</th>
                                 </tr>
                             </thead>
@@ -670,7 +692,9 @@
                                 @forelse($branchBreakdown as $b)
                                     @php
                                         $cost = (float) ($b->assets_sum_purchase_cost ?? 0);
-                                        $pct = $totalValuation > 0 ? round(($cost / $totalValuation) * 100, 1) : 0;
+                                        $pct = $canViewFinancials
+                                            ? ($totalValuation > 0 ? round(($cost / $totalValuation) * 100, 1) : 0)
+                                            : ($totalAssetsCount > 0 ? round(($b->assets_count / $totalAssetsCount) * 100, 1) : 0);
                                     @endphp
                                     <tr class="hover:bg-slate-50/60">
                                         <td class="py-2.5 font-bold text-slate-800">
@@ -680,7 +704,11 @@
                                             {{ $b->assets_count }}
                                         </td>
                                         <td class="py-2.5 text-right font-mono font-bold text-slate-800">
-                                            ${{ number_format($cost, 2) }}
+                                            @if($canViewFinancials)
+                                                ${{ number_format($cost, 2) }}
+                                            @else
+                                                {{ $b->assets_count }} Units
+                                            @endif
                                         </td>
                                         <td class="py-2.5 text-right text-slate-500 font-medium">
                                             {{ $pct }}%
@@ -769,7 +797,11 @@
                                         </span>
                                     </td>
                                     <td class="py-3.5 px-4 text-right font-mono font-bold text-slate-900">
-                                        {{ $asset->purchase_cost ? '$' . number_format($asset->purchase_cost, 2) : '—' }}
+                                        @if($canViewFinancials)
+                                            {{ $asset->purchase_cost ? '$' . number_format($asset->purchase_cost, 2) : '—' }}
+                                        @else
+                                            <span class="text-slate-400 font-normal text-xs">[Confidential]</span>
+                                        @endif
                                     </td>
                                     <td class="py-3.5 px-4">
                                         @if($asset->warranty_expiry)
@@ -830,10 +862,18 @@
                                         Page Subtotal ({{ $assets->count() }} assets)
                                     </td>
                                     <td class="py-3 px-4 text-right font-mono text-slate-900 font-black">
-                                        ${{ number_format($assets->sum('purchase_cost'), 2) }}
+                                        @if($canViewFinancials)
+                                            ${{ number_format($assets->sum('purchase_cost'), 2) }}
+                                        @else
+                                            <span class="text-slate-400 font-normal text-xs">[Restricted]</span>
+                                        @endif
                                     </td>
                                     <td colspan="4" class="py-3 px-4 text-slate-400 text-right text-[11px] font-normal">
-                                        Total Active Valuation: <strong>${{ number_format($totalValuation, 2) }}</strong>
+                                        @if($canViewFinancials)
+                                            Total Active Valuation: <strong>${{ number_format($totalValuation, 2) }}</strong>
+                                        @else
+                                            Total Active Fleet: <strong>{{ $totalAssetsCount }} Units</strong>
+                                        @endif
                                     </td>
                                 </tr>
                             </tfoot>
@@ -1105,7 +1145,11 @@
                         </div>
                         <div>
                             <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Purchase Cost (USD)</label>
-                            <input type="number" step="0.01" min="0" name="purchase_cost" placeholder="e.g. 850.00" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            @if($canViewFinancials)
+                                <input type="number" step="0.01" min="0" name="purchase_cost" placeholder="e.g. 850.00" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            @else
+                                <input type="text" disabled placeholder="🔒 Restricted to Management" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed">
+                            @endif
                         </div>
                     </div>
 

@@ -11,6 +11,7 @@ use App\Models\Department;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -151,6 +152,8 @@ class PortalAssetController extends Controller
         $pastEodValuation = (float) Asset::whereNotNull('eod_date')->where('eod_date', '<=', now()->toDateString())->where('status', '!=', 'decommissioned')->sum('purchase_cost');
         $pastEolValuation = (float) Asset::whereNotNull('eol_date')->where('eol_date', '<=', now()->toDateString())->where('status', '!=', 'decommissioned')->sum('purchase_cost');
 
+        $canViewFinancials = Auth::user()->hasRole(['hod', 'system_admin']);
+
         $deptBreakdown = Department::withCount(['assets' => fn ($q) => $q->where('status', '!=', 'decommissioned')])
             ->withSum(['assets' => fn ($q) => $q->where('status', '!=', 'decommissioned')], 'purchase_cost')
             ->orderByDesc('assets_count')
@@ -167,6 +170,7 @@ class PortalAssetController extends Controller
             ->get();
 
         return view('portal.assets.index', compact(
+            'canViewFinancials',
             'assets',
             'components',
             'currentTab',
@@ -325,7 +329,10 @@ class PortalAssetController extends Controller
             ->orderBy('brand_model')
             ->get();
 
+        $canViewFinancials = Auth::user()->hasRole(['hod', 'system_admin']);
+
         return view('portal.assets.show', compact(
+            'canViewFinancials',
             'asset',
             'categories',
             'branches',
@@ -602,6 +609,7 @@ class PortalAssetController extends Controller
         }
 
         $assets = $query->orderBy('asset_tag')->get();
+        $canViewFinancials = Auth::user()->hasRole(['hod', 'system_admin']);
 
         $headers = [
             'Content-Type' => 'text/csv; charset=UTF-8',
@@ -611,7 +619,7 @@ class PortalAssetController extends Controller
             'Expires' => '0',
         ];
 
-        return response()->stream(function () use ($assets) {
+        return response()->stream(function () use ($assets, $canViewFinancials) {
             $handle = fopen('php://output', 'w');
             // Write UTF-8 BOM so Excel opens accents & symbols properly
             fprintf($handle, chr(0xEF).chr(0xBB).chr(0xBF));
@@ -677,7 +685,7 @@ class PortalAssetController extends Controller
                     $asset->serial_number ?: 'N/A',
                     $asset->status_badge['label'] ?? ucfirst($asset->status),
                     $asset->purchase_date ? $asset->purchase_date->format('Y-m-d') : 'N/A',
-                    $asset->purchase_cost ? number_format((float) $asset->purchase_cost, 2, '.', '') : '0.00',
+                    $canViewFinancials ? ($asset->purchase_cost ? number_format((float) $asset->purchase_cost, 2, '.', '') : '0.00') : '[Confidential]',
                     $asset->warranty_expiry ? $asset->warranty_expiry->format('Y-m-d') : 'N/A',
                     $warrantyStatus,
                     $asset->eod_date ? $asset->eod_date->format('Y-m-d') : 'N/A',

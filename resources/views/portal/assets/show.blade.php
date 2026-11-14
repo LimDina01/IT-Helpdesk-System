@@ -232,7 +232,11 @@
                 </div>
                 <div class="flex justify-between py-1 border-b border-slate-50">
                     <span class="text-slate-400">Purchase Cost</span>
-                    <span class="font-semibold text-slate-800">{{ $asset->purchase_cost ? '$' . number_format($asset->purchase_cost, 2) : '—' }}</span>
+                    @if($canViewFinancials)
+                        <span class="font-semibold text-slate-800">{{ $asset->purchase_cost ? '$' . number_format($asset->purchase_cost, 2) : '—' }}</span>
+                    @else
+                        <span class="text-slate-400 text-xs font-normal">🔒 Management Confidential</span>
+                    @endif
                 </div>
                 <div class="flex justify-between py-1 border-b border-slate-50">
                     <span class="text-slate-400">Warranty Expiry (EOW)</span>
@@ -532,7 +536,11 @@
                             </div>
                             <div>
                                 <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Purchase Cost (USD)</label>
-                                <input type="number" step="0.01" min="0" name="purchase_cost" value="{{ $asset->purchase_cost }}" placeholder="e.g. 850.00" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                                @if($canViewFinancials)
+                                    <input type="number" step="0.01" min="0" name="purchase_cost" value="{{ $asset->purchase_cost }}" placeholder="e.g. 850.00" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                                @else
+                                    <input type="text" disabled value="🔒 Management Confidential" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed">
+                                @endif
                             </div>
                         </div>
 

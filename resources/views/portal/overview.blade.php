@@ -250,9 +250,15 @@
             <!-- Total Valuation Banner -->
             <div class="bg-gradient-to-r from-slate-900 to-indigo-950 text-white rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                    <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Total Hardware Fleet Valuation</div>
-                    <div class="text-3xl font-black text-white mt-1">${{ number_format($totalValuation, 2) }}</div>
-                    <div class="text-xs text-slate-400 mt-0.5">Across {{ $totalAssets }} machines & equipment</div>
+                    @if($canViewFinancials)
+                        <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Total Hardware Fleet Valuation</div>
+                        <div class="text-3xl font-black text-white mt-1">${{ number_format($totalValuation, 2) }}</div>
+                        <div class="text-xs text-slate-400 mt-0.5">Across {{ $totalAssets }} machines & equipment</div>
+                    @else
+                        <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Total Hardware Fleet Size</div>
+                        <div class="text-3xl font-black text-white mt-1">{{ $totalAssets }} Deployed Units</div>
+                        <div class="text-xs text-slate-400 mt-0.5">Hardware asset fleet under active management</div>
+                    @endif
                 </div>
                 <div class="flex items-center space-x-4 border-t sm:border-t-0 sm:border-l border-slate-800 pt-3 sm:pt-0 sm:pl-5 text-xs">
                     <div>
@@ -279,7 +285,11 @@
                         <span class="text-xs font-bold text-emerald-900">🛡️ Active Warranty (EOW)</span>
                         <span class="bg-emerald-200 text-emerald-900 text-[10px] font-black px-2 py-0.5 rounded-full">{{ $activeWarrantyCount }} Assets</span>
                     </div>
-                    <div class="text-xl font-black text-emerald-700 mt-2">${{ number_format($activeWarrantyValuation, 2) }}</div>
+                    @if($canViewFinancials)
+                        <div class="text-xl font-black text-emerald-700 mt-2">${{ number_format($activeWarrantyValuation, 2) }}</div>
+                    @else
+                        <div class="text-xl font-black text-emerald-700 mt-2">{{ $activeWarrantyCount }} Covered Units</div>
+                    @endif
                     <div class="text-[11px] text-emerald-800/80 mt-0.5">Covered under supplier warranty</div>
                 </div>
 
@@ -289,7 +299,11 @@
                         <span class="text-xs font-bold text-slate-700">⚠️ Out of Warranty</span>
                         <span class="bg-slate-200 text-slate-800 text-[10px] font-black px-2 py-0.5 rounded-full">{{ $outOfWarrantyCount }} Assets</span>
                     </div>
-                    <div class="text-xl font-black text-slate-800 mt-2">${{ number_format($outOfWarrantyValuation, 2) }}</div>
+                    @if($canViewFinancials)
+                        <div class="text-xl font-black text-slate-800 mt-2">${{ number_format($outOfWarrantyValuation, 2) }}</div>
+                    @else
+                        <div class="text-xl font-black text-slate-800 mt-2">{{ $outOfWarrantyCount }} Expired Units</div>
+                    @endif
                     <div class="text-[11px] text-slate-500 mt-0.5">Self-maintenance / third-party parts</div>
                 </div>
 
@@ -299,7 +313,11 @@
                         <span class="text-xs font-bold text-amber-900">📉 Depreciation / EOD</span>
                         <span class="bg-amber-200 text-amber-900 text-[10px] font-black px-2 py-0.5 rounded-full">{{ $pastEodCount }} Assets</span>
                     </div>
-                    <div class="text-xl font-black text-amber-700 mt-2">${{ number_format($pastEodValuation, 2) }}</div>
+                    @if($canViewFinancials)
+                        <div class="text-xl font-black text-amber-700 mt-2">${{ number_format($pastEodValuation, 2) }}</div>
+                    @else
+                        <div class="text-xl font-black text-amber-700 mt-2">{{ $pastEodCount }} Overhaul Due</div>
+                    @endif
                     <div class="text-[11px] text-amber-800/80 mt-0.5">Recommended for overhaul or replacement</div>
                 </div>
 
@@ -309,7 +327,11 @@
                         <span class="text-xs font-bold text-red-900">🚫 End of Life (EOL)</span>
                         <span class="bg-red-200 text-red-900 text-[10px] font-black px-2 py-0.5 rounded-full">{{ $pastEolCount }} Assets</span>
                     </div>
-                    <div class="text-xl font-black text-red-700 mt-2">${{ number_format($pastEolValuation, 2) }}</div>
+                    @if($canViewFinancials)
+                        <div class="text-xl font-black text-red-700 mt-2">${{ number_format($pastEolValuation, 2) }}</div>
+                    @else
+                        <div class="text-xl font-black text-red-700 mt-2">{{ $pastEolCount }} Obsolete Units</div>
+                    @endif
                     <div class="text-[11px] text-red-800/80 mt-0.5">High failure risk — target retirement</div>
                 </div>
 
@@ -476,7 +498,7 @@
                             <th class="py-2.5 px-3">Branch Entity</th>
                             <th class="py-2.5 px-3">Manager / In-Charge</th>
                             <th class="py-2.5 px-3 text-center">Hardware Assets</th>
-                            <th class="py-2.5 px-3 text-right">Fleet Capital</th>
+                            <th class="py-2.5 px-3 text-right">{{ $canViewFinancials ? 'Fleet Capital' : 'Hardware Share' }}</th>
                             <th class="py-2.5 px-3 text-center">Active Tickets</th>
                             <th class="py-2.5 px-3 text-center">SLA Alerts</th>
                             <th class="py-2.5 px-3 text-right">Actions</th>
@@ -498,7 +520,11 @@
                                     </span>
                                 </td>
                                 <td class="py-3 px-3 text-right font-black text-slate-900">
-                                    ${{ number_format($br['assets_valuation'], 2) }}
+                                    @if($canViewFinancials)
+                                        ${{ number_format($br['assets_valuation'], 2) }}
+                                    @else
+                                        {{ $br['assets_count'] }} Units
+                                    @endif
                                 </td>
                                 <td class="py-3 px-3 text-center">
                                     @if($br['active_tickets_count'] > 0)
@@ -648,7 +674,11 @@
                             <span class="text-[10px] font-bold px-2 py-0.5 rounded-full {{ $ra->status === 'in_use' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-800' }}">
                                 {{ ucfirst(str_replace('_', ' ', $ra->status)) }}
                             </span>
-                            <div class="text-[9px] text-slate-400 mt-0.5">${{ number_format($ra->purchase_cost, 2) }}</div>
+                            @if($canViewFinancials)
+                                <div class="text-[9px] text-slate-400 mt-0.5">${{ number_format($ra->purchase_cost, 2) }}</div>
+                            @else
+                                <div class="text-[9px] text-slate-400 mt-0.5">{{ $ra->brand ?? 'Asset' }}</div>
+                            @endif
                         </div>
                     </div>
                 @empty

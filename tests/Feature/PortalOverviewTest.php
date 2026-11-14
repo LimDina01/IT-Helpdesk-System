@@ -59,7 +59,7 @@ class PortalOverviewTest extends TestCase
         $response->assertForbidden();
     }
 
-    public function test_it_staff_can_view_central_operations_overview(): void
+    public function test_it_technician_sees_operational_counts_with_financials_masked(): void
     {
         $this->actingAs($this->techUser);
 
@@ -73,9 +73,21 @@ class PortalOverviewTest extends TestCase
         $response->assertSee('Printers');
         $response->assertSee('Spares');
         $response->assertSee('Active Tickets');
-        $response->assertSee('Total Hardware Fleet Valuation');
+        $response->assertSee('Total Hardware Fleet Size');
+        $response->assertDontSee('Total Hardware Fleet Valuation');
         $response->assertSee('Branch Entities Matrix');
         $response->assertSee('Technician Load Roster');
+    }
+
+    public function test_hod_or_admin_can_view_full_financial_valuation(): void
+    {
+        $admin = User::where('email', 'admin@cbvh.com.kh')->firstOrFail();
+        $this->actingAs($admin);
+
+        $response = $this->get(route('portal.overview'));
+        $response->assertOk();
+        $response->assertSee('Total Hardware Fleet Valuation');
+        $response->assertSee('$');
     }
 
     public function test_it_staff_can_filter_overview_by_branch(): void

@@ -421,11 +421,16 @@ class AssetManagementTest extends TestCase
         $response = $this->get(route('portal.assets.index', ['tab' => 'report']));
         $response->assertOk();
         $response->assertSee('Management Inventory &amp; Lifecycle Report', false);
-        $response->assertSee('Total Hardware Valuation');
+        $response->assertSee('Total Fleet Size');
+        $response->assertSee('[Confidential]');
         $response->assertSee('CBVH Head Office Phnom Penh');
+
+        // Admin sees actual valuation
+        $adminResponse = $this->actingAs($this->adminUser)->get(route('portal.assets.index', ['tab' => 'report']));
+        $adminResponse->assertSee('Total Hardware Valuation');
     }
 
-    public function test_it_staff_can_export_assets_to_csv(): void
+    public function test_it_staff_can_export_assets_to_csv_with_financial_masking(): void
     {
         $this->actingAs($this->techUser);
         $this->seed(ItAssetSampleSeeder::class);
@@ -441,5 +446,11 @@ class AssetManagementTest extends TestCase
         $this->assertStringContainsString('EOD Depreciation Date', $content);
         $this->assertStringContainsString('EOL Target Date', $content);
         $this->assertStringContainsString('CBVH-PC-0101', $content);
+        $this->assertStringContainsString('[Confidential]', $content);
+
+        // Admin gets unmasked purchase costs in export
+        $adminResponse = $this->actingAs($this->adminUser)->get(route('portal.assets.export'));
+        $adminContent = $adminResponse->streamedContent();
+        $this->assertStringContainsString('1250.00', $adminContent);
     }
 }

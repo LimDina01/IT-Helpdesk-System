@@ -20,6 +20,9 @@ class PortalOverviewController extends Controller
      */
     public function index(Request $request): View
     {
+        $user = $request->user();
+        $canViewFinancials = $user && $user->hasRole(['hod', 'system_admin']);
+
         $branchFilter = $request->input('branch_id');
         $selectedBranch = $branchFilter ? Branch::find($branchFilter) : null;
 
@@ -137,6 +140,7 @@ class PortalOverviewController extends Controller
             ->get();
 
         return view('portal.overview', compact(
+            'canViewFinancials',
             'branchFilter',
             'selectedBranch',
             'categories',
