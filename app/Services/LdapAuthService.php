@@ -96,17 +96,20 @@ class LdapAuthService
             }
 
             // 2. Parse username format and search for user in AD
-            $cleanUser = ldap_escape($username, '', LDAP_ESCAPE_FILTER);
-            $sAMAccountName = $cleanUser;
-            if (str_contains($cleanUser, '\\')) {
-                $parts = explode('\\', $cleanUser, 2);
+            $rawUser = trim($username);
+            $sAMAccountName = $rawUser;
+            if (str_contains($rawUser, '\\')) {
+                $parts = explode('\\', $rawUser, 2);
                 $sAMAccountName = $parts[1];
-            } elseif (str_contains($cleanUser, '@')) {
-                $parts = explode('@', $cleanUser, 2);
+            } elseif (str_contains($rawUser, '@')) {
+                $parts = explode('@', $rawUser, 2);
                 $sAMAccountName = $parts[0];
             }
 
-            $filter = "(&(objectClass=user)(!(objectClass=computer))(|(sAMAccountName={$sAMAccountName})(sAMAccountName={$cleanUser})(mail={$cleanUser})(userPrincipalName={$cleanUser})))";
+            $cleanSAM = ldap_escape($sAMAccountName, '', LDAP_ESCAPE_FILTER);
+            $cleanUser = ldap_escape($rawUser, '', LDAP_ESCAPE_FILTER);
+
+            $filter = "(&(objectClass=user)(!(objectClass=computer))(|(sAMAccountName={$cleanSAM})(sAMAccountName={$cleanUser})(mail={$cleanUser})(userPrincipalName={$cleanUser})))";
             $search = @ldap_search($conn, $this->searchBase, $filter, ['dn', 'sAMAccountName', 'mail', 'givenName', 'sn', 'displayName', 'userPrincipalName']);
 
             if (! $search) {
@@ -117,6 +120,7 @@ class LdapAuthService
 
             $entries = @ldap_get_entries($conn, $search);
             if (! $entries || $entries['count'] === 0) {
+                Log::warning("LDAP user not found in AD for username: {$username} using filter: {$filter}");
                 @ldap_unbind($conn);
 
                 return null; // User not found in AD
@@ -141,10 +145,13 @@ class LdapAuthService
             }
 
             if (! $userBind) {
+                Log::warning("LDAP credentials rejected for user [{$adUsername}] (DN: {$userDn}): ".ldap_error($conn));
                 @ldap_unbind($conn);
 
                 return null; // Invalid credentials
             }
+
+            Log::info("LDAP credentials verified successfully for user [{$adUsername}]");
 
             // Extract AD user profile attributes
             $adEmail = $userEntry['mail'][0] ?? null;
@@ -274,17 +281,20 @@ class LdapAuthService
         $result['service_bind'] = true;
 
         if ($testUser) {
-            $cleanUser = ldap_escape($testUser, '', LDAP_ESCAPE_FILTER);
-            $sAMAccountName = $cleanUser;
-            if (str_contains($cleanUser, '\\')) {
-                $parts = explode('\\', $cleanUser, 2);
+            $rawUser = trim($testUser);
+            $sAMAccountName = $rawUser;
+            if (str_contains($rawUser, '\\')) {
+                $parts = explode('\\', $rawUser, 2);
                 $sAMAccountName = $parts[1];
-            } elseif (str_contains($cleanUser, '@')) {
-                $parts = explode('@', $cleanUser, 2);
+            } elseif (str_contains($rawUser, '@')) {
+                $parts = explode('@', $rawUser, 2);
                 $sAMAccountName = $parts[0];
             }
 
-            $filter = "(&(objectClass=user)(!(objectClass=computer))(|(sAMAccountName={$sAMAccountName})(sAMAccountName={$cleanUser})(mail={$cleanUser})(userPrincipalName={$cleanUser})))";
+            $cleanSAM = ldap_escape($sAMAccountName, '', LDAP_ESCAPE_FILTER);
+            $cleanUser = ldap_escape($rawUser, '', LDAP_ESCAPE_FILTER);
+
+            $filter = "(&(objectClass=user)(!(objectClass=computer))(|(sAMAccountName={$cleanSAM})(sAMAccountName={$cleanUser})(mail={$cleanUser})(userPrincipalName={$cleanUser})))";
             $search = @ldap_search($conn, $this->searchBase, $filter, ['dn', 'sAMAccountName', 'mail', 'displayName', 'userPrincipalName']);
 
             if ($search) {
