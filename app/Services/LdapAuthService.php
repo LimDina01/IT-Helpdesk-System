@@ -125,12 +125,19 @@ class LdapAuthService
             $userEntry = $entries[0];
             $userDn = $userEntry['dn'];
             $adUsername = $userEntry['samaccountname'][0] ?? $sAMAccountName;
+            $userPrincipalName = $userEntry['userprincipalname'][0] ?? null;
 
-            // 3. Authenticate: Attempt user bind with DN first, fallback to UPN / Domain prefix
+            // 3. Authenticate: Attempt user bind with multiple AD formats (DN -> UPN -> DOMAIN\user -> user@cbvh66.com)
             $userBind = @ldap_bind($conn, $userDn, $password);
+            if (! $userBind && $userPrincipalName) {
+                $userBind = @ldap_bind($conn, $userPrincipalName, $password);
+            }
             if (! $userBind) {
                 $upnBindUser = "{$this->domain}\\{$adUsername}";
                 $userBind = @ldap_bind($conn, $upnBindUser, $password);
+            }
+            if (! $userBind) {
+                $userBind = @ldap_bind($conn, "{$adUsername}@cbvh66.com", $password);
             }
 
             if (! $userBind) {
@@ -277,8 +284,8 @@ class LdapAuthService
                 $sAMAccountName = $parts[0];
             }
 
-            $filter = "(&(objectClass=user)(!(objectClass=computer))(|(sAMAccountName={$sAMAccountName})(sAMAccountName={$cleanUser})(mail={$cleanUser})))";
-            $search = @ldap_search($conn, $this->searchBase, $filter, ['dn', 'sAMAccountName', 'mail', 'displayName']);
+            $filter = "(&(objectClass=user)(!(objectClass=computer))(|(sAMAccountName={$sAMAccountName})(sAMAccountName={$cleanUser})(mail={$cleanUser})(userPrincipalName={$cleanUser})))";
+            $search = @ldap_search($conn, $this->searchBase, $filter, ['dn', 'sAMAccountName', 'mail', 'displayName', 'userPrincipalName']);
 
             if ($search) {
                 $entries = @ldap_get_entries($conn, $search);
@@ -289,13 +296,22 @@ class LdapAuthService
                         'sAMAccountName' => $entry['samaccountname'][0] ?? null,
                         'mail' => $entry['mail'][0] ?? null,
                         'displayName' => $entry['displayname'][0] ?? null,
+                        'userPrincipalName' => $entry['userprincipalname'][0] ?? null,
                     ];
 
                     if ($testPassword) {
+                        $upn = $entry['userprincipalname'][0] ?? null;
                         $auth = @ldap_bind($conn, $entry['dn'], $testPassword);
-                        if (! $auth) {
-                            $upn = "{$this->domain}\\".($entry['samaccountname'][0] ?? $sAMAccountName);
+                        if (! $auth && $upn) {
                             $auth = @ldap_bind($conn, $upn, $testPassword);
+                        }
+                        if (! $auth) {
+                            $domainUser = "{$this->domain}\\".($entry['samaccountname'][0] ?? $sAMAccountName);
+                            $auth = @ldap_bind($conn, $domainUser, $testPassword);
+                        }
+                        if (! $auth) {
+                            $adUser = ($entry['samaccountname'][0] ?? $sAMAccountName).'@cbvh66.com';
+                            $auth = @ldap_bind($conn, $adUser, $testPassword);
                         }
                         $result['user_authenticated'] = (bool) $auth;
                     }
