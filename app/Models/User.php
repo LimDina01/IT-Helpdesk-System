@@ -176,19 +176,6 @@ class User extends Authenticatable
     {
         $badges = [];
 
-        if ($this->isItHod()) {
-            $badges[] = [
-                'label' => 'IT HOD',
-                'class' => 'bg-indigo-100 text-indigo-800 border-indigo-200',
-                'title' => 'IT HOD',
-                'level' => 3,
-                'branch' => 'HQ / All Branches',
-                'department' => 'Information Technology',
-            ];
-
-            return $badges;
-        }
-
         $cards = $this->relationLoaded('departmentApproverRoles')
             ? $this->departmentApproverRoles->where('is_active', true)->sortBy('level')
             : $this->departmentApproverRoles()->where('is_active', true)->orderBy('level')->get();
