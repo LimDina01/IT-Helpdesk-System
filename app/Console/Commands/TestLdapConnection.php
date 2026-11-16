@@ -47,12 +47,18 @@ class TestLdapConnection extends Command
             return 1;
         }
 
+        if (! ($res['tcp_connected'] ?? false)) {
+            $this->error('❌ Network Connection Failed: '.$res['message']);
+
+            return 1;
+        }
+        $this->info('  [OK] TCP connection to Active Directory server established.');
+
         if (! $res['connected']) {
             $this->error('❌ Connection Failed: '.$res['message']);
 
             return 1;
         }
-        $this->info('  [OK] TCP / SSL Handshake with AD server established.');
 
         if (! $res['service_bind']) {
             $this->error('❌ Service Account Bind Failed: '.$res['message']);

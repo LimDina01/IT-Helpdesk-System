@@ -232,6 +232,7 @@ class LdapAuthService
             'extension_loaded' => extension_loaded('ldap'),
             'url' => $this->url,
             'search_base' => $this->searchBase,
+            'tcp_connected' => false,
             'connected' => false,
             'service_bind' => false,
             'user_found' => null,
@@ -245,6 +246,20 @@ class LdapAuthService
 
             return $result;
         }
+
+        // 1. Verify TCP reachability first
+        $parsedUrl = parse_url($this->url);
+        $host = $parsedUrl['host'] ?? '192.168.11.101';
+        $port = $parsedUrl['port'] ?? (($parsedUrl['scheme'] ?? 'ldaps') === 'ldaps' ? 636 : 389);
+
+        $fp = @fsockopen($host, $port, $errno, $errstr, 3);
+        if (! $fp) {
+            $result['message'] = "Cannot establish network connection to {$host}:{$port} ($errstr, error code {$errno}). Check network routing or firewall.";
+
+            return $result;
+        }
+        fclose($fp);
+        $result['tcp_connected'] = true;
 
         if (! $this->validateCert) {
             putenv('LDAPTLS_REQCERT=never');
@@ -272,7 +287,14 @@ class LdapAuthService
 
         $serviceBind = @ldap_bind($conn, $serviceBindUser, $this->servicePassword);
         if (! $serviceBind) {
-            $result['message'] = "Service account ({$serviceBindUser}) bind failed: ".ldap_error($conn);
+            $err = ldap_error($conn);
+            if (str_contains(strtolower($err), "can't contact ldap server")) {
+                $result['message'] = "Service account ({$serviceBindUser}) bind failed: {$err}.\n"
+                    ."   👉 On Linux, this means OpenLDAP rejected the SSL/TLS certificate.\n"
+                    ."   👉 Fix by running: echo 'TLS_REQCERT never' | sudo tee -a /etc/ldap/ldap.conf";
+            } else {
+                $result['message'] = "Service account ({$serviceBindUser}) bind failed: {$err}";
+            }
             @ldap_unbind($conn);
 
             return $result;
