@@ -98,6 +98,7 @@
     <div class="bg-white p-2 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div class="flex items-center flex-wrap gap-2">
             <a href="{{ route('portal.assets.index', ['tab' => 'assets']) }}" 
+               wire:navigate
                class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center space-x-2 {{ $currentTab === 'assets' ? 'bg-blue-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">
                 <span>🖥️</span>
                 <span>Hardware Assets</span>
@@ -107,6 +108,7 @@
             </a>
 
             <a href="{{ route('portal.assets.index', ['tab' => 'components']) }}" 
+               wire:navigate
                class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center space-x-2 {{ $currentTab === 'components' ? 'bg-amber-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">
                 <span>⚙️</span>
                 <span>Spare Parts &amp; Components</span>
@@ -116,6 +118,7 @@
             </a>
 
             <a href="{{ route('portal.assets.index', ['tab' => 'report']) }}" 
+               wire:navigate
                class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center space-x-2 {{ $currentTab === 'report' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">
                 <span>📊</span>
                 <span>Stock &amp; Lifecycle Report</span>
@@ -125,6 +128,7 @@
             </a>
 
             <a href="{{ route('portal.assets.index', ['tab' => 'licenses']) }}" 
+               wire:navigate
                class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center space-x-2 {{ $currentTab === 'licenses' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">
                 <span>🔑</span>
                 <span>Software &amp; Licenses</span>

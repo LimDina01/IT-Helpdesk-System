@@ -6,9 +6,8 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'Operations Portal') - CBVH IT Help Desk</title>
 
-    <!-- Tailwind CSS CDN & Alpine.js -->
+    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
 
     <!-- Google Font: Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -19,6 +18,7 @@
         body { font-family: 'Inter', sans-serif; }
         [x-cloak] { display: none !important; }
     </style>
+    @livewireStyles
 </head>
 <body class="h-full flex flex-col antialiased text-slate-800">
 
@@ -28,7 +28,7 @@
             
             <!-- Brand & Navigation Links -->
             <div class="flex items-center space-x-8">
-                <a href="{{ route('portal.overview') }}" class="flex items-center space-x-3">
+                <a href="{{ route('portal.overview') }}" wire:navigate class="flex items-center space-x-3">
                     <div class="w-10 h-10 bg-gradient-to-tr from-blue-600 to-indigo-500 rounded-xl flex items-center justify-center font-black text-white text-lg shadow-sm">
                         IT
                     </div>
@@ -40,18 +40,21 @@
 
                 <nav class="hidden md:flex items-center space-x-1">
                     <a href="{{ route('portal.overview') }}" 
+                       wire:navigate
                        class="{{ request()->routeIs('portal.overview') ? 'bg-slate-800 text-white shadow-xs ring-1 ring-white/10' : 'text-slate-300 hover:text-white hover:bg-slate-800/60' }} px-3 py-2 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition">
-                        <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+                        <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
                         <span>Central Overview</span>
                     </a>
 
                     <a href="{{ route('portal.dashboard') }}" 
+                       wire:navigate
                        class="{{ request()->routeIs('portal.dashboard') ? 'bg-slate-800 text-white' : 'text-slate-300 hover:text-white hover:bg-slate-800/60' }} px-3 py-2 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
                         <span>Ticket Operations</span>
                     </a>
 
                     <a href="{{ route('portal.link-requests.index') }}" 
+                       wire:navigate
                        class="{{ request()->routeIs('portal.link-requests.*') ? 'bg-slate-800 text-white' : 'text-slate-300 hover:text-white hover:bg-slate-800/60' }} px-3 py-2 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
                         <span>Telegram Link Requests</span>
@@ -66,6 +69,7 @@
                     </a>
 
                     <a href="{{ route('portal.assets.index') }}" 
+                       wire:navigate
                        class="{{ request()->routeIs('portal.assets.*') ? 'bg-slate-800 text-white' : 'text-slate-300 hover:text-white hover:bg-slate-800/60' }} px-3 py-2 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition">
                         <span>🖥️</span>
                         <span>IT Assets</span>
@@ -73,6 +77,7 @@
 
                     @if(Auth::user()->hasRole(['hod', 'system_admin']))
                         <a href="{{ route('portal.cockpit') }}" 
+                           wire:navigate
                            class="{{ request()->routeIs('portal.cockpit*') ? 'bg-purple-900/60 text-purple-200 border border-purple-500/30' : 'text-slate-300 hover:text-white hover:bg-slate-800/60' }} px-3 py-2 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition">
                             <span>⚡</span>
                             <span>HOD Cockpit</span>
@@ -95,6 +100,7 @@
                         </a>
 
                         <a href="{{ route('portal.admin.index') }}" 
+                           wire:navigate
                            class="{{ request()->routeIs('portal.admin.*') ? 'bg-slate-800 text-white' : 'text-slate-300 hover:text-white hover:bg-slate-800/60' }} px-3 py-2 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition">
                             <span>⚙️</span>
                             <span>Admin Settings</span>
@@ -158,5 +164,6 @@
         CBVH IT Operations Management Portal • Internal Intranet System
     </footer>
 
+    @livewireScripts
 </body>
 </html>

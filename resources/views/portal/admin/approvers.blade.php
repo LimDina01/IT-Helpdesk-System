@@ -102,23 +102,23 @@
 
     <!-- Admin Navigation Tabs -->
     <div class="flex items-center space-x-2 bg-slate-100 p-1 rounded-2xl text-xs font-semibold overflow-x-auto w-fit">
-        <a href="{{ route('portal.admin.index') }}" class="text-slate-600 hover:text-slate-900 px-4 py-2 rounded-xl transition flex items-center space-x-1.5">
+        <a href="{{ route('portal.admin.index') }}" wire:navigate class="text-slate-600 hover:text-slate-900 px-4 py-2 rounded-xl transition flex items-center space-x-1.5">
             <span>📁</span>
             <span>Categories & SLAs</span>
         </a>
-        <a href="{{ route('portal.admin.holidays') }}" class="text-slate-600 hover:text-slate-900 px-4 py-2 rounded-xl transition flex items-center space-x-1.5">
+        <a href="{{ route('portal.admin.holidays') }}" wire:navigate class="text-slate-600 hover:text-slate-900 px-4 py-2 rounded-xl transition flex items-center space-x-1.5">
             <span>📅</span>
             <span>Company Holidays</span>
         </a>
-        <a href="{{ route('portal.admin.users') }}" class="text-slate-600 hover:text-slate-900 px-4 py-2 rounded-xl transition flex items-center space-x-1.5">
+        <a href="{{ route('portal.admin.users') }}" wire:navigate class="text-slate-600 hover:text-slate-900 px-4 py-2 rounded-xl transition flex items-center space-x-1.5">
             <span>👥</span>
             <span>Staff & User Roles</span>
         </a>
-        <a href="{{ route('portal.admin.organization') }}" class="text-slate-600 hover:text-slate-900 px-4 py-2 rounded-xl transition flex items-center space-x-1.5">
+        <a href="{{ route('portal.admin.organization') }}" wire:navigate class="text-slate-600 hover:text-slate-900 px-4 py-2 rounded-xl transition flex items-center space-x-1.5">
             <span>🏢</span>
             <span>Departments & Branches</span>
         </a>
-        <a href="{{ route('portal.admin.approvers') }}" class="bg-white text-indigo-600 shadow-xs px-4 py-2 rounded-xl transition flex items-center space-x-1.5">
+        <a href="{{ route('portal.admin.approvers') }}" wire:navigate class="bg-white text-indigo-600 shadow-xs px-4 py-2 rounded-xl transition flex items-center space-x-1.5">
             <span>🗂️</span>
             <span>Approvers & Levels</span>
         </a>

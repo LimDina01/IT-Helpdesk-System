@@ -56,11 +56,13 @@
 
             <!-- Quick Action Shortcuts -->
             <a href="{{ route('portal.assets.index') }}" 
+               wire:navigate
                class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3.5 py-2 rounded-xl shadow-xs transition flex items-center space-x-1.5">
                 <span>🖥️ Asset Fleet</span>
             </a>
 
             <a href="{{ route('portal.dashboard') }}" 
+               wire:navigate
                class="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-3.5 py-2 rounded-xl shadow-xs transition flex items-center space-x-1.5">
                 <span>🎫 Ticket Queue</span>
             </a>
