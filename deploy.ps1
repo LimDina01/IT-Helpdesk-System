@@ -1,4 +1,4 @@
-﻿param (
+param (
     [string]$Server = "192.168.11.188",
     [int]$Port = 2026,
     [string]$User = "cbvh",

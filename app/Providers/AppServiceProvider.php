@@ -11,7 +11,12 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Guarantee all application services are loaded even if Composer classmap is stale/authoritative
+        if (is_dir(app_path('Services'))) {
+            foreach (glob(app_path('Services/*.php')) as $serviceFile) {
+                require_once $serviceFile;
+            }
+        }
     }
 
     /**
