@@ -13,7 +13,7 @@ Write-Host "   🚀 CBVH IT Helpdesk - Production Deployment         " -Foregrou
 Write-Host "=======================================================" -ForegroundColor Cyan
 
 # 1. Push latest branch to production git remote
-Write-Host "`n[1/2] Pushing '$Branch' to production remote (ssh://$User@$Server:$Port/var/repo/it-helpdesk.git)..." -ForegroundColor Yellow
+Write-Host "`n[1/2] Pushing '$Branch' to production remote (ssh://${User}@${Server}:${Port}/var/repo/it-helpdesk.git)..." -ForegroundColor Yellow
 git push production $Branch
 
 if ($LASTEXITCODE -ne 0) {
