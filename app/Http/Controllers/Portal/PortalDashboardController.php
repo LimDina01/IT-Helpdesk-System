@@ -31,7 +31,7 @@ class PortalDashboardController extends Controller
         // 1. KPI Counts
         $reopenedCount = Ticket::where('status', 'reopened')->count();
         $triageCount = Ticket::whereIn('status', ['submitted', 'reopened'])->count();
-        $myTasksCount = Ticket::where('current_technician_id', $user->id)
+        $myTasksCount = Ticket::where('current_technician_id', $user?->id)
             ->whereIn('status', ['assigned', 'in_progress', 'blocked', 'reopened'])
             ->count();
 
@@ -98,7 +98,7 @@ class PortalDashboardController extends Controller
                 break;
 
             case 'my_tasks':
-                $query->where('current_technician_id', $user->id)
+                $query->where('current_technician_id', $user?->id)
                     ->whereIn('status', ['assigned', 'in_progress', 'blocked', 'reopened'])
                     ->orderByRaw("CASE status WHEN 'reopened' THEN 1 ELSE 2 END")
                     ->orderByRaw("CASE priority WHEN 'critical' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END")

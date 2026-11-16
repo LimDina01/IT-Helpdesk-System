@@ -1,0 +1,518 @@
+<div x-data="{
+        copyCode(code) {
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(code).then(() => {
+                    $wire.set('toastMsg', '📋 Copied ' + code + ' to clipboard');
+                });
+            }
+        }
+    }"
+    @if(!$isPaused) wire:poll.15s @endif
+    class="space-y-6">
+
+    <!-- Big Queue Navigation & KPI Cards Container -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 xl:grid-cols-8 gap-3">
+
+        <!-- All Active Tickets -->
+        <button type="button"
+                wire:click="setViewTab('all_active')"
+                class="{{ $viewTab === 'all_active' ? 'ring-2 ring-slate-800 bg-slate-100 border-slate-800' : 'bg-white hover:border-slate-400' }} p-3.5 rounded-2xl border border-slate-200/80 shadow-xs transition text-left cursor-pointer group">
+            <div class="text-[10px] font-bold uppercase tracking-wider text-slate-700 group-hover:text-slate-900">All Active</div>
+            <div class="text-2xl font-black text-slate-900 mt-1">{{ $allActiveCount }}</div>
+            <div class="text-[10px] text-slate-400 mt-0.5 truncate">Running queue</div>
+        </button>
+
+        <!-- Triage Queue -->
+        <button type="button"
+                wire:click="setViewTab('triage')"
+                class="{{ $viewTab === 'triage' ? 'ring-2 ring-blue-600 bg-blue-50/70 border-blue-600' : 'bg-white hover:border-blue-400' }} p-3.5 rounded-2xl border border-slate-200/80 shadow-xs transition text-left cursor-pointer group">
+            <div class="flex items-center justify-between">
+                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-blue-600">Triage Queue</div>
+                @if($reopenedCount > 0)
+                    <span class="bg-amber-100 text-amber-800 text-[9px] font-black px-1.5 py-0.5 rounded-full border border-amber-300 animate-pulse">
+                        {{ $reopenedCount }} Reopened
+                    </span>
+                @endif
+            </div>
+            <div class="text-2xl font-black text-blue-600 mt-1">{{ $triageCount }}</div>
+            <div class="text-[10px] text-slate-400 mt-0.5 truncate">{{ $reopenedCount > 0 ? 'Unassigned & Reopened' : 'Unassigned' }}</div>
+        </button>
+
+        <!-- Approvals -->
+        <button type="button"
+                wire:click="setViewTab('pending_approvals')"
+                class="{{ $viewTab === 'pending_approvals' ? 'ring-2 ring-purple-600 bg-purple-50/70 border-purple-600' : 'bg-white hover:border-purple-400' }} p-3.5 rounded-2xl border border-slate-200/80 shadow-xs transition text-left cursor-pointer group">
+            <div class="flex items-center justify-between">
+                <div class="text-[10px] font-bold uppercase tracking-wider text-purple-700">Approvals</div>
+                @if($pendingHoldCount > 0)
+                    <span class="text-[9px] bg-amber-500 text-slate-950 font-bold px-1.5 py-0.2 rounded-full animate-pulse">⏸ {{ $pendingHoldCount }} Hold</span>
+                @endif
+            </div>
+            <div class="text-2xl font-black text-purple-700 mt-1">{{ $pendingApprovalsCount }}</div>
+            <div class="text-[10px] text-slate-400 mt-0.5 truncate">
+                @if($pendingHoldCount > 0)
+                    {{ $pendingHoldCount }} hold + {{ max(0, $pendingApprovalsCount - $pendingHoldCount) }} sign-offs
+                @else
+                    HOD & IT sign-off
+                @endif
+            </div>
+        </button>
+
+        <!-- My Tasks -->
+        <button type="button"
+                wire:click="setViewTab('my_tasks')"
+                class="{{ $viewTab === 'my_tasks' ? 'ring-2 ring-indigo-600 bg-indigo-50/70 border-indigo-600' : 'bg-white hover:border-indigo-400' }} p-3.5 rounded-2xl border border-slate-200/80 shadow-xs transition text-left cursor-pointer group">
+            <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-indigo-600">My Tasks</div>
+            <div class="text-2xl font-black text-indigo-600 mt-1">{{ $myTasksCount }}</div>
+            <div class="text-[10px] text-slate-400 mt-0.5 truncate">Assigned to you</div>
+        </button>
+
+        <!-- Blocked / Hold -->
+        <button type="button"
+                wire:click="setViewTab('blocked')"
+                class="{{ $viewTab === 'blocked' ? 'ring-2 ring-amber-600 bg-amber-50/70 border-amber-600' : 'bg-white hover:border-amber-400' }} p-3.5 rounded-2xl border border-slate-200/80 shadow-xs transition text-left cursor-pointer group">
+            <div class="flex items-center justify-between">
+                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-amber-600">Blocked</div>
+                @if($pendingHoldCount > 0)
+                    <span class="text-[9px] bg-amber-500 text-slate-950 font-bold px-1.5 py-0.2 rounded-full">⏸ {{ $pendingHoldCount }}</span>
+                @endif
+            </div>
+            <div class="text-2xl font-black text-amber-600 mt-1">{{ $blockedCount }}</div>
+            <div class="text-[10px] text-slate-400 mt-0.5 truncate">
+                @if($pendingHoldCount > 0)
+                    {{ $pendingHoldCount }} hold pending review
+                @else
+                    Vendor / parts hold
+                @endif
+            </div>
+        </button>
+
+        <!-- Pending Confirmation -->
+        <button type="button"
+                wire:click="setViewTab('pending_confirmation')"
+                class="{{ $viewTab === 'pending_confirmation' ? 'ring-2 ring-emerald-600 bg-emerald-50/70 border-emerald-600' : 'bg-white hover:border-emerald-400' }} p-3.5 rounded-2xl border border-slate-200/80 shadow-xs transition text-left cursor-pointer group">
+            <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-emerald-700">Sign-off Window</div>
+            <div class="text-2xl font-black text-emerald-600 mt-1">{{ $pendingConfirmCount }}</div>
+            <div class="text-[10px] text-slate-400 mt-0.5 truncate">Awaiting user check</div>
+        </button>
+
+        <!-- Solved / Closed Tickets -->
+        <button type="button"
+                wire:click="setViewTab('solved')"
+                class="{{ $viewTab === 'solved' ? 'ring-2 ring-teal-600 bg-teal-50/70 border-teal-600' : 'bg-white hover:border-teal-400' }} p-3.5 rounded-2xl border border-slate-200/80 shadow-xs transition text-left cursor-pointer group">
+            <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 group-hover:text-teal-700">Solved / Closed</div>
+            <div class="text-2xl font-black text-teal-700 mt-1">{{ $solvedCount }}</div>
+            <div class="text-[10px] text-slate-400 mt-0.5 truncate">Completed tasks</div>
+        </button>
+
+        <!-- 30m SLA Breaches -->
+        <button type="button"
+                wire:click="setViewTab('sla_breached')"
+                class="{{ $viewTab === 'sla_breached' ? 'ring-2 ring-red-600 bg-red-100/90 border-red-600' : ($slaBreachCount > 0 ? 'border-red-300 bg-red-50/60 ring-1 ring-red-400 hover:border-red-500' : 'bg-white hover:border-red-400') }} p-3.5 rounded-2xl border border-slate-200/80 shadow-xs relative overflow-hidden transition text-left cursor-pointer group">
+            <div class="text-[10px] font-bold uppercase tracking-wider {{ $slaBreachCount > 0 || $viewTab === 'sla_breached' ? 'text-red-700' : 'text-slate-500 group-hover:text-red-600' }}">SLA Breaches</div>
+            <div class="text-2xl font-black {{ $slaBreachCount > 0 || $viewTab === 'sla_breached' ? 'text-red-600 animate-pulse' : 'text-slate-800' }} mt-1">
+                {{ $slaBreachCount }}
+            </div>
+            <div class="text-[10px] text-slate-400 mt-0.5 truncate">>30m unaccepted</div>
+            @if($slaBreachCount > 0)
+                <span class="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-red-600 animate-ping"></span>
+            @endif
+        </button>
+    </div>
+
+    <!-- Main Workspace Container -->
+    <div class="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
+
+        <!-- Filter Controls Toolbar -->
+        <div class="px-5 py-3.5 border-b border-slate-200/80 bg-white flex flex-col md:flex-row md:items-center justify-between gap-3">
+
+            <!-- Real-time Debounced Search -->
+            <div class="relative w-full md:w-80">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                </div>
+                <input type="text"
+                       wire:model.live.debounce.300ms="search"
+                       placeholder="Filter tickets in real time..."
+                       class="w-full text-xs pl-9 pr-7 py-2 rounded-xl border border-slate-200 bg-slate-50/70 placeholder-slate-400 font-medium focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                @if($search)
+                    <button type="button"
+                            wire:click="$set('search', '')"
+                            class="absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                @endif
+            </div>
+
+            <!-- Dropdown Filters & Live Auto-Refresh Controller -->
+            <div class="flex items-center space-x-2.5 flex-wrap gap-y-2">
+                <select wire:model.live="branchFilter" class="text-xs px-3 py-2 rounded-xl border border-slate-200 bg-slate-50/70 font-medium focus:bg-white focus:ring-2 focus:ring-blue-500 shadow-2xs">
+                    <option value="">All Branches</option>
+                    @foreach($branches as $b)
+                        <option value="{{ $b->id }}">{{ $b->code }} - {{ $b->name }}</option>
+                    @endforeach
+                </select>
+
+                <select wire:model.live="priorityFilter" class="text-xs px-3 py-2 rounded-xl border border-slate-200 bg-slate-50/70 font-medium focus:bg-white focus:ring-2 focus:ring-blue-500 shadow-2xs">
+                    <option value="">All Priorities</option>
+                    <option value="critical">Critical</option>
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                </select>
+
+                <select wire:model.live="divisionFilter" class="text-xs px-3 py-2 rounded-xl border border-slate-200 bg-slate-50/70 font-semibold focus:bg-white focus:ring-2 focus:ring-blue-500 shadow-2xs">
+                    <option value="">All IT Units (OPR & PRD)</option>
+                    <option value="opr">🛠️ IT-OPR (Operations)</option>
+                    <option value="prd">💻 IT-PRD (Production)</option>
+                </select>
+
+                @if($branchFilter || $priorityFilter || $divisionFilter || $search)
+                    <button type="button" wire:click="clearFilters" class="text-xs text-rose-600 hover:underline px-1.5 font-semibold cursor-pointer">Clear</button>
+                @endif
+
+                <div class="w-px h-5 bg-slate-200 hidden sm:block"></div>
+
+                <!-- Live Auto-Refresh Controller -->
+                <div class="flex items-center space-x-1.5 bg-slate-100 border border-slate-200/80 px-2.5 py-1.5 rounded-xl shadow-2xs text-[11px] font-semibold text-slate-700">
+                    <button type="button"
+                            wire:click="$refresh"
+                            class="hover:text-blue-600 transition flex items-center space-x-1 cursor-pointer"
+                            title="Refresh queue now">
+                        <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                    </button>
+                    <div class="w-px h-3 bg-slate-300"></div>
+                    <button type="button"
+                            wire:click="togglePause"
+                            class="flex items-center space-x-1.5 hover:text-slate-900 transition cursor-pointer"
+                            title="{{ $isPaused ? 'Auto-refresh is paused. Click to resume.' : 'Auto-refresh is active (every 15s). Click to pause.' }}">
+                        <span class="w-2 h-2 rounded-full {{ $isPaused ? 'bg-amber-400' : 'bg-emerald-500 animate-pulse' }}"></span>
+                        <span>{{ $isPaused ? 'Paused' : 'Live' }}</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLA Breach Context Banner -->
+        @if($viewTab === 'sla_breached')
+            <div class="bg-red-50/90 border-b border-red-200 px-5 py-3 flex items-center justify-between text-xs text-red-900">
+                <div class="flex items-center space-x-2.5">
+                    <span class="text-lg">⚠️</span>
+                    <div>
+                        <span class="font-bold">SLA Breach Queue:</span>
+                        <span class="text-red-700">These assigned tickets have exceeded the 30-minute acknowledgement window without being accepted by the assigned technician.</span>
+                    </div>
+                </div>
+                <button type="button" wire:click="setViewTab('triage')" class="text-red-700 hover:text-red-900 font-bold underline whitespace-nowrap ml-4 cursor-pointer">Back to Triage</button>
+            </div>
+        @endif
+
+        <!-- Ticket Table Container -->
+        <div class="overflow-x-auto relative" wire:loading.class="opacity-60" wire:target="viewTab, search, branchFilter, priorityFilter, divisionFilter, perPage, setViewTab, clearFilters">
+            <table class="w-full text-left text-xs">
+                <thead class="bg-slate-50/80 text-slate-500 font-bold uppercase tracking-wider text-[10px] border-b border-slate-200">
+                    <tr>
+                        <th class="py-2.5 px-3">Ticket</th>
+                        <th class="py-2.5 px-3">Subject & Details</th>
+                        <th class="py-2.5 px-3">Requester / Branch</th>
+                        <th class="py-2.5 px-3">Technician</th>
+                        <th class="py-2.5 px-3">Status & SLA</th>
+                        <th class="py-2.5 px-3 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    @forelse($tickets as $t)
+                        <tr class="group hover:bg-slate-50/70 transition" wire:key="ticket-row-{{ $t->id }}">
+
+                            <!-- Ticket Code & Priority -->
+                            <td class="py-2.5 px-3 whitespace-nowrap">
+                                <div class="flex items-center space-x-1">
+                                    <a href="{{ route('portal.tickets.show', $t->id) }}" wire:navigate class="font-mono font-bold text-blue-600 hover:underline text-xs">
+                                        {{ $t->ticket_code }}
+                                    </a>
+                                    <button type="button"
+                                            @click.prevent.stop="copyCode('{{ $t->ticket_code }}')"
+                                            class="opacity-0 group-hover:opacity-100 hover:text-blue-700 text-slate-400 transition cursor-pointer"
+                                            title="Copy ticket code">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                                    </button>
+                                </div>
+                                <div class="mt-0.5">
+                                    @if($t->priority === 'critical')
+                                        <span class="bg-red-600 text-white font-bold text-[9px] uppercase px-1.5 py-0.5 rounded tracking-wider">Critical</span>
+                                    @elseif($t->priority === 'high')
+                                        <span class="bg-orange-500 text-white font-bold text-[9px] uppercase px-1.5 py-0.5 rounded tracking-wider">High</span>
+                                    @elseif($t->priority === 'medium')
+                                        <span class="bg-blue-100 text-blue-800 font-semibold text-[9px] uppercase px-1.5 py-0.5 rounded tracking-wider">Medium</span>
+                                    @else
+                                        <span class="bg-slate-100 text-slate-700 font-semibold text-[9px] uppercase px-1.5 py-0.5 rounded tracking-wider">Low</span>
+                                    @endif
+                                </div>
+                            </td>
+
+                            <!-- Subject & Category -->
+                            <td class="py-2.5 px-3 min-w-[150px] max-w-[240px]">
+                                <div class="flex items-center space-x-1 mb-0.5">
+                                    @if($t->isIncident())
+                                        <span class="text-[9px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-1 py-0.2 rounded leading-tight">🔴 Incident</span>
+                                    @else
+                                        <span class="text-[9px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-1 py-0.2 rounded leading-tight">🔵 Service Request</span>
+                                    @endif
+                                    @if(($t->it_division ?? '') === 'prd')
+                                        <span class="text-[9px] font-bold text-purple-700 bg-purple-50 border border-purple-200 px-1 py-0.2 rounded leading-tight">IT-PRD</span>
+                                    @else
+                                        <span class="text-[9px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-1 py-0.2 rounded leading-tight">IT-OPR</span>
+                                    @endif
+                                </div>
+                                <a href="{{ route('portal.tickets.show', $t->id) }}" wire:navigate class="font-bold text-slate-800 hover:text-blue-600 line-clamp-1 text-xs">
+                                    {{ $t->subject }}
+                                </a>
+                                <div class="text-[10px] text-slate-400 truncate mt-0.5">
+                                    {{ $t->category->name ?? 'Uncategorized' }}
+                                </div>
+                            </td>
+
+                            <!-- Requester & Location -->
+                            <td class="py-2.5 px-3">
+                                <div class="font-semibold text-slate-700 text-xs truncate max-w-[120px] 2xl:max-w-none" title="{{ $t->requester->name }}">{{ $t->requester->name }}</div>
+                                <div class="text-[10px] text-slate-500 flex items-center space-x-1 mt-0.5">
+                                    <span class="font-bold text-slate-700">{{ $t->branch->code }}</span>
+                                    <span class="text-slate-400 truncate max-w-[90px] 2xl:max-w-none" title="{{ $t->branch->name }}">• {{ $t->branch->name }}</span>
+                                </div>
+                            </td>
+
+                            <!-- Technician Assignment -->
+                            <td class="py-2.5 px-3">
+                                @if($t->technician)
+                                    <div class="font-semibold text-slate-800 text-xs flex items-center space-x-1">
+                                        <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></div>
+                                        <span class="truncate max-w-[120px] 2xl:max-w-none" title="{{ $t->technician->name }}">{{ $t->technician->name }}</span>
+                                    </div>
+                                    <div class="text-[10px] text-slate-400 mt-0.5">
+                                        Assigned {{ $t->assigned_at ? $t->assigned_at->diffForHumans(null, true) : '' }}
+                                    </div>
+                                @else
+                                    <div class="flex items-center space-x-1.5">
+                                        <span class="text-amber-700 font-medium bg-amber-50 px-1.5 py-0.5 rounded text-[10px]">
+                                            Unassigned
+                                        </span>
+                                        @if(Auth::user()->hasAnyRole(['technician', 'helpdesk', 'system_admin', 'hod']))
+                                            <button type="button"
+                                                    wire:click="assignToMe({{ $t->id }})"
+                                                    class="text-[10px] font-bold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                                                    title="Claim and assign this ticket to yourself">
+                                                Claim
+                                            </button>
+                                        @endif
+                                    </div>
+                                @endif
+                            </td>
+
+                            <!-- Status & Live SLA Tracking -->
+                            <td class="py-2.5 px-3">
+                                @php
+                                    $ackBreached = false;
+                                    $ackRemainingMins = null;
+                                    $minsElapsed = 0;
+                                    if ($t->status === 'assigned' && !$t->acknowledged_at && $t->assigned_at) {
+                                        $minsElapsed = app(\App\Services\BusinessHoursService::class)->getWorkingMinutesBetween($t->assigned_at, now());
+                                        if ($minsElapsed > 30) {
+                                            $ackBreached = true;
+                                        } else {
+                                            $ackRemainingMins = 30 - $minsElapsed;
+                                        }
+                                    }
+
+                                    $targetResolveHours = $t->category?->target_resolve_hours;
+                                    $hoursRemaining = $t->getSlaRemainingHours();
+                                    $isSlaPaused = $t->isSlaPaused();
+                                    $pausedHours = $t->getPausedHours();
+                                    $slaDeadline = $t->getSlaDeadline();
+                                    $isLunchBreak = $t->isLunchBreak();
+                                    $isOffHours = $t->isOutsideBusinessHours();
+                                @endphp
+
+                                <div class="flex flex-col space-y-0.5">
+                                    <div class="flex items-center flex-wrap gap-1">
+                                        @if($t->status === 'pending_approval')
+                                            <span class="bg-purple-100 text-purple-800 font-bold px-1.5 py-0.5 rounded text-[9px] uppercase animate-pulse">Approval</span>
+                                        @elseif($t->status === 'rejected')
+                                            <span class="bg-rose-100 text-rose-800 font-bold px-1.5 py-0.5 rounded text-[9px] uppercase">Rejected</span>
+                                        @elseif($t->status === 'submitted')
+                                            <span class="bg-blue-100 text-blue-800 font-bold px-1.5 py-0.5 rounded text-[9px] uppercase">Triage</span>
+                                        @elseif($t->status === 'assigned')
+                                            <span class="bg-purple-100 text-purple-800 font-bold px-1.5 py-0.5 rounded text-[9px] uppercase">Awaiting Accept</span>
+                                        @elseif($t->status === 'in_progress')
+                                            <span class="bg-indigo-100 text-indigo-800 font-bold px-1.5 py-0.5 rounded text-[9px] uppercase">In Progress</span>
+                                            @if($t->isHoldPending())
+                                                <span class="bg-amber-100 text-amber-900 border border-amber-300 font-extrabold px-1.5 py-0.5 rounded text-[9px] uppercase flex items-center space-x-1 animate-pulse" title="Technician requested Hold (Reason: {{ $t->hold_requested_reason }})">
+                                                    <span>⏸</span>
+                                                    <span>Hold Approval</span>
+                                                </span>
+                                            @endif
+                                        @elseif($t->status === 'clarifying')
+                                            <span class="bg-amber-100 text-amber-900 font-bold px-1.5 py-0.5 rounded text-[9px] uppercase">Needs Info</span>
+                                        @elseif($t->status === 'blocked')
+                                            <span class="bg-red-100 text-red-800 font-bold px-1.5 py-0.5 rounded text-[9px] uppercase">Blocked</span>
+                                        @elseif($t->status === 'pending_confirmation')
+                                            <span class="bg-emerald-100 text-emerald-900 font-bold px-1.5 py-0.5 rounded text-[9px] uppercase">Pending Confirm</span>
+                                        @elseif($t->status === 'reopened')
+                                            <span class="bg-amber-100 text-amber-900 border border-amber-300 font-extrabold px-1.5 py-0.5 rounded text-[9px] uppercase flex items-center space-x-1 animate-pulse">
+                                                <span>⚠️</span>
+                                                <span>Reopened</span>
+                                            </span>
+                                        @elseif($t->status === 'resolved_confirmed' || $t->status === 'resolved_auto_closed')
+                                            <span class="bg-teal-100 text-teal-800 font-bold px-1.5 py-0.5 rounded text-[9px] uppercase">✔ Solved</span>
+                                        @elseif($t->status === 'closed')
+                                            <span class="bg-slate-100 text-slate-700 font-bold px-1.5 py-0.5 rounded text-[9px] uppercase">Closed</span>
+                                        @else
+                                            <span class="bg-slate-100 text-slate-700 font-bold px-1.5 py-0.5 rounded text-[9px] uppercase">{{ $t->status }}</span>
+                                        @endif
+
+                                        <!-- Live 30m Ack SLA Badge -->
+                                        @if($ackBreached)
+                                            <span class="bg-red-600 text-white font-extrabold text-[9px] uppercase px-1.5 py-0.5 rounded-full animate-pulse flex items-center space-x-0.5" title="30-minute tech acceptance SLA breached!">
+                                                <span>⚠️</span>
+                                                <span>Overdue Ack (+{{ $minsElapsed }}m)</span>
+                                            </span>
+                                        @elseif($ackRemainingMins !== null)
+                                            <span class="bg-blue-50 text-blue-700 border border-blue-200 font-bold text-[9px] uppercase px-1.5 py-0.5 rounded-full flex items-center space-x-0.5" title="Acknowledgement target deadline">
+                                                <span>⏱️</span>
+                                                <span>{{ $ackRemainingMins }}m left</span>
+                                            </span>
+                                        @endif
+                                    </div>
+
+                                    <!-- Target Resolution SLA Info -->
+                                    <div class="text-[10px] text-slate-400 flex items-center space-x-1.5 flex-wrap">
+                                        <span>Age: {{ $t->created_at->diffForHumans(null, true) }}</span>
+                                        @if($isSlaPaused)
+                                            <span>•</span>
+                                            <span class="text-amber-700 font-bold flex items-center space-x-1" title="SLA timer paused while on hold for parts or vendor">
+                                                <span>⏸️</span>
+                                                <span>SLA Paused{{ $pausedHours > 0 ? " ({$pausedHours}h hold)" : ' (On Hold)' }}</span>
+                                            </span>
+                                        @elseif($hoursRemaining !== null && in_array($t->status, ['assigned', 'in_progress', 'reopened']))
+                                            <span>•</span>
+                                            @if($hoursRemaining < 0)
+                                                <span class="text-rose-600 font-bold">Overdue (+{{ abs($hoursRemaining) }}h)</span>
+                                            @elseif($isLunchBreak)
+                                                <span class="text-amber-600 font-semibold" title="CBVH Lunch Break (12:00 PM – 1:00 PM). SLA clock frozen until 1:00 PM.">🍽️ Lunch Break ({{ $hoursRemaining }}h left)</span>
+                                            @elseif($isOffHours)
+                                                <span class="text-indigo-600 font-semibold" title="CBVH is currently closed. SLA clock frozen until next working day 08:00 AM.">🌙 Off-Hours ({{ $hoursRemaining }}h left)</span>
+                                            @elseif($hoursRemaining <= 8)
+                                                <span class="text-amber-600 font-bold" title="{{ $slaDeadline ? 'Deadline: ' . $slaDeadline->format('D, d-M h:i A') : '' }}">Due in {{ $hoursRemaining }}h{{ $slaDeadline ? ' (' . $slaDeadline->format('D h:i A') . ')' : '' }}</span>
+                                            @else
+                                                <span title="{{ $slaDeadline ? 'Deadline: ' . $slaDeadline->format('D, d-M h:i A') : '' }}">Target: {{ $targetResolveHours }}h</span>
+                                            @endif
+                                            @if($pausedHours > 0)
+                                                <span class="text-slate-400 font-normal">({{ $pausedHours }}h paused)</span>
+                                            @endif
+                                        @endif
+                                    </div>
+                                </div>
+                            </td>
+
+                            <!-- Action Buttons -->
+                            <td class="py-2.5 px-3 text-right whitespace-nowrap">
+                                <div class="flex items-center justify-end space-x-1">
+                                    <!-- Hold Approval Review for HOD / Manager -->
+                                    @if($t->isHoldPending() && Auth::user()->hasAnyRole(['system_admin', 'hod']))
+                                        <a href="{{ route('portal.tickets.show', $t->id) }}" wire:navigate
+                                           class="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-[11px] px-2.5 py-1 rounded-lg shadow-2xs transition flex items-center space-x-1"
+                                           title="Review hold request and approve/reject">
+                                            <span>⏸</span>
+                                            <span>Review Hold</span>
+                                        </a>
+                                    @endif
+
+                                    <!-- Quick Accept or Resume Button -->
+                                    @if(in_array($t->status, ['assigned', 'reopened']) && ($t->current_technician_id === Auth::id() || Auth::user()->hasAnyRole(['system_admin', 'hod'])))
+                                        <button type="button"
+                                                wire:click="acceptTicket({{ $t->id }})"
+                                                class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] px-2 py-1 rounded-lg shadow-2xs transition cursor-pointer"
+                                                title="{{ $t->status === 'reopened' ? 'Resume work on this reopened ticket' : 'Accept & Start this ticket' }}">
+                                            {{ $t->status === 'reopened' ? 'Resume' : 'Accept' }}
+                                        </button>
+                                    @endif
+
+                                    <!-- Open Workspace -->
+                                    <a href="{{ route('portal.tickets.show', $t->id) }}" wire:navigate
+                                       class="bg-blue-600 hover:bg-blue-700 text-white font-semibold text-[11px] px-3 py-1 rounded-lg shadow-2xs transition">
+                                        View
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="6" class="py-12 text-center text-slate-400">
+                                @if($viewTab === 'sla_breached')
+                                    <div class="text-2xl mb-2">🎉</div>
+                                    <div class="font-semibold text-sm text-emerald-700">No SLA Breaches</div>
+                                    <div class="text-xs text-slate-400">All assigned tickets have been accepted by technicians within the 30-minute window!</div>
+                                @else
+                                    <div class="text-2xl mb-2">🎉</div>
+                                    <div class="font-semibold text-sm text-slate-600">No tickets found in this queue</div>
+                                    <div class="text-xs text-slate-400">All submissions in this category have been triaged or addressed.</div>
+                                @endif
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination & Results Summary Footer -->
+        <div class="p-4 border-t border-slate-200 bg-slate-50/60 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div class="text-xs text-slate-500 font-medium flex items-center space-x-1.5">
+                <span>Showing</span>
+                <span class="font-bold text-slate-700">{{ $tickets->firstItem() ?? 0 }}</span>
+                <span>to</span>
+                <span class="font-bold text-slate-700">{{ $tickets->lastItem() ?? 0 }}</span>
+                <span>of</span>
+                <span class="font-bold text-slate-700">{{ $tickets->total() }}</span>
+                <span>tickets</span>
+            </div>
+
+            <div class="flex items-center space-x-4">
+                <div class="flex items-center space-x-1.5 text-xs text-slate-500">
+                    <span class="text-[11px] text-slate-400 font-semibold">Per page:</span>
+                    @foreach([10, 15, 25, 50] as $size)
+                        <button type="button"
+                                wire:click="$set('perPage', {{ $size }})"
+                                class="px-2 py-0.5 rounded-md text-[11px] font-bold transition cursor-pointer {{ $perPage == $size ? 'bg-indigo-600 text-white' : 'bg-slate-200/70 hover:bg-slate-200 text-slate-600' }}">
+                            {{ $size }}
+                        </button>
+                    @endforeach
+                </div>
+
+                @if($tickets->hasPages())
+                    <div class="shrink-0">
+                        {{ $tickets->links() }}
+                    </div>
+                @endif
+            </div>
+        </div>
+    </div>
+
+    <!-- FLOATING TOAST NOTIFICATION -->
+    @if($toastMsg)
+        <div x-data="{ show: true }"
+             x-show="show"
+             x-init="setTimeout(() => { show = false; $wire.clearToast(); }, 3500)"
+             x-transition:enter="transition ease-out duration-200"
+             x-transition:enter-start="opacity-0 translate-y-3 scale-95"
+             x-transition:enter-end="opacity-100 translate-y-0 scale-100"
+             x-transition:leave="transition ease-in duration-150"
+             x-transition:leave-start="opacity-100 translate-y-0 scale-100"
+             x-transition:leave-end="opacity-0 translate-y-3 scale-95"
+             class="fixed bottom-6 right-6 z-50 bg-slate-900/95 text-white px-4 py-2.5 rounded-2xl shadow-2xl flex items-center space-x-2.5 text-xs font-semibold border border-slate-700/80 backdrop-blur-xs">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span>{{ $toastMsg }}</span>
+        </div>
+    @endif
+
+</div>
