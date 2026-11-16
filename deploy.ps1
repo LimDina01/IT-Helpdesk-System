@@ -1,4 +1,4 @@
-param (
+﻿param (
     [string]$Server = "192.168.11.188",
     [int]$Port = 2026,
     [string]$User = "cbvh",
@@ -24,7 +24,7 @@ Write-Host "✅ Code pushed successfully to production remote." -ForegroundColor
 
 # 2. Run post-deploy commands via SSH
 Write-Host "`n[2/2] Running migrations and clearing caches via SSH..." -ForegroundColor Yellow
-$remoteCommands = "cd $AppPath && php artisan migrate --force && php artisan view:clear && php artisan config:clear && php artisan route:clear"
+$remoteCommands = "cd $AppPath && composer dump-autoload -o && php artisan migrate --force && php artisan optimize:clear"
 
 ssh -p $Port $User@$Server $remoteCommands
 
