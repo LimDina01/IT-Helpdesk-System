@@ -604,6 +604,7 @@ function tmaApp() {
                 this.$watch('activeTicketModal', () => this.updateBackButton());
                 this.$watch('showTicketInfo', () => this.updateBackButton());
                 this.$watch('showLightbox', () => this.updateBackButton());
+                this.$watch('showLogoutModal', () => this.updateBackButton());
             } catch (e) {}
 
             // Immediately hydrate cached user profile so name & department render in 0ms
@@ -770,29 +771,36 @@ function tmaApp() {
         },
 
         logout() {
-            const confirmMsg = this.t('logout_confirm_msg', 'Are you sure you want to sign out of CBVH IT Help Desk?');
-
-            if (window.Telegram?.WebApp?.showConfirm) {
-                window.Telegram.WebApp.showConfirm(confirmMsg, (confirmed) => {
-                    if (confirmed) {
-                        this.executeLogout();
-                    }
-                });
-            } else {
-                this.showLogoutModal = true;
+            this.showLogoutModal = true;
+            this.updateBackButton();
+            if (window.Telegram?.WebApp?.HapticFeedback) {
+                window.Telegram.WebApp.HapticFeedback.impactOccurred('medium');
             }
         },
 
         executeLogout() {
             this.showLogoutModal = false;
+            this.updateBackButton();
+            if (window.Telegram?.WebApp?.HapticFeedback) {
+                window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+            }
+
             fetch('/tma/api/logout', {
                 method: 'POST',
                 headers: {
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
                     'Accept': 'application/json'
                 }
-            }).finally(() => {
-                this.authState = 'web_login_required';
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data && data.csrf_token) {
+                    const meta = document.querySelector('meta[name="csrf-token"]');
+                    if (meta) meta.setAttribute('content', data.csrf_token);
+                }
+            })
+            .catch(() => {})
+            .finally(() => {
                 this.currentUser = {};
                 this.activeTickets = [];
                 this.historyTickets = [];
@@ -807,6 +815,12 @@ function tmaApp() {
                     localStorage.removeItem('cbvh_tma_counts');
                     localStorage.removeItem('cbvh_tma_form_data');
                 } catch (e) {}
+
+                if (window.Telegram?.WebApp?.initData && typeof window.Telegram.WebApp.close === 'function') {
+                    window.Telegram.WebApp.close();
+                } else {
+                    this.authState = 'web_login_required';
+                }
             });
         },
 
@@ -2142,7 +2156,7 @@ function tmaApp() {
             const tg = window.Telegram?.WebApp;
             if (!tg?.BackButton) return;
             try {
-                if (this.showLightbox || this.showTicketInfo || this.activeTicketModal || this.currentView !== 'home') {
+                if (this.showLogoutModal || this.showLightbox || this.showTicketInfo || this.activeTicketModal || this.currentView !== 'home') {
                     tg.BackButton.show();
                 } else {
                     tg.BackButton.hide();
@@ -2151,6 +2165,12 @@ function tmaApp() {
         },
 
         handleBackButtonClick() {
+            // 0. If logout confirmation modal is open, dismiss it
+            if (this.showLogoutModal) {
+                this.showLogoutModal = false;
+                this.updateBackButton();
+                return;
+            }
             // 1. If an input or textarea is currently focused, hide keyboard first
             if (document.activeElement && ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
                 this.dismissKeyboard();

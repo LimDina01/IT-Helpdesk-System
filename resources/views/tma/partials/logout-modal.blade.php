@@ -6,9 +6,9 @@
      x-transition:leave="transition ease-in duration-150"
      x-transition:leave-start="opacity-100"
      x-transition:leave-end="opacity-0"
-     class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4"
+     class="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4"
      x-cloak>
-    <div @click.away="showLogoutModal = false"
+    <div @click.away="showLogoutModal = false; updateBackButton();"
          class="bg-white rounded-3xl max-w-xs w-full p-6 shadow-2xl space-y-4 border border-slate-100 text-center animate-fadeIn">
         <div class="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mx-auto text-xl shadow-2xs border border-rose-100">
             🚪
@@ -20,7 +20,7 @@
             </p>
         </div>
         <div class="grid grid-cols-2 gap-2.5 pt-2">
-            <button type="button" @click="showLogoutModal = false"
+            <button type="button" @click="showLogoutModal = false; updateBackButton();"
                     class="w-full py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100 active:scale-95 transition"
                     x-text="t('cancel')">
                 Cancel

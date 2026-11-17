@@ -344,6 +344,9 @@ class TmaAuthController extends Controller
         request()->session()->invalidate();
         request()->session()->regenerateToken();
 
-        return response()->json(['status' => 'logged_out']);
+        return response()->json([
+            'status' => 'logged_out',
+            'csrf_token' => csrf_token(),
+        ]);
     }
 }

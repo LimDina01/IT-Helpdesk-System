@@ -68,6 +68,7 @@ class LogoutConfirmationTest extends TestCase
         $response = $this->postJson(route('tma.logout'));
 
         $response->assertStatus(200)
+            ->assertJsonStructure(['status', 'csrf_token'])
             ->assertJson(['status' => 'logged_out']);
 
         $this->assertGuest('tma');
