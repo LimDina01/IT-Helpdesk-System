@@ -371,7 +371,7 @@
                                         <template x-if="m.body && m.body !== '(Attachment)' && m.body.trim().length > 0">
                                             <div class="relative max-w-[85%] sm:max-w-[78%] rounded-2xl rounded-tr-xs px-4 py-2.5 shadow-sm text-white select-text"
                                                  style="background: linear-gradient(135deg, #0084ff 0%, #0066f6 100%); box-shadow: 0 2px 8px -1px rgba(0, 132, 255, 0.35);">
-                                                <div class="text-[13.5px] leading-relaxed break-words font-normal">
+                                                <div class="text-[13.5px] leading-relaxed break-words font-normal whitespace-pre-wrap">
                                                     <span x-text="m.body"></span>
                                                 </div>
                                             </div>
@@ -471,7 +471,7 @@
                                             <template x-if="m.body && m.body !== '(Attachment)' && m.body.trim().length > 0">
                                                 <div class="relative max-w-full rounded-2xl rounded-tl-xs px-4 py-2.5 shadow-xs bg-white text-slate-800 border border-slate-200/90 select-text"
                                                      style="box-shadow: 0 1px 4px 0 rgba(0, 0, 0, 0.05);">
-                                                    <div class="text-[13.5px] leading-relaxed break-words font-normal text-slate-800">
+                                                    <div class="text-[13.5px] leading-relaxed break-words font-normal text-slate-800 whitespace-pre-wrap">
                                                         <span x-text="m.body"></span>
                                                     </div>
                                                 </div>
@@ -568,9 +568,9 @@
                     </div>
 
                     <!-- Input Controls Row (Executive Native Messenger Style - Squeezed & Tucked inward) -->
-                    <div class="flex items-center space-x-2 px-1">
+                    <div class="flex items-end space-x-2 px-1">
                         <!-- Photo Gallery Button (Crisp Native iOS Camera Icon) -->
-                        <label class="cursor-pointer text-blue-600 hover:text-blue-700 active:scale-95 w-9 h-9 rounded-full hover:bg-blue-50 active:bg-blue-100 transition shrink-0 flex items-center justify-center"
+                        <label class="cursor-pointer text-blue-600 hover:text-blue-700 active:scale-95 w-9 h-9 rounded-full hover:bg-blue-50 active:bg-blue-100 transition shrink-0 flex items-center justify-center mb-0.5"
                                :title="t('photo_gallery')">
                             <svg width="22" height="22" class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
@@ -580,7 +580,7 @@
                         </label>
 
                         <!-- Document / File Button (Refined Paperclip Icon) -->
-                        <label class="cursor-pointer text-slate-500 hover:text-blue-600 active:scale-95 w-9 h-9 rounded-full hover:bg-slate-100 active:bg-slate-200 transition shrink-0 flex items-center justify-center"
+                        <label class="cursor-pointer text-slate-500 hover:text-blue-600 active:scale-95 w-9 h-9 rounded-full hover:bg-slate-100 active:bg-slate-200 transition shrink-0 flex items-center justify-center mb-0.5"
                                :title="t('document_file')">
                             <svg width="22" height="22" class="w-5 h-5 text-slate-500 hover:text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
@@ -588,12 +588,15 @@
                             <input type="file" id="chatFileInput" multiple @change="handleReplyFiles" class="hidden" accept="application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain">
                         </label>
                         
-                        <!-- Rounded-full Messenger Pill Input -->
-                        <input type="text" id="chatTextInput" x-model="replyText" :placeholder="t('type_message')"
-                               @focus="isReplyFocused = true"
-                               @blur="isReplyFocused = false"
-                               class="tma-input flex-1 bg-slate-100 hover:bg-slate-50 focus:bg-white border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-full px-4 py-2.5 text-xs text-slate-900 font-medium placeholder:text-slate-400 focus:outline-none transition shadow-inner"
-                               style="color: #0f172a !important; -webkit-text-fill-color: #0f172a !important; background-color: #f1f5f9 !important;">
+                        <!-- Rounded-2xl Messenger Auto-Expanding Textarea -->
+                        <textarea id="chatTextInput" x-model="replyText" :placeholder="t('type_message')"
+                                  rows="1"
+                                  @focus="isReplyFocused = true"
+                                  @blur="isReplyFocused = false"
+                                  @input="autoResizeChatInput($el)"
+                                  @keydown.enter="handleChatEnter($event)"
+                                  class="tma-textarea flex-1 bg-slate-100 hover:bg-slate-50 focus:bg-white border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-2xl px-4 py-2 text-xs text-slate-900 font-medium placeholder:text-slate-400 focus:outline-none transition shadow-inner resize-none max-h-28 overflow-y-auto leading-relaxed"
+                                  style="color: #0f172a !important; -webkit-text-fill-color: #0f172a !important; background-color: #f1f5f9 !important; min-height: 38px;"></textarea>
 
                         <!-- Hide Keyboard Button (Visible only on mobile when typing) -->
                         <button type="button"
@@ -601,7 +604,7 @@
                                 @mousedown.prevent
                                 @touchstart.prevent="dismissKeyboard()"
                                 @click="dismissKeyboard()"
-                                class="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 transition flex items-center justify-center shrink-0 shadow-2xs"
+                                class="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 transition flex items-center justify-center shrink-0 shadow-2xs mb-0.5"
                                 :title="t('hide_keyboard')">
                             <svg width="16" height="16" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7" />

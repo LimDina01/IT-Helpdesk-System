@@ -1047,6 +1047,8 @@ function tmaApp() {
             this.updateBackButton();
             this.replyText = '';
             this.replyFiles = [];
+            const ci = document.getElementById('chatTextInput');
+            if (ci) ci.style.height = 'auto';
             this.showReopenPrompt = false;
             this.showApprovePrompt = false;
             this.showRejectPrompt = false;
@@ -1208,6 +1210,8 @@ function tmaApp() {
                     if (fi) fi.value = '';
                     const pi = document.getElementById('chatPhotoInput');
                     if (pi) pi.value = '';
+                    const ci = document.getElementById('chatTextInput');
+                    if (ci) ci.style.height = 'auto';
                     this.openTicketDetail(this.selectedTicket.id);
                 }
             })
@@ -2143,6 +2147,25 @@ function tmaApp() {
                     this.dismissKeyboard();
                 }
             }
+        },
+
+        autoResizeChatInput(el) {
+            if (!el) return;
+            el.style.height = 'auto';
+            el.style.height = Math.min(el.scrollHeight, 112) + 'px';
+        },
+
+        handleChatEnter(e) {
+            // On desktop/PC, Enter sends the message; Shift+Enter creates a new line
+            if (!this.isMobileDevice() && !e.shiftKey) {
+                e.preventDefault();
+                this.sendReply();
+                return;
+            }
+            // On mobile or Shift+Enter, allow newline and dynamically auto-expand
+            this.$nextTick(() => {
+                this.autoResizeChatInput(e.target);
+            });
         },
 
         dismissKeyboard() {
