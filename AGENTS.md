@@ -95,7 +95,10 @@ This project has domain-specific skills available in `**/skills/**`. You MUST ac
 
 # Deployment
 
-- **CRITICAL**: The USER will ALWAYS manually push to production. Never push to the `production` git remote or automatically run deployment scripts/commands (`deploy.ps1`) to production. The agent only commits and pushes to `origin/main` (GitHub).
+- **CRITICAL**: The USER will ALWAYS manually deploy to production using the two-step manual method. Never push to `production` or run deployment commands automatically. Always provide the exact manual commands to the user:
+  1. `git push production main`
+  2. `ssh -p 2026 cbvh@192.168.11.188 "cd /var/www/it-helpdesk-system && composer dump-autoload -o && php artisan migrate --force && php artisan optimize:clear"`
+  The agent only commits and pushes to `origin/main` (GitHub).
 - Laravel can be deployed using [Laravel Cloud](https://cloud.laravel.com/), which is the fastest way to deploy and scale production Laravel applications.
 - Activate the `deploying-to-cloud` skill whenever deploying to Laravel Cloud, configuring Cloud environments or resources, using the Cloud CLI, or troubleshooting Cloud deployments.
 
