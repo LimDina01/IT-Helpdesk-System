@@ -38,6 +38,24 @@ This project has domain-specific skills available in `**/skills/**`. You MUST ac
 
 - You must only create documentation files if explicitly requested by the user.
 
+=== execution modes ===
+
+# Execution Modes & Speed Controls
+
+Always display the active mode badge at the very top of each response: `[Mode: Simple ⚡]`, `[Mode: Discuss 💬]`, or `[Mode: Detailed 🛡️]`.
+
+1. **⚡ Simple Mode (Default for all normal tasks & fixes - Target: < 2 mins)**:
+   - **Trigger**: Day-to-day bug fixes, UI/CSS tweaks, targeted checks, adding a small feature/modal, or when the user says "fast" or "simple".
+   - **Behavior**: Inspect only the exact target file/function. Make surgical edits. Run ONLY the matching micro-test (`--filter=...`, ~1s) + Pint. Do NOT run the full 166-test suite or deep historical git scans. Commit and push to `origin/main`, then output the 2 manual deployment commands.
+
+2. **💬 Discuss / Plan Mode (Read-Only - Instant)**:
+   - **Trigger**: Questions, brainstorming, architectural design, root cause inquiries, or when the user says "talk first", "discuss", "plan", "what do you think?".
+   - **Behavior**: Strictly read-only. Zero code edits, zero commits. Inspect code, explain root cause, and present options. Await user confirmation before touching files.
+
+3. **🛡️ Detailed Mode (Milestones & Complex Refactors - 5-10 mins)**:
+   - **Trigger**: Major milestone implementations (e.g. Phase 4B, Phase 5), core database schema migrations, broad architectural refactors, or when the user says "detailed", "deep check", "audit", "full test".
+   - **Behavior**: Comprehensive cross-file impact analysis, schema checks, security verification, and running the full test suite (`php artisan test`).
+
 === boost rules ===
 
 # Laravel Boost
