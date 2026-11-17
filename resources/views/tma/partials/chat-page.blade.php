@@ -371,9 +371,7 @@
                                         <template x-if="m.body && m.body !== '(Attachment)' && m.body.trim().length > 0">
                                             <div class="relative inline-block w-fit max-w-[80%] sm:max-w-[75%] rounded-2xl rounded-tr-xs px-3.5 py-2 shadow-sm text-white select-text text-left self-end"
                                                  style="background: linear-gradient(135deg, #0084ff 0%, #0066f6 100%); box-shadow: 0 2px 8px -1px rgba(0, 132, 255, 0.35);">
-                                                <div class="text-[13.5px] leading-relaxed break-words font-normal whitespace-pre-wrap text-left">
-                                                    <span x-text="m.body"></span>
-                                                </div>
+                                                <div class="text-[13.5px] leading-relaxed break-words font-normal text-left"><span class="whitespace-pre-wrap" x-text="m.body"></span></div>
                                             </div>
                                         </template>
 
@@ -471,9 +469,7 @@
                                             <template x-if="m.body && m.body !== '(Attachment)' && m.body.trim().length > 0">
                                                 <div class="relative inline-block w-fit max-w-[85%] sm:max-w-[78%] rounded-2xl rounded-tl-xs px-3.5 py-2 shadow-xs bg-white text-slate-800 border border-slate-200/90 select-text text-left self-start"
                                                      style="box-shadow: 0 1px 4px 0 rgba(0, 0, 0, 0.05);">
-                                                    <div class="text-[13.5px] leading-relaxed break-words font-normal text-slate-800 whitespace-pre-wrap text-left">
-                                                        <span x-text="m.body"></span>
-                                                    </div>
+                                                    <div class="text-[13.5px] leading-relaxed break-words font-normal text-slate-800 text-left"><span class="whitespace-pre-wrap" x-text="m.body"></span></div>
                                                 </div>
                                             </template>
 
