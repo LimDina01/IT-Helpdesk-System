@@ -25,6 +25,9 @@ function tmaApp() {
         lightboxFilename: '',
         lightboxDownloadUrl: '',
 
+        // Logout Confirmation Modal State
+        showLogoutModal: false,
+
         // Multi-View Navigation Stack ('home', 'category_select', 'new_ticket_form', 'tickets_list')
         currentView: 'home',
         categorySearchQuery: '',
@@ -767,6 +770,21 @@ function tmaApp() {
         },
 
         logout() {
+            const confirmMsg = this.t('logout_confirm_msg', 'Are you sure you want to sign out of CBVH IT Help Desk?');
+
+            if (window.Telegram?.WebApp?.showConfirm) {
+                window.Telegram.WebApp.showConfirm(confirmMsg, (confirmed) => {
+                    if (confirmed) {
+                        this.executeLogout();
+                    }
+                });
+            } else {
+                this.showLogoutModal = true;
+            }
+        },
+
+        executeLogout() {
+            this.showLogoutModal = false;
             fetch('/tma/api/logout', {
                 method: 'POST',
                 headers: {

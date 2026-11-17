@@ -225,6 +225,7 @@
     @include('tma.partials.chat-page')
     @include('tma.partials.ticket-detail-page')
     @include('tma.partials.lightbox')
+    @include('tma.partials.logout-modal')
 
 </div>
 

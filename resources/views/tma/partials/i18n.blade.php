@@ -129,7 +129,11 @@ window.tmaI18n = {
         telegram_linking_title: "Link Telegram Account",
         telegram_linking_subtitle: "Your Telegram account is not yet linked to an employee profile. Enter your Employee ID to submit a link request.",
         submit_verification: "Submit for Verification",
-        connecting: "Connecting to CBVH IT Help Desk..."
+        connecting: "Connecting to CBVH IT Help Desk...",
+        logout_confirm_title: "Sign Out Confirmation",
+        logout_confirm_msg: "Are you sure you want to sign out of CBVH IT Help Desk?",
+        logout_confirm_btn: "Yes, Sign Out",
+        cancel: "Cancel"
     },
     km: {
         // App & Header
@@ -260,7 +264,11 @@ window.tmaI18n = {
         telegram_linking_title: "ភ្ជាប់គណនី Telegram",
         telegram_linking_subtitle: "គណនី Telegram របស់អ្នកមិនទាន់បានភ្ជាប់ជាមួយប្រវត្តិរូបបុគ្គលិកទេ។ សូមបញ្ចូលលេខកូដបុគ្គលិកដើម្បីស្នើសុំការភ្ជាប់។",
         submit_verification: "ដាក់ស្នើដើម្បីផ្ទៀងផ្ទាត់",
-        connecting: "កំពុងភ្ជាប់ទៅកាន់ CBVH IT Help Desk..."
+        connecting: "កំពុងភ្ជាប់ទៅកាន់ CBVH IT Help Desk...",
+        logout_confirm_title: "ការបញ្ជាក់ការចាកចេញ",
+        logout_confirm_msg: "តើអ្នកពិតជាចង់ចាកចេញពីប្រព័ន្ធជំនួយ IT មែនទេ?",
+        logout_confirm_btn: "បាទ/ចាស ចាកចេញ",
+        cancel: "បោះបង់"
     }
 };
 </script>

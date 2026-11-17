@@ -118,12 +118,52 @@
                     </div>
                 </div>
 
-                <form method="POST" action="{{ route('portal.logout') }}">
-                    @csrf
-                    <button type="submit" class="bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition border border-slate-700">
-                        Sign Out
+                <div x-data="{ showLogoutModal: false }">
+                    <button type="button" 
+                            @click="showLogoutModal = true"
+                            class="bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition border border-slate-700 flex items-center space-x-1.5 shadow-2xs">
+                        <span>Sign Out</span>
                     </button>
-                </form>
+
+                    <!-- Logout Confirmation Modal -->
+                    <div x-show="showLogoutModal" 
+                         x-transition:enter="transition ease-out duration-200"
+                         x-transition:enter-start="opacity-0"
+                         x-transition:enter-end="opacity-100"
+                         x-transition:leave="transition ease-in duration-150"
+                         x-transition:leave-start="opacity-100"
+                         x-transition:leave-end="opacity-0"
+                         class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4" 
+                         x-cloak>
+                        <div @click.away="showLogoutModal = false" 
+                             class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl space-y-4 border border-slate-100 text-slate-800 animate-fadeIn">
+                            <div class="flex items-center space-x-3.5">
+                                <div class="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold text-xl shrink-0 border border-rose-100 shadow-2xs">
+                                    🚪
+                                </div>
+                                <div>
+                                    <h3 class="text-sm font-extrabold text-slate-900">Sign Out Confirmation</h3>
+                                    <p class="text-xs text-slate-500 mt-0.5">Are you sure you want to end your current session?</p>
+                                </div>
+                            </div>
+
+                            <div class="flex items-center justify-end space-x-2 pt-3 border-t border-slate-100">
+                                <button type="button" 
+                                        @click="showLogoutModal = false" 
+                                        class="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition">
+                                    Cancel
+                                </button>
+                                <form method="POST" action="{{ route('portal.logout') }}">
+                                    @csrf
+                                    <button type="submit" 
+                                            class="px-4 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 active:scale-95 rounded-xl shadow-xs transition">
+                                        Yes, Sign Out
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </header>
