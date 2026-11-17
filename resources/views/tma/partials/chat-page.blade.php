@@ -369,9 +369,9 @@
 
                                         <!-- 2. Standalone Text Message Bubble (Sleek Sapphire Messenger Pill) -->
                                         <template x-if="m.body && m.body !== '(Attachment)' && m.body.trim().length > 0">
-                                            <div class="relative max-w-[85%] sm:max-w-[78%] rounded-2xl rounded-tr-xs px-4 py-2.5 shadow-sm text-white select-text"
+                                            <div class="relative inline-block w-fit max-w-[80%] sm:max-w-[75%] rounded-2xl rounded-tr-xs px-3.5 py-2 shadow-sm text-white select-text text-left self-end"
                                                  style="background: linear-gradient(135deg, #0084ff 0%, #0066f6 100%); box-shadow: 0 2px 8px -1px rgba(0, 132, 255, 0.35);">
-                                                <div class="text-[13.5px] leading-relaxed break-words font-normal whitespace-pre-wrap">
+                                                <div class="text-[13.5px] leading-relaxed break-words font-normal whitespace-pre-wrap text-left">
                                                     <span x-text="m.body"></span>
                                                 </div>
                                             </div>
@@ -469,9 +469,9 @@
 
                                             <!-- 2. Standalone Text Message Bubble (Pearlescent White) -->
                                             <template x-if="m.body && m.body !== '(Attachment)' && m.body.trim().length > 0">
-                                                <div class="relative max-w-full rounded-2xl rounded-tl-xs px-4 py-2.5 shadow-xs bg-white text-slate-800 border border-slate-200/90 select-text"
+                                                <div class="relative inline-block w-fit max-w-[85%] sm:max-w-[78%] rounded-2xl rounded-tl-xs px-3.5 py-2 shadow-xs bg-white text-slate-800 border border-slate-200/90 select-text text-left self-start"
                                                      style="box-shadow: 0 1px 4px 0 rgba(0, 0, 0, 0.05);">
-                                                    <div class="text-[13.5px] leading-relaxed break-words font-normal text-slate-800 whitespace-pre-wrap">
+                                                    <div class="text-[13.5px] leading-relaxed break-words font-normal text-slate-800 whitespace-pre-wrap text-left">
                                                         <span x-text="m.body"></span>
                                                     </div>
                                                 </div>
@@ -532,7 +532,7 @@
             <!-- Executive Floating Studio Reply Dock (Squeezed & Tucked in away from iPhone rounded corners & home indicator) -->
             <div x-show="!selectedTicket?.is_closed"
                  class="bg-white/95 backdrop-blur-md border-t border-slate-200/80 shrink-0 z-10 shadow-lg transition-all"
-                 :style="isReplyFocused ? 'padding: 8px 16px 10px 16px !important;' : 'padding: 10px max(env(safe-area-inset-right, 18px), 18px) max(24px, var(--cbvh-safe-bottom, 0px), var(--tg-safe-area-inset-bottom, 0px), env(safe-area-inset-bottom, 24px)) max(env(safe-area-inset-left, 18px), 18px) !important;'">
+                 :style="isReplyFocused ? 'padding: 8px 16px 10px 16px !important;' : 'padding: 8px 16px max(14px, env(safe-area-inset-bottom, 14px)) 16px !important;'">
                 <form @submit.prevent="sendReply()" class="space-y-2 max-w-md mx-auto">
                     <div x-show="replyError" class="text-xs text-rose-600 bg-rose-50 border border-rose-200 p-2 rounded-xl font-medium" x-text="replyError"></div>
 
@@ -588,14 +588,14 @@
                             <input type="file" id="chatFileInput" multiple @change="handleReplyFiles" class="hidden" accept="application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain">
                         </label>
                         
-                        <!-- Rounded-2xl Messenger Auto-Expanding Textarea -->
+                        <!-- Rounded-3xl Messenger Auto-Expanding Textarea -->
                         <textarea id="chatTextInput" x-model="replyText" :placeholder="t('type_message')"
                                   rows="1"
                                   @focus="isReplyFocused = true"
                                   @blur="isReplyFocused = false"
                                   @input="autoResizeChatInput($el)"
                                   @keydown.enter="handleChatEnter($event)"
-                                  class="tma-textarea flex-1 bg-slate-100 hover:bg-slate-50 focus:bg-white border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-2xl px-4 py-2 text-xs text-slate-900 font-medium placeholder:text-slate-400 focus:outline-none transition shadow-inner resize-none max-h-28 overflow-y-auto leading-relaxed"
+                                  class="tma-textarea flex-1 bg-slate-100 hover:bg-slate-50 focus:bg-white border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-3xl px-4 py-2 text-xs text-slate-900 font-medium placeholder:text-slate-400 focus:outline-none transition shadow-inner resize-none max-h-28 overflow-y-auto leading-normal"
                                   style="color: #0f172a !important; -webkit-text-fill-color: #0f172a !important; background-color: #f1f5f9 !important; min-height: 38px;"></textarea>
 
                         <!-- Hide Keyboard Button (Visible only on mobile when typing) -->

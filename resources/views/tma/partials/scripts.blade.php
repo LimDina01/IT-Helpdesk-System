@@ -1048,7 +1048,7 @@ function tmaApp() {
             this.replyText = '';
             this.replyFiles = [];
             const ci = document.getElementById('chatTextInput');
-            if (ci) ci.style.height = 'auto';
+            if (ci) ci.style.height = '';
             this.showReopenPrompt = false;
             this.showApprovePrompt = false;
             this.showRejectPrompt = false;
@@ -1211,7 +1211,7 @@ function tmaApp() {
                     const pi = document.getElementById('chatPhotoInput');
                     if (pi) pi.value = '';
                     const ci = document.getElementById('chatTextInput');
-                    if (ci) ci.style.height = 'auto';
+                    if (ci) ci.style.height = '';
                     this.openTicketDetail(this.selectedTicket.id);
                 }
             })
@@ -2152,7 +2152,7 @@ function tmaApp() {
         autoResizeChatInput(el) {
             if (!el) return;
             el.style.height = 'auto';
-            el.style.height = Math.min(el.scrollHeight, 112) + 'px';
+            el.style.height = Math.max(38, Math.min(el.scrollHeight, 112)) + 'px';
         },
 
         handleChatEnter(e) {
