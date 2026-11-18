@@ -1,0 +1,2084 @@
+<style>
+@media print {
+    .no-print, nav, header, aside {
+        display: none !important;
+    }
+    body {
+        background: white !important;
+        font-size: 11px !important;
+    }
+}
+</style>
+<div x-data="{ 
+    createAssetModal: false, 
+    createSpareModal: false,
+    createLicenseModal: false,
+    editLicenseModal: false,
+    assignSeatModal: false,
+    activeLicense: null,
+    assetOwnership: 'personal',
+    currentTab: '{{ $currentTab }}',
+    openEditLicense(lic) {
+        this.activeLicense = lic;
+        this.editLicenseModal = true;
+    },
+    openAssignSeat(lic) {
+        this.activeLicense = lic;
+        this.assignSeatModal = true;
+    }
+}" class="space-y-6">
+
+    <!-- Top Header -->
+    <div class="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 no-print">
+        <div>
+            <div class="text-xs text-blue-600 font-extrabold uppercase tracking-wider flex items-center space-x-1.5">
+                <span>🖥️</span>
+                <span>IT Operations &bull; Asset &amp; Inventory Management</span>
+            </div>
+            <h1 class="text-xl sm:text-2xl font-black text-slate-900 mt-1">IT Assets, Equipment, Spares &amp; Software</h1>
+            <p class="text-xs text-slate-500 mt-0.5">Track workstations, meeting displays, network switches, spare components, and digital software subscriptions.</p>
+        </div>
+
+        <div class="flex items-center flex-wrap gap-2.5">
+            <button type="button" @click="createLicenseModal = true" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3.5 py-2.5 rounded-xl shadow-xs transition flex items-center space-x-1.5 cursor-pointer">
+                <span>🔑</span>
+                <span>+ Register License</span>
+            </button>
+            <button type="button" @click="createSpareModal = true" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs px-3.5 py-2.5 rounded-xl shadow-xs transition flex items-center space-x-1.5 cursor-pointer">
+                <span>⚙️</span>
+                <span>+ Add Spare Stock</span>
+            </button>
+            <button type="button" @click="createAssetModal = true" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-xs transition flex items-center space-x-1.5 cursor-pointer">
+                <span>🖥️</span>
+                <span>+ Register New Asset</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- KPI Metric Cards -->
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
+        <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs">
+            <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Hardware</div>
+            <div class="text-xl font-black text-slate-900 mt-1">{{ $totalAssetsCount }}</div>
+            <div class="text-[10px] text-slate-500 mt-0.5">Registered machines</div>
+        </div>
+        <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs">
+            <div class="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">In Active Use</div>
+            <div class="text-xl font-black text-emerald-700 mt-1">{{ $inUseCount }}</div>
+            <div class="text-[10px] text-slate-500 mt-0.5">Deployed to staff/floors</div>
+        </div>
+        <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs">
+            <div class="text-[10px] font-bold text-purple-600 uppercase tracking-wider">Shared / Rooms</div>
+            <div class="text-xl font-black text-purple-700 mt-1">{{ $sharedLocationsCount }}</div>
+            <div class="text-[10px] text-slate-500 mt-0.5">Meeting rooms &amp; floors</div>
+        </div>
+        <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs">
+            <div class="text-[10px] font-bold text-blue-600 uppercase tracking-wider">Spare Hardware</div>
+            <div class="text-xl font-black text-blue-700 mt-1">{{ $spareAssetsCount }}</div>
+            <div class="text-[10px] text-slate-500 mt-0.5">Ready for deployment</div>
+        </div>
+        <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs">
+            <div class="text-[10px] font-bold text-amber-600 uppercase tracking-wider">Past EOD (Review)</div>
+            <div class="text-xl font-black text-amber-700 mt-1">{{ $pastEodCount }}</div>
+            <div class="text-[10px] text-slate-500 mt-0.5">Due for overhaul/budget</div>
+        </div>
+        <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs">
+            <div class="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Loose Spare Stock</div>
+            <div class="text-xl font-black text-slate-800 mt-1">{{ $spareComponentsCount }}</div>
+            <div class="text-[10px] text-slate-500 mt-0.5">RAM, SSDs, PSUs</div>
+        </div>
+    </div>
+
+    <!-- Segmented Navigation Tabs & Actions -->
+    <div class="bg-white p-2 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div class="flex items-center flex-wrap gap-2">
+            <button type="button" 
+                    wire:click="setTab('assets')"
+                    class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center space-x-2 cursor-pointer {{ $currentTab === 'assets' ? 'bg-blue-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">
+                <span>🖥️</span>
+                <span>Hardware Assets</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full font-black {{ $currentTab === 'assets' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700' }}">
+                    {{ $totalAssetsCount }}
+                </span>
+            </button>
+
+            <button type="button" 
+                    wire:click="setTab('components')"
+                    class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center space-x-2 cursor-pointer {{ $currentTab === 'components' ? 'bg-amber-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">
+                <span>⚙️</span>
+                <span>Spare Parts &amp; Components</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full font-black {{ $currentTab === 'components' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700' }}">
+                    {{ $spareComponentsCount }} in stock
+                </span>
+            </button>
+
+            <button type="button" 
+                    wire:click="setTab('report')"
+                    class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center space-x-2 cursor-pointer {{ $currentTab === 'report' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">
+                <span>📊</span>
+                <span>Stock &amp; Lifecycle Report</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full font-black {{ $currentTab === 'report' ? 'bg-white/20 text-white' : 'bg-indigo-100 text-indigo-700' }}">
+                    Executive
+                </span>
+            </button>
+
+            <button type="button" 
+                    wire:click="setTab('licenses')"
+                    class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center space-x-2 cursor-pointer {{ $currentTab === 'licenses' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">
+                <span>🔑</span>
+                <span>Software &amp; Licenses</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full font-black {{ $currentTab === 'licenses' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700' }}">
+                    {{ $totalLicensesCount }}
+                </span>
+            </button>
+        </div>
+
+        <div class="flex items-center space-x-2 shrink-0">
+            <a href="{{ route('portal.assets.export', array_filter(['search' => $search, 'category_id' => $categoryId, 'branch_id' => $branchId, 'department_id' => $departmentId, 'ownership_type' => $ownershipType, 'status' => $status, 'lifecycle' => $lifecycle])) }}" 
+               class="px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 transition flex items-center space-x-1.5 shadow-2xs"
+               title="Export active inventory list to Excel / CSV">
+                <span>📥</span>
+                <span>Export CSV</span>
+            </a>
+            @if($currentTab === 'report')
+                <button type="button" onclick="window.print()" 
+                        class="px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition flex items-center space-x-1.5 cursor-pointer"
+                        title="Print Executive Report">
+                    <span>🖨️</span>
+                    <span>Print Report</span>
+                </button>
+            @endif
+        </div>
+    </div>
+
+    @if($currentTab === 'assets')
+        <!-- TAB 1: HARDWARE ASSETS LIST -->
+        <div class="space-y-4">
+            <!-- Filter & Search Toolbar -->
+            <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs space-y-3">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-2.5">
+                    <!-- Search Input -->
+                    <div class="lg:col-span-2 relative">
+                        <input type="text"
+                               wire:model.live.debounce.300ms="search"
+                               placeholder="Search tag, name, serial, model, staff..."
+                               class="w-full text-xs pl-8 pr-7 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-2xs">
+                        <span class="absolute left-2.5 top-2.5 text-slate-400 text-xs">🔍</span>
+                        @if(!empty($search) || !empty($lifecycle) || !empty($categoryId) || !empty($branchId) || !empty($departmentId) || !empty($ownershipType) || !empty($status))
+                            <button type="button" 
+                                    wire:click="clearFilters"
+                                    class="absolute right-2.5 top-2 text-xs text-slate-400 hover:text-slate-600 font-bold cursor-pointer" 
+                                    title="Clear all filters">✕</button>
+                        @endif
+                    </div>
+
+                    <!-- Category Filter -->
+                    <select wire:model.live="categoryId" class="text-xs font-semibold px-2.5 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white text-slate-700">
+                        <option value="">All Categories ({{ $categories->count() }})</option>
+                        @foreach($categories as $cat)
+                            <option value="{{ $cat->id }}">{{ $cat->icon }} {{ $cat->name }}</option>
+                        @endforeach
+                    </select>
+
+                    <!-- Branch Filter -->
+                    <select wire:model.live="branchId" class="text-xs font-semibold px-2.5 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white text-slate-700">
+                        <option value="">All Branches ({{ $branches->count() }})</option>
+                        @foreach($branches as $b)
+                            <option value="{{ $b->id }}">📍 {{ $b->name }}</option>
+                        @endforeach
+                    </select>
+
+                    <!-- Ownership Type (Personal vs Shared) -->
+                    <select wire:model.live="ownershipType" class="text-xs font-semibold px-2.5 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white text-slate-700">
+                        <option value="">All Types (Personal &amp; Shared)</option>
+                        <option value="personal">👤 Personal (Staff)</option>
+                        <option value="shared">🏢 Shared (Area/Room)</option>
+                    </select>
+
+                    <!-- Status Filter -->
+                    <select wire:model.live="status" class="text-xs font-semibold px-2.5 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white text-slate-700">
+                        <option value="">All Statuses</option>
+                        <option value="in_use">🟢 In Use</option>
+                        <option value="spare_stock">🔵 Spare Stock</option>
+                        <option value="under_repair">🟡 Under Repair</option>
+                        <option value="decommissioned">⚪ Decommissioned</option>
+                    </select>
+
+                    <!-- Lifecycle Filter (EOD / EOL / Warranty) -->
+                    <select wire:model.live="lifecycle" class="text-xs font-semibold px-2.5 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white text-slate-700">
+                        <option value="">All Lifecycles</option>
+                        <option value="past_eod">⚠️ Past EOD (Due for Review)</option>
+                        <option value="past_eol">🛑 End of Life (EOL)</option>
+                        <option value="expiring_warranty">🛡️ Warranty Expiring (&lt;60d)</option>
+                        <option value="under_warranty">🟢 Under Active Warranty</option>
+                        <option value="out_of_warranty">❌ Out of Warranty</option>
+                    </select>
+                </div>
+
+                <!-- Livewire Loading State Indicator -->
+                <div wire:loading.delay wire:target="search,categoryId,branchId,departmentId,ownershipType,status,lifecycle,perPage,setTab,clearFilters" class="text-xs text-blue-600 font-bold flex items-center space-x-2 pt-1 border-t border-slate-100">
+                    <svg class="animate-spin h-3.5 w-3.5 text-blue-600" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    <span>Filtering hardware assets in real time...</span>
+                </div>
+            </div>
+
+            <!-- Assets Table Card -->
+            <div class="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs border-collapse">
+                        <thead>
+                            <tr class="border-b border-slate-100 bg-slate-50/70 text-slate-500 font-bold uppercase tracking-wider text-[11px]">
+                                <th class="py-3 px-5">Asset Tag &amp; Name</th>
+                                <th class="py-3 px-4">Category</th>
+                                <th class="py-3 px-4">Location &amp; Custody</th>
+                                <th class="py-3 px-4">Hardware Specs</th>
+                                <th class="py-3 px-4">Status</th>
+                                <th class="py-3 px-4">Repair History</th>
+                                <th class="py-3 px-5 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 text-slate-700">
+                            @forelse($assets as $asset)
+                                <tr class="hover:bg-slate-50/80 transition">
+                                    <td class="py-3.5 px-5">
+                                        <div class="flex items-center space-x-3">
+                                            <div class="w-9 h-9 rounded-xl bg-blue-50 text-blue-700 border border-blue-200/60 flex items-center justify-center text-sm font-black shrink-0">
+                                                {{ $asset->category?->icon ?? '🖥️' }}
+                                            </div>
+                                            <div>
+                                                <a href="{{ route('portal.assets.show', $asset->id) }}" class="font-black text-slate-900 hover:text-blue-600 transition">
+                                                    {{ $asset->asset_tag }}
+                                                </a>
+                                                <div class="text-[11px] text-slate-500 truncate max-w-xs font-medium">{{ $asset->name }}</div>
+                                            </div>
+                                        </div>
+                                    </td>
+
+                                    <td class="py-3.5 px-4 font-semibold text-slate-800">
+                                        {{ $asset->category?->name ?? 'General' }}
+                                    </td>
+
+                                    <td class="py-3.5 px-4">
+                                        @if($asset->status === 'spare_stock')
+                                            <div class="flex items-center space-x-1.5 text-blue-700 font-bold text-[11px]">
+                                                <span>📦</span>
+                                                <span>IT Spare Inventory</span>
+                                            </div>
+                                            <div class="text-[10px] text-slate-500 font-medium">
+                                                📍 {{ $asset->branch?->name ?? 'HQ Phnom Penh' }}
+                                                @if($asset->location_details)
+                                                    &bull; <span class="italic text-slate-400">{{ $asset->location_details }}</span>
+                                                @endif
+                                            </div>
+                                        @elseif($asset->status === 'decommissioned')
+                                            <div class="flex items-center space-x-1.5 text-slate-500 font-bold text-[11px]">
+                                                <span>⚪</span>
+                                                <span>Retired / Scrapped</span>
+                                            </div>
+                                            <div class="text-[10px] text-slate-400">
+                                                📍 {{ $asset->branch?->name ?? 'HQ' }}
+                                            </div>
+                                        @elseif($asset->ownership_type === 'shared' || empty($asset->assigned_user_id))
+                                            <div class="flex items-center space-x-1.5 text-purple-700 font-bold text-[11px]">
+                                                <span>🏢</span>
+                                                <span>Shared / Room</span>
+                                            </div>
+                                            <div class="text-[11px] text-slate-500 font-medium">
+                                                {{ $asset->location_details ?: ($asset->branch?->name ?? 'HQ / Common Area') }}
+                                            </div>
+                                        @else
+                                            <div class="flex items-center space-x-1.5 text-blue-700 font-bold text-[11px]">
+                                                <span>👤</span>
+                                                <span>{{ $asset->assignedUser?->name ?? 'Assigned Employee' }}</span>
+                                            </div>
+                                            <div class="text-[10px] text-slate-400">
+                                                {{ $asset->branch?->name ?? 'HQ' }} &bull; {{ $asset->department?->name ?? 'General' }}
+                                            </div>
+                                        @endif
+                                    </td>
+
+                                    <td class="py-3.5 px-4">
+                                        <div class="text-[11px] font-semibold text-slate-800">
+                                            {{ $asset->brand }} {{ $asset->model }}
+                                        </div>
+                                        @if(!empty($asset->specs))
+                                            <div class="text-[10px] text-slate-500 font-mono">
+                                                {{ implode(' • ', array_filter([$asset->specs['cpu'] ?? null, $asset->specs['ram'] ?? null, $asset->specs['storage'] ?? null])) }}
+                                            </div>
+                                        @elseif(!empty($asset->serial_number))
+                                            <div class="text-[10px] text-slate-400 font-mono">SN: {{ $asset->serial_number }}</div>
+                                        @endif
+                                    </td>
+
+                                    <td class="py-3.5 px-4">
+                                        @php
+                                            $badge = $asset->status_badge;
+                                            $life = $asset->lifecycle_status;
+                                        @endphp
+                                        <div class="space-y-1">
+                                            <span class="inline-flex items-center text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border {{ $badge['class'] }}">
+                                                {{ $badge['label'] }}
+                                            </span>
+                                            <div>
+                                                <span class="inline-flex items-center space-x-1 text-[9px] font-bold px-2 py-0.5 rounded-md border {{ $life['class'] }}" title="{{ $life['description'] }}">
+                                                    <span>{{ $life['icon'] }}</span>
+                                                    <span>{{ $life['label'] }}</span>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </td>
+
+                                    <td class="py-3.5 px-4">
+                                        @php $ticketCount = $asset->tickets->count(); @endphp
+                                        @if($ticketCount > 0)
+                                            <a href="{{ route('portal.assets.show', $asset->id) }}" class="inline-flex items-center space-x-1 text-[11px] font-bold text-blue-600 hover:text-blue-800 hover:underline">
+                                                <span>🎫</span>
+                                                <span>{{ $ticketCount }} {{ Str::plural('ticket', $ticketCount) }}</span>
+                                            </a>
+                                        @else
+                                            <span class="text-[11px] text-slate-400">No issues</span>
+                                        @endif
+                                    </td>
+
+                                    <td class="py-3.5 px-5 text-right font-semibold">
+                                        <a href="{{ route('portal.assets.show', $asset->id) }}" class="text-blue-600 hover:text-blue-800 font-bold bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3 py-1.5 rounded-xl transition inline-flex items-center space-x-1">
+                                            <span>Details &amp; History &rarr;</span>
+                                        </a>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="7" class="py-12 text-center text-slate-400">
+                                        <div class="text-3xl mb-2">🖥️</div>
+                                        <div class="font-bold text-slate-700">No hardware assets found</div>
+                                        <p class="text-xs text-slate-400 mt-1">Try adjusting your filters or click "+ Register New Asset" above.</p>
+                                    </td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination Footer -->
+                <div class="px-5 py-3.5 border-t border-slate-100 bg-slate-50/60 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div class="text-xs text-slate-500 font-medium">
+                        Showing <span class="font-bold text-slate-700">{{ $assets->firstItem() ?? 0 }}</span> to <span class="font-bold text-slate-700">{{ $assets->lastItem() ?? 0 }}</span> of <span class="font-bold text-slate-700">{{ $assets->total() }}</span> assets
+                    </div>
+
+                    <div class="flex items-center space-x-4">
+                        <div class="flex items-center space-x-1.5 text-xs text-slate-500">
+                            <span class="text-[11px] text-slate-400 font-semibold">Per page:</span>
+                            @foreach([10, 25, 50, 100] as $size)
+                                <button type="button" 
+                                        wire:click="$set('perPage', {{ $size }})"
+                                        class="px-2 py-0.5 rounded-md text-[11px] font-bold transition cursor-pointer {{ ($perPage ?? 10) == $size ? 'bg-blue-600 text-white' : 'bg-slate-200/70 hover:bg-slate-200 text-slate-600' }}">
+                                    {{ $size }}
+                                </button>
+                            @endforeach
+                        </div>
+
+                        @if($assets->hasPages())
+                            <div class="shrink-0">
+                                {{ $assets->links() }}
+                            </div>
+                        @endif
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    @elseif($currentTab === 'components')
+        <!-- TAB 2: SPARE PARTS & COMPONENTS INVENTORY -->
+        <div class="space-y-4">
+            <!-- Filter & Search Toolbar -->
+            <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs space-y-3">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                    <div class="relative">
+                        <input type="text"
+                               wire:model.live.debounce.300ms="compSearch"
+                               placeholder="Search component, brand, specs..."
+                               class="w-full text-xs pl-8 pr-7 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-2xs">
+                        <span class="absolute left-2.5 top-2.5 text-slate-400 text-xs">🔍</span>
+                        @if(!empty($compSearch) || !empty($compType) || !empty($compStatus))
+                            <button type="button" 
+                                    wire:click="clearCompFilters" 
+                                    class="absolute right-2.5 top-2 text-xs text-slate-400 hover:text-slate-600 font-bold cursor-pointer"
+                                    title="Clear filters">✕</button>
+                        @endif
+                    </div>
+
+                    <select wire:model.live="compType" class="text-xs font-semibold px-2.5 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white text-slate-700">
+                        <option value="">All Component Types</option>
+                        <option value="ram">🧠 RAM Memory</option>
+                        <option value="ssd">💾 SSD Storage</option>
+                        <option value="hdd">💽 Hard Disk (HDD)</option>
+                        <option value="psu">⚡ Power Supply (PSU)</option>
+                        <option value="gpu">🎮 Graphics Card (GPU)</option>
+                        <option value="cable">🔌 Cable / Adapter</option>
+                        <option value="other">⚙️ Other Parts</option>
+                    </select>
+
+                    <select wire:model.live="compStatus" class="text-xs font-semibold px-2.5 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white text-slate-700">
+                        <option value="">All Statuses</option>
+                        <option value="in_stock">🔵 In IT Spare Stock</option>
+                        <option value="installed">🟢 Installed in PC</option>
+                        <option value="faulty">🔴 Faulty / Defective</option>
+                    </select>
+                </div>
+
+                <!-- Livewire Loading State Indicator -->
+                <div wire:loading.delay wire:target="compSearch,compType,compStatus,clearCompFilters" class="text-xs text-amber-600 font-bold flex items-center space-x-2 pt-1 border-t border-slate-100">
+                    <svg class="animate-spin h-3.5 w-3.5 text-amber-600" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    <span>Updating spare component stock...</span>
+                </div>
+            </div>
+
+            <!-- Components Table Card -->
+            <div class="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs border-collapse">
+                        <thead>
+                            <tr class="border-b border-slate-100 bg-slate-50/70 text-slate-500 font-bold uppercase tracking-wider text-[11px]">
+                                <th class="py-3 px-5">Component Type &amp; Model</th>
+                                <th class="py-3 px-4">Capacity / Specs</th>
+                                <th class="py-3 px-4">Serial Number</th>
+                                <th class="py-3 px-4">Current Location / Assigned PC</th>
+                                <th class="py-3 px-4">Status</th>
+                                <th class="py-3 px-4">Stock Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 text-slate-700">
+                            @forelse($components as $comp)
+                                <tr class="hover:bg-slate-50/80 transition">
+                                    <td class="py-3.5 px-5 font-bold text-slate-900">
+                                        <div class="flex items-center space-x-2">
+                                            <span class="text-sm">
+                                                {{ match($comp->component_type) { 'ram' => '🧠', 'ssd' => '💾', 'hdd' => '💽', 'psu' => '⚡', 'gpu' => '🎮', 'cable' => '🔌', default => '⚙️' } }}
+                                            </span>
+                                            <div>
+                                                <div>{{ $comp->brand_model }}</div>
+                                                <div class="text-[10px] text-slate-400 font-normal">{{ $comp->type_label }}</div>
+                                            </div>
+                                        </div>
+                                    </td>
+
+                                    <td class="py-3.5 px-4 font-mono font-semibold text-slate-800">
+                                        {{ $comp->capacity_or_specs ?: '—' }}
+                                    </td>
+
+                                    <td class="py-3.5 px-4 font-mono text-slate-500 text-[11px]">
+                                        {{ $comp->serial_number ?: '—' }}
+                                    </td>
+
+                                    <td class="py-3.5 px-4">
+                                        @if($comp->asset)
+                                            <a href="{{ route('portal.assets.show', $comp->asset_id) }}" class="inline-flex items-center space-x-1.5 font-bold text-blue-600 hover:text-blue-800 hover:underline">
+                                                <span>🖥️</span>
+                                                <span>{{ $comp->asset->asset_tag }} ({{ $comp->asset->name }})</span>
+                                            </a>
+                                        @else
+                                            <div class="flex items-center space-x-1.5 text-blue-700 font-bold text-[11px]">
+                                                <span>📦</span>
+                                                <span>In IT Storage ({{ $comp->branch?->name ?? 'HQ IT Storage' }})</span>
+                                            </div>
+                                        @endif
+                                    </td>
+
+                                    <td class="py-3.5 px-4">
+                                        @php $badge = $comp->status_badge; @endphp
+                                        <span class="inline-flex items-center text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border {{ $badge['class'] }}">
+                                            {{ $badge['label'] }}
+                                        </span>
+                                    </td>
+
+                                    <td class="py-3.5 px-4 text-slate-400 text-[11px]">
+                                        {{ $comp->notes ?: '—' }}
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="6" class="py-12 text-center text-slate-400">
+                                        <div class="text-3xl mb-2">⚙️</div>
+                                        <div class="font-bold text-slate-700">No spare components recorded</div>
+                                        <p class="text-xs text-slate-400 mt-1">Click "+ Add Spare Stock" to record loose RAM, SSDs, or power supplies.</p>
+                                    </td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination Footer -->
+                <div class="px-5 py-3.5 border-t border-slate-100 bg-slate-50/60 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div class="text-xs text-slate-500 font-medium">
+                        Showing <span class="font-bold text-slate-700">{{ $components->firstItem() ?? 0 }}</span> to <span class="font-bold text-slate-700">{{ $components->lastItem() ?? 0 }}</span> of <span class="font-bold text-slate-700">{{ $components->total() }}</span> components
+                    </div>
+
+                    @if($components->hasPages())
+                        <div class="shrink-0">
+                            {{ $components->links() }}
+                        </div>
+                    @endif
+                </div>
+            </div>
+        </div>
+
+    @elseif($currentTab === 'report')
+        <!-- TAB 3: MANAGEMENT STOCK & LIFECYCLE REPORT -->
+        <div class="space-y-5">
+            <!-- Executive Report Header Banner -->
+            <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-6 text-white shadow-md relative overflow-hidden">
+                <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <div class="flex items-center space-x-2 text-indigo-300 font-extrabold text-xs uppercase tracking-wider">
+                            <span>📊</span>
+                            <span>Executive IT Asset &amp; Stock Intelligence</span>
+                        </div>
+                        <h2 class="text-xl sm:text-2xl font-black mt-1">Management Inventory &amp; Lifecycle Report</h2>
+                        <p class="text-xs text-indigo-200 mt-1 max-w-2xl">
+                            Consolidated valuation, fleet deployment ratios, warranty coverage, and degradation risk assessment across all CBVH branches.
+                        </p>
+                    </div>
+
+                    <div class="flex items-center space-x-2.5 shrink-0 no-print">
+                        <a href="{{ route('portal.assets.export', array_filter(['search' => $search, 'category_id' => $categoryId, 'branch_id' => $branchId, 'department_id' => $departmentId, 'ownership_type' => $ownershipType, 'status' => $status, 'lifecycle' => $lifecycle])) }}" 
+                           class="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center space-x-1.5 cursor-pointer">
+                            <span>📥</span>
+                            <span>Export CSV / Excel</span>
+                        </a>
+                        <button type="button" onclick="window.print()" 
+                                class="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white font-bold text-xs rounded-xl border border-white/20 transition flex items-center space-x-1.5 cursor-pointer">
+                            <span>🖨️</span>
+                            <span>Print Report</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="mt-4 pt-3 border-t border-white/10 flex flex-wrap gap-x-6 gap-y-1 text-[11px] text-indigo-200">
+                    <div>Report As Of: <strong>{{ now()->format('d-M-Y, H:i') }}</strong></div>
+                    <div>Active Assets: <strong>{{ $totalAssetsCount }}</strong></div>
+                    @if($canViewFinancials)
+                        <div>Total Fleet Valuation: <strong>${{ number_format($totalValuation, 2) }}</strong></div>
+                    @else
+                        <div>Total Fleet Size: <strong>{{ $totalAssetsCount }} Units</strong></div>
+                    @endif
+                    <div>Spare Parts in Stock: <strong>{{ $spareComponentsCount }}</strong></div>
+                </div>
+            </div>
+
+            <!-- 1. Executive Valuation & Fleet Distribution Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+                <!-- Total Valuation -->
+                <div class="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs">
+                    <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                        <span>{{ $canViewFinancials ? 'Total Hardware Valuation' : 'Total Fleet Size' }}</span>
+                        <span class="text-base">{{ $canViewFinancials ? '💰' : '🖥️' }}</span>
+                    </div>
+                    <div class="text-2xl font-black text-slate-900 mt-1.5">
+                        @if($canViewFinancials)
+                            ${{ number_format($totalValuation, 2) }}
+                        @else
+                            {{ $totalAssetsCount }} <span class="text-xs font-bold text-slate-500">Units</span>
+                        @endif
+                    </div>
+                    <div class="text-[11px] text-slate-500 mt-1">
+                        {{ $canViewFinancials ? 'Active capital invested across all equipment' : 'Equipment under active management' }}
+                    </div>
+                </div>
+
+                <!-- Active Deployment Status -->
+                <div class="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs">
+                    <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                        <span>Fleet Deployment Status</span>
+                        <span class="text-base">🔄</span>
+                    </div>
+                    <div class="flex items-baseline space-x-2 mt-1.5">
+                        <span class="text-2xl font-black text-emerald-600">{{ $inUseCount }}</span>
+                        <span class="text-xs text-slate-500 font-semibold">In Active Service</span>
+                    </div>
+                    <div class="text-[11px] text-slate-500 mt-1 flex items-center space-x-2">
+                        <span>🔵 {{ $spareAssetsCount }} Spares</span>
+                        <span>&bull;</span>
+                        <span>🟡 {{ $underRepairCount }} In Repair</span>
+                    </div>
+                </div>
+
+                <!-- Degradation (EOD) Risk -->
+                <div class="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs {{ $pastEodCount > 0 ? 'border-amber-300 bg-amber-50/20' : '' }}">
+                    <div class="text-[10px] font-bold text-amber-700 uppercase tracking-wider flex items-center justify-between">
+                        <span>Past EOD (Depreciated / Overhaul)</span>
+                        <span class="text-base">⚠️</span>
+                    </div>
+                    <div class="text-2xl font-black text-amber-700 mt-1.5">
+                        {{ $pastEodCount }} <span class="text-xs font-bold text-amber-600">Assets</span>
+                    </div>
+                    <div class="text-[11px] text-amber-900/80 mt-1">
+                        @if($canViewFinancials)
+                            ${{ number_format($pastEodValuation, 2) }} original cost &bull; 100% depreciated, check wear / overhaul
+                        @else
+                            100% depreciated &bull; check component wear, perform overhaul
+                        @endif
+                    </div>
+                </div>
+
+                <!-- Obsolescence (EOL) Cutoff -->
+                <div class="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs {{ $pastEolCount > 0 ? 'border-rose-300 bg-rose-50/20' : '' }}">
+                    <div class="text-[10px] font-bold text-rose-700 uppercase tracking-wider flex items-center justify-between">
+                        <span>Past EOL (End of Life Obsolete)</span>
+                        <span class="text-base">🛑</span>
+                    </div>
+                    <div class="text-2xl font-black text-rose-700 mt-1.5">
+                        {{ $pastEolCount }} <span class="text-xs font-bold text-rose-600">Assets</span>
+                    </div>
+                    <div class="text-[11px] text-rose-900/80 mt-1">
+                        @if($canViewFinancials)
+                            ${{ number_format($pastEolValuation, 2) }} original cost &bull; Critical obsolescence, plan formal replacement
+                        @else
+                            Critical obsolescence &bull; plan formal equipment replacement
+                        @endif
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. Department & Branch Capital Allocation Breakdown -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <!-- Department Breakdown -->
+                <div class="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs space-y-3">
+                    <div class="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                        <div class="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center space-x-1.5">
+                            <span>🏢</span>
+                            <span>Department Equipment Allocation</span>
+                        </div>
+                        <span class="text-[10px] text-slate-400 font-semibold">{{ $deptBreakdown->count() }} Departments</span>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs">
+                            <thead>
+                                <tr class="text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">
+                                    <th class="pb-2">Department</th>
+                                    <th class="pb-2 text-center">Equipment</th>
+                                    <th class="pb-2 text-right">{{ $canViewFinancials ? 'Capital Value' : 'Hardware Share' }}</th>
+                                    <th class="pb-2 text-right">% Fleet</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                @forelse($deptBreakdown as $dept)
+                                    @php
+                                        $cost = (float) ($dept->assets_sum_purchase_cost ?? 0);
+                                        $pct = $canViewFinancials
+                                            ? ($totalValuation > 0 ? round(($cost / $totalValuation) * 100, 1) : 0)
+                                            : ($totalAssetsCount > 0 ? round(($dept->assets_count / $totalAssetsCount) * 100, 1) : 0);
+                                    @endphp
+                                    <tr class="hover:bg-slate-50/60">
+                                        <td class="py-2.5 font-bold text-slate-800">
+                                            {{ $dept->name }}
+                                        </td>
+                                        <td class="py-2.5 text-center font-bold text-slate-700">
+                                            {{ $dept->assets_count }}
+                                        </td>
+                                        <td class="py-2.5 text-right font-mono font-bold text-slate-800">
+                                            @if($canViewFinancials)
+                                                ${{ number_format($cost, 2) }}
+                                            @else
+                                                {{ $dept->assets_count }} Units
+                                            @endif
+                                        </td>
+                                        <td class="py-2.5 text-right text-slate-500 font-medium">
+                                            {{ $pct }}%
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="4" class="py-4 text-center text-slate-400 italic">No department data</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Branch Location Breakdown -->
+                <div class="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs space-y-3">
+                    <div class="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                        <div class="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center space-x-1.5">
+                            <span>📍</span>
+                            <span>Branch Location Distribution</span>
+                        </div>
+                        <span class="text-[10px] text-slate-400 font-semibold">{{ $branchBreakdown->count() }} Branches</span>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs">
+                            <thead>
+                                <tr class="text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">
+                                    <th class="pb-2">Branch Location</th>
+                                    <th class="pb-2 text-center">Equipment</th>
+                                    <th class="pb-2 text-right">{{ $canViewFinancials ? 'Capital Value' : 'Hardware Share' }}</th>
+                                    <th class="pb-2 text-right">% Fleet</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                @forelse($branchBreakdown as $b)
+                                    @php
+                                        $cost = (float) ($b->assets_sum_purchase_cost ?? 0);
+                                        $pct = $canViewFinancials
+                                            ? ($totalValuation > 0 ? round(($cost / $totalValuation) * 100, 1) : 0)
+                                            : ($totalAssetsCount > 0 ? round(($b->assets_count / $totalAssetsCount) * 100, 1) : 0);
+                                    @endphp
+                                    <tr class="hover:bg-slate-50/60">
+                                        <td class="py-2.5 font-bold text-slate-800">
+                                            📍 {{ $b->name }}
+                                        </td>
+                                        <td class="py-2.5 text-center font-bold text-slate-700">
+                                            {{ $b->assets_count }}
+                                        </td>
+                                        <td class="py-2.5 text-right font-mono font-bold text-slate-800">
+                                            @if($canViewFinancials)
+                                                ${{ number_format($cost, 2) }}
+                                            @else
+                                                {{ $b->assets_count }} Units
+                                            @endif
+                                        </td>
+                                        <td class="py-2.5 text-right text-slate-500 font-medium">
+                                            {{ $pct }}%
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="4" class="py-4 text-center text-slate-400 italic">No branch data</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. Lifecycle Inventory Schedule Table -->
+            <div class="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
+                <div class="p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/50">
+                    <div>
+                        <div class="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center space-x-1.5">
+                            <span>📋</span>
+                            <span>Detailed Equipment Lifecycle &amp; Valuation Schedule</span>
+                        </div>
+                        <p class="text-[11px] text-slate-500 mt-0.5">Showing all {{ $assets->total() }} matching assets with EOW warranty, EOD depreciation, and EOL obsolescence metrics.</p>
+                    </div>
+
+                    <div class="flex items-center space-x-2 no-print">
+                        <a href="{{ route('portal.assets.export', array_filter(['search' => $search, 'category_id' => $categoryId, 'branch_id' => $branchId, 'department_id' => $departmentId, 'ownership_type' => $ownershipType, 'status' => $status, 'lifecycle' => $lifecycle])) }}" 
+                           class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center space-x-1 cursor-pointer">
+                            <span>📥</span>
+                            <span>Download Full CSV</span>
+                        </a>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs">
+                        <thead>
+                            <tr class="bg-slate-50 text-[10px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
+                                <th class="py-3 px-4">Asset Tag / Name</th>
+                                <th class="py-3 px-4">Category</th>
+                                <th class="py-3 px-4">Location / Custodian</th>
+                                <th class="py-3 px-4">Status</th>
+                                <th class="py-3 px-4 text-right">Cost (USD)</th>
+                                <th class="py-3 px-4">Warranty (EOW)</th>
+                                <th class="py-3 px-4">Depreciation (EOD)</th>
+                                <th class="py-3 px-4">End of Life (EOL)</th>
+                                <th class="py-3 px-4 text-center">Tickets</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            @forelse($assets as $asset)
+                                @php
+                                    $badge = $asset->status_badge;
+                                    $life = $asset->lifecycle_status;
+                                @endphp
+                                <tr class="hover:bg-slate-50/70 transition">
+                                    <td class="py-3.5 px-4">
+                                        <a href="{{ route('portal.assets.show', $asset->id) }}" class="font-mono font-bold text-blue-600 hover:text-blue-800 hover:underline block">
+                                            {{ $asset->asset_tag }}
+                                        </a>
+                                        <div class="font-bold text-slate-900 text-xs mt-0.5 leading-snug">{{ $asset->name }}</div>
+                                        <div class="text-[10px] text-slate-400 font-mono">{{ $asset->brand }} {{ $asset->model }}</div>
+                                    </td>
+                                    <td class="py-3.5 px-4 font-semibold text-slate-700">
+                                        {{ $asset->category?->name ?? 'General' }}
+                                    </td>
+                                    <td class="py-3.5 px-4">
+                                        @if($asset->status === 'spare_stock')
+                                            <span class="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200">
+                                                📦 IT Spare Stock
+                                            </span>
+                                            <div class="text-[10px] text-slate-500 mt-0.5">📍 {{ $asset->branch?->name ?? 'HQ' }}</div>
+                                        @elseif($asset->ownership_type === 'personal' && $asset->assignedUser)
+                                            <div class="font-bold text-blue-700">👤 {{ $asset->assignedUser->name }}</div>
+                                            <div class="text-[10px] text-slate-400">{{ $asset->department?->name ?? 'General' }} &bull; 📍 {{ $asset->branch?->name ?? 'HQ' }}</div>
+                                        @else
+                                            <div class="font-semibold text-purple-700">🏢 {{ $asset->location_details ?: 'Shared Area' }}</div>
+                                            <div class="text-[10px] text-slate-400">📍 {{ $asset->branch?->name ?? 'HQ' }}</div>
+                                        @endif
+                                    </td>
+                                    <td class="py-3.5 px-4">
+                                        <span class="inline-flex items-center text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border {{ $badge['class'] }}">
+                                            {{ $badge['label'] }}
+                                        </span>
+                                    </td>
+                                    <td class="py-3.5 px-4 text-right font-mono font-bold text-slate-900">
+                                        @if($canViewFinancials)
+                                            {{ $asset->purchase_cost ? '$' . number_format($asset->purchase_cost, 2) : '—' }}
+                                        @else
+                                            <span class="text-slate-400 font-normal text-xs">[Confidential]</span>
+                                        @endif
+                                    </td>
+                                    <td class="py-3.5 px-4">
+                                        @if($asset->warranty_expiry)
+                                            <div class="text-xs font-semibold {{ $asset->warranty_expiry->isPast() ? 'text-slate-400' : 'text-emerald-700 font-bold' }}">
+                                                {{ $asset->warranty_expiry->format('d-M-Y') }}
+                                            </div>
+                                            <div class="text-[10px] {{ $asset->warranty_expiry->isPast() ? 'text-rose-600' : 'text-emerald-600' }}">
+                                                {{ $asset->warranty_expiry->isPast() ? 'Expired' : (int) ceil(now()->diffInDays($asset->warranty_expiry)) . 'd left' }}
+                                            </div>
+                                        @else
+                                            <span class="text-slate-400">—</span>
+                                        @endif
+                                    </td>
+                                    <td class="py-3.5 px-4">
+                                        @if($asset->eod_date)
+                                            <div class="text-xs font-semibold {{ $asset->isPastEod() ? 'text-amber-800 font-bold' : 'text-slate-700' }}">
+                                                {{ $asset->eod_date->format('d-M-Y') }}
+                                            </div>
+                                            <div class="text-[10px] {{ $asset->isPastEod() ? 'text-amber-700 font-bold' : 'text-slate-400' }}">
+                                                {{ $asset->isPastEod() ? '⚠️ Past EOD (100% Depreciated)' : (int) ceil(now()->diffInDays($asset->eod_date)) . 'd left' }}
+                                            </div>
+                                        @else
+                                            <span class="text-slate-400">—</span>
+                                        @endif
+                                    </td>
+                                    <td class="py-3.5 px-4">
+                                        @if($asset->eol_date)
+                                            <div class="text-xs font-semibold {{ $asset->isPastEol() ? 'text-rose-800 font-bold' : 'text-slate-700' }}">
+                                                {{ $asset->eol_date->format('d-M-Y') }}
+                                            </div>
+                                            <div class="text-[10px] {{ $asset->isPastEol() ? 'text-rose-600 font-bold' : 'text-slate-400' }}">
+                                                {{ $asset->isPastEol() ? '🛑 Past EOL (Obsolete)' : (int) ceil(now()->diffInDays($asset->eol_date)) . 'd left' }}
+                                            </div>
+                                        @else
+                                            <span class="text-slate-400">—</span>
+                                        @endif
+                                    </td>
+                                    <td class="py-3.5 px-4 text-center">
+                                        <span class="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full {{ $asset->tickets->count() > 0 ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'text-slate-400' }}">
+                                            {{ $asset->tickets->count() }}
+                                        </span>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="9" class="py-12 text-center text-slate-400">
+                                        <div class="text-3xl mb-2">📊</div>
+                                        <div class="font-bold text-slate-700">No matching assets found for this report</div>
+                                        <p class="text-xs text-slate-400 mt-1">Adjust filters or register new assets.</p>
+                                    </td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                        @if($assets->count() > 0)
+                            <tfoot class="bg-slate-50/80 border-t-2 border-slate-200 font-bold text-xs text-slate-800">
+                                <tr>
+                                    <td colspan="4" class="py-3 px-4 uppercase text-[10px] tracking-wider text-slate-500">
+                                        Page Subtotal ({{ $assets->count() }} assets)
+                                    </td>
+                                    <td class="py-3 px-4 text-right font-mono text-slate-900 font-black">
+                                        @if($canViewFinancials)
+                                            ${{ number_format($assets->sum('purchase_cost'), 2) }}
+                                        @else
+                                            <span class="text-slate-400 font-normal text-xs">[Restricted]</span>
+                                        @endif
+                                    </td>
+                                    <td colspan="4" class="py-3 px-4 text-slate-400 text-right text-[11px] font-normal">
+                                        @if($canViewFinancials)
+                                            Total Active Valuation: <strong>${{ number_format($totalValuation, 2) }}</strong>
+                                        @else
+                                            Total Active Fleet: <strong>{{ $totalAssetsCount }} Units</strong>
+                                        @endif
+                                    </td>
+                                </tr>
+                            </tfoot>
+                        @endif
+                    </table>
+                </div>
+
+                <!-- Pagination Footer -->
+                <div class="px-5 py-3.5 border-t border-slate-100 bg-slate-50/60 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 no-print">
+                    <div class="text-xs text-slate-500 font-medium">
+                        Showing <span class="font-bold text-slate-700">{{ $assets->firstItem() ?? 0 }}</span> to <span class="font-bold text-slate-700">{{ $assets->lastItem() ?? 0 }}</span> of <span class="font-bold text-slate-700">{{ $assets->total() }}</span> assets
+                    </div>
+
+                    @if($assets->hasPages())
+                        <div class="shrink-0">
+                            {{ $assets->links() }}
+                        </div>
+                    @endif
+                </div>
+            </div>
+        </div>
+    @elseif($currentTab === 'licenses')
+        <!-- TAB 4: SOFTWARE & DIGITAL LICENSES (GLPI LEAN ITAM) -->
+        <div class="space-y-6">
+            
+            <!-- 1. KPI Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+                <div class="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs">
+                    <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                        <span>Software Applications</span>
+                        <span class="text-base">🔑</span>
+                    </div>
+                    <div class="text-2xl font-black text-slate-900 mt-1.5">
+                        {{ $totalLicensesCount }}
+                    </div>
+                    <div class="text-[11px] text-slate-500 mt-1">
+                        Active subscriptions &amp; digital licenses
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs">
+                    <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                        <span>License Seat Utilization</span>
+                        <span class="text-base">👥</span>
+                    </div>
+                    <div class="text-2xl font-black text-emerald-600 mt-1.5">
+                        {{ $assignedSeatsCount }} <span class="text-xs text-slate-400 font-bold">/ {{ $totalSeatsCount }} seats</span>
+                    </div>
+                    <div class="text-[11px] text-slate-500 mt-1">
+                        {{ max(0, $totalSeatsCount - $assignedSeatsCount) }} available unallocated seats
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs {{ $expiringLicensesCount > 0 ? 'border-amber-300 bg-amber-50/20' : '' }}">
+                    <div class="text-[10px] font-bold text-amber-700 uppercase tracking-wider flex items-center justify-between">
+                        <span>Expiring Soon (&lt;30 Days)</span>
+                        <span class="text-base">⏰</span>
+                    </div>
+                    <div class="text-2xl font-black text-amber-700 mt-1.5">
+                        {{ $expiringLicensesCount }} <span class="text-xs font-bold text-amber-600">Subscriptions</span>
+                    </div>
+                    <div class="text-[11px] text-amber-900/80 mt-1">
+                        Require billing renewal review
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs">
+                    <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                        <span>Annual Software Budget</span>
+                        <span class="text-base">💰</span>
+                    </div>
+                    <div class="text-2xl font-black text-slate-900 mt-1.5">
+                        @if($canViewFinancials)
+                            ${{ number_format($totalSoftwareValuation, 2) }}
+                        @else
+                            <span class="text-slate-400 text-sm font-bold">[Management Confidential]</span>
+                        @endif
+                    </div>
+                    <div class="text-[11px] text-slate-500 mt-1">
+                        {{ $canViewFinancials ? 'Total SaaS & software investment' : 'Restricted to HOD & System Admin' }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filter & Search Toolbar for Software Licenses -->
+            <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs space-y-3">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                    <div class="relative">
+                        <input type="text"
+                               wire:model.live.debounce.300ms="licenseSearch"
+                               placeholder="Search software, publisher, key, staff, PC..."
+                               class="w-full text-xs pl-8 pr-7 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-2xs">
+                        <span class="absolute left-2.5 top-2.5 text-slate-400 text-xs">🔍</span>
+                        @if(!empty($licenseSearch) || !empty($licenseType) || !empty($licenseStatus))
+                            <button type="button" 
+                                    wire:click="clearLicenseFilters" 
+                                    class="absolute right-2.5 top-2 text-xs text-slate-400 hover:text-slate-600 font-bold cursor-pointer"
+                                    title="Clear filters">✕</button>
+                        @endif
+                    </div>
+
+                    <select wire:model.live="licenseType" class="text-xs font-semibold px-2.5 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white text-slate-700">
+                        <option value="">All License Types</option>
+                        <option value="subscription">Cloud SaaS / Subscription</option>
+                        <option value="perpetual">Perpetual (One-time)</option>
+                        <option value="oem">OEM / Bundled</option>
+                        <option value="volume">Volume / Enterprise</option>
+                        <option value="free">Free / Open Source</option>
+                    </select>
+
+                    <select wire:model.live="licenseStatus" class="text-xs font-semibold px-2.5 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white text-slate-700">
+                        <option value="">All Statuses</option>
+                        <option value="active">🟢 Active</option>
+                        <option value="expiring_soon">🟡 Expiring Soon (&lt;30d)</option>
+                        <option value="expired">🔴 Expired</option>
+                        <option value="cancelled">⚪ Cancelled</option>
+                    </select>
+                </div>
+
+                <!-- Livewire Loading State Indicator -->
+                <div wire:loading.delay wire:target="licenseSearch,licenseType,licenseStatus,clearLicenseFilters" class="text-xs text-emerald-600 font-bold flex items-center space-x-2 pt-1 border-t border-slate-100">
+                    <svg class="animate-spin h-3.5 w-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    <span>Searching software licenses in real time...</span>
+                </div>
+            </div>
+
+            <!-- 2. Software Licenses Table Card -->
+            <div class="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
+                <div class="px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/60">
+                    <div>
+                        <h3 class="text-sm font-extrabold text-slate-900">Digital Software &amp; SaaS Subscriptions</h3>
+                        <p class="text-xs text-slate-500 mt-0.5">Manage seat quotas, license keys, and track employee allocations.</p>
+                    </div>
+                    <button type="button" @click="createLicenseModal = true" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow-xs transition flex items-center space-x-1.5 shrink-0 cursor-pointer">
+                        <span>+ Register New License</span>
+                    </button>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs border-collapse">
+                        <thead>
+                            <tr class="border-b border-slate-200 bg-slate-50/80 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
+                                <th class="py-3 px-5">Software / Publisher</th>
+                                <th class="py-3 px-4">License Type</th>
+                                <th class="py-3 px-4 text-center">Seat Quota</th>
+                                <th class="py-3 px-4">License Key / Portal</th>
+                                <th class="py-3 px-4">Renewal / Expiry</th>
+                                <th class="py-3 px-4 text-right">Investment</th>
+                                <th class="py-3 px-5 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 text-slate-700">
+                            @forelse($licenses as $lic)
+                                @php
+                                    $assigned = $lic->assignments->count();
+                                    $total = $lic->seats_total;
+                                    $pct = $total > 0 ? round(($assigned / $total) * 100) : 0;
+                                    $badge = $lic->status_badge;
+                                @endphp
+                                <tr class="hover:bg-slate-50/80 transition">
+                                    <td class="py-3.5 px-5">
+                                        <div class="font-extrabold text-slate-900 text-xs">{{ $lic->name }}</div>
+                                        <div class="text-[10px] text-slate-400 mt-0.5">Publisher: {{ $lic->vendor_publisher ?: 'General' }}</div>
+                                        @if($lic->notes)
+                                            <div class="text-[10px] text-slate-500 mt-1 italic">{{ Str::limit($lic->notes, 60) }}</div>
+                                        @endif
+                                    </td>
+                                    <td class="py-3.5 px-4">
+                                        <span class="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 capitalize">
+                                            {{ $lic->license_type }}
+                                        </span>
+                                        <div class="text-[10px] text-slate-400 mt-0.5 capitalize">{{ str_replace('_', ' ', $lic->billing_cycle) }}</div>
+                                    </td>
+                                    <td class="py-3.5 px-4 text-center">
+                                        <div class="flex items-center justify-center space-x-2">
+                                            <span class="font-black text-slate-900">{{ $assigned }}</span>
+                                            <span class="text-slate-400">/</span>
+                                            <span class="font-bold text-slate-600">{{ $total }}</span>
+                                        </div>
+                                        <div class="w-24 h-1.5 bg-slate-100 rounded-full mx-auto mt-1.5 overflow-hidden">
+                                            <div class="h-full {{ $pct >= 90 ? 'bg-rose-500' : ($pct >= 75 ? 'bg-amber-500' : 'bg-emerald-500') }}" style="width: {{ $pct }}%"></div>
+                                        </div>
+                                        <div class="text-[9px] text-slate-400 mt-0.5">{{ $pct }}% in use</div>
+                                    </td>
+                                    <td class="py-3.5 px-4 font-mono text-[11px] text-slate-600">
+                                        @if($lic->license_key)
+                                            @if(Str::startsWith($lic->license_key, ['http://', 'https://']))
+                                                <a href="{{ $lic->license_key }}" target="_blank" class="text-blue-600 hover:underline flex items-center space-x-1">
+                                                    <span>Admin Portal ↗</span>
+                                                </a>
+                                            @else
+                                                <span class="bg-slate-100 px-2 py-0.5 rounded text-[10px] font-semibold text-slate-800 border border-slate-200">
+                                                    {{ Str::limit($lic->license_key, 25) }}
+                                                </span>
+                                            @endif
+                                        @else
+                                            <span class="text-slate-400">—</span>
+                                        @endif
+                                    </td>
+                                    <td class="py-3.5 px-4">
+                                        <span class="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full border {{ $badge['class'] }}">
+                                            {{ $badge['label'] }}
+                                        </span>
+                                        <div class="text-[10px] text-slate-500 mt-0.5">
+                                            {{ $lic->expiry_date ? $lic->expiry_date->format('d-M-Y') : 'Perpetual / No Expiry' }}
+                                        </div>
+                                    </td>
+                                    <td class="py-3.5 px-4 text-right font-mono font-bold text-slate-900">
+                                        @if($canViewFinancials)
+                                            {{ $lic->purchase_cost ? '$' . number_format($lic->purchase_cost, 2) : '—' }}
+                                        @else
+                                            <span class="text-slate-400 font-normal">[Confidential]</span>
+                                        @endif
+                                    </td>
+                                    <td class="py-3.5 px-5 text-right space-x-1">
+                                        <button type="button" 
+                                                @click="openAssignSeat({{ json_encode($lic) }})"
+                                                class="px-2 py-1 rounded-lg text-[10px] font-bold bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 transition cursor-pointer"
+                                                title="Allocate Seat">
+                                            + Seat
+                                        </button>
+                                        <button type="button" 
+                                                @click="openEditLicense({{ json_encode($lic) }})"
+                                                class="px-2 py-1 rounded-lg text-[10px] font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition cursor-pointer"
+                                                title="Edit License">
+                                            ✏️ Edit
+                                        </button>
+                                        @if(Auth::user()->hasRole(['hod', 'system_admin']))
+                                        <form method="POST" action="{{ route('portal.assets.licenses.destroy', $lic->id) }}" class="inline" onsubmit="return confirm('Delete software license &quot;{{ $lic->name }}&quot;?');">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="px-2 py-1 rounded-lg text-[10px] font-bold bg-rose-50 text-rose-600 hover:bg-rose-100 transition cursor-pointer" title="Delete">
+                                                ✕
+                                            </button>
+                                        </form>
+                                        @endif
+                                    </td>
+                                </tr>
+                                <!-- Sub-row: Allocated Seats Breakdown -->
+                                @if($lic->assignments->count() > 0)
+                                    <tr class="bg-slate-50/40 border-b border-slate-100">
+                                        <td colspan="7" class="py-2 px-8 text-xs">
+                                            <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 flex items-center space-x-1.5">
+                                                <span>👥</span>
+                                                <span>Allocated Seats ({{ $lic->assignments->count() }} of {{ $lic->seats_total }}):</span>
+                                            </div>
+                                            <div class="flex flex-wrap gap-2">
+                                                @foreach($lic->assignments as $asgn)
+                                                    <div class="inline-flex items-center space-x-2 bg-white px-2.5 py-1 rounded-xl border border-slate-200 shadow-2xs text-[11px]">
+                                                        @if($asgn->user)
+                                                            <span class="font-bold text-slate-800">👤 {{ $asgn->user->name }}</span>
+                                                        @endif
+                                                        @if($asgn->asset)
+                                                            <span class="text-blue-600 font-mono text-[10px] bg-blue-50 px-1 rounded">💻 {{ $asgn->asset->asset_tag }}</span>
+                                                        @endif
+                                                        @if($asgn->notes)
+                                                            <span class="text-slate-400 text-[10px] italic">({{ $asgn->notes }})</span>
+                                                        @endif
+                                                        <form method="POST" action="{{ route('portal.assets.licenses.unassign', $asgn->id) }}" class="inline ml-1" onsubmit="return confirm('Revoke this seat?');">
+                                                            @csrf
+                                                            @method('DELETE')
+                                                            <button type="submit" class="text-rose-500 hover:text-rose-700 font-bold text-xs" title="Revoke Seat">✕</button>
+                                                        </form>
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @endif
+                            @empty
+                                <tr>
+                                    <td colspan="7" class="py-12 text-center text-slate-400">
+                                        <div class="text-3xl mb-2">🔑</div>
+                                        <div class="font-bold text-slate-700">No software licenses registered yet</div>
+                                        <p class="text-xs text-slate-400 mt-1">Register SaaS apps (Office 365, Adobe, AutoCAD, Antivirus) to track seats and renewal dates.</p>
+                                    </td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    @endif
+
+    <!-- ======================================================== -->
+    <!-- MODAL 1: REGISTER NEW HARDWARE ASSET                      -->
+    <!-- ======================================================== -->
+    <div x-show="createAssetModal" 
+         x-transition:enter="transition ease-out duration-200" 
+         x-transition:enter-start="opacity-0 scale-95"
+         x-transition:enter-end="opacity-100 scale-100"
+         x-transition:leave="transition ease-in duration-150" 
+         x-transition:leave-start="opacity-100 scale-100"
+         x-transition:leave-end="opacity-0 scale-95"
+         class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-3 sm:p-4" 
+         x-cloak>
+        <div @click.away="createAssetModal = false" class="bg-white rounded-3xl max-w-2xl w-full shadow-2xl flex flex-col max-h-[92vh] overflow-hidden my-auto border border-slate-100">
+            <!-- Fixed Pinned Header -->
+            <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/80 shrink-0">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-2xl bg-blue-100 text-blue-700 flex items-center justify-center text-lg font-bold shadow-2xs">
+                        🖥️
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-extrabold text-slate-900">Register New Hardware Asset</h3>
+                        <p class="text-[11px] text-slate-500 mt-0.5">Record a workstation, meeting room projector, printer, or retail POS.</p>
+                    </div>
+                </div>
+                <button type="button" @click="createAssetModal = false" class="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-400 hover:text-slate-700 flex items-center justify-center transition cursor-pointer text-sm font-bold" title="Close">&times;</button>
+            </div>
+
+            <!-- Scrollable Body with Form -->
+            <form method="POST" action="{{ route('portal.assets.store') }}" class="flex flex-col flex-1 overflow-hidden">
+                @csrf
+
+                <div class="flex-1 overflow-y-auto px-6 py-5 space-y-4 text-xs">
+                    <!-- Ownership Choice (Personal vs Shared Location) -->
+                    <div class="p-3.5 bg-slate-50/80 rounded-2xl border border-slate-200 space-y-2">
+                        <label class="block text-[11px] font-bold text-slate-700 uppercase">Who or Where Does This Equipment Belong?</label>
+                        <div class="grid grid-cols-2 gap-3">
+                            <label class="flex items-center space-x-2 p-2.5 bg-white rounded-xl border border-slate-200 hover:border-blue-400 cursor-pointer transition shadow-2xs">
+                                <input type="radio" name="ownership_type" value="personal" x-model="assetOwnership" class="rounded text-blue-600 focus:ring-blue-500">
+                                <div>
+                                    <div class="text-xs font-bold text-slate-800">👤 Personal Custody</div>
+                                    <div class="text-[10px] text-slate-400">Assigned to a specific employee</div>
+                                </div>
+                            </label>
+                            <label class="flex items-center space-x-2 p-2.5 bg-white rounded-xl border border-slate-200 hover:border-blue-400 cursor-pointer transition shadow-2xs">
+                                <input type="radio" name="ownership_type" value="shared" x-model="assetOwnership" class="rounded text-blue-600 focus:ring-blue-500">
+                                <div>
+                                    <div class="text-xs font-bold text-slate-800">🏢 Shared Room / Floor</div>
+                                    <div class="text-[10px] text-slate-400">Meeting room, printing floor, POS counter</div>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Asset Tag / Code</label>
+                            <input type="text" name="asset_tag" placeholder="e.g. CBVH-PC-0042 (Leave blank to auto-generate)" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Category <span class="text-rose-500">*</span></label>
+                            <select name="category_id" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-medium">
+                                @foreach($categories as $cat)
+                                    <option value="{{ $cat->id }}">{{ $cat->icon }} {{ $cat->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Asset Name / Description <span class="text-rose-500">*</span></label>
+                        <input type="text" name="name" required placeholder="e.g. HQ Floor 3 - Meeting Room A Slide Projector or Accounting PC" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium">
+                    </div>
+
+                    <!-- Searchable Custodian Combobox -->
+                    <div x-show="assetOwnership === 'personal'" 
+                         x-data="{
+                             custodianSearch: '',
+                             custodianOpen: false,
+                             selectedUserId: '',
+                             users: {{ $usersJson->toJson() }},
+                             getSelectedUser() {
+                                 if (!this.selectedUserId) return null;
+                                 return this.users.find(u => u.id == this.selectedUserId) || null;
+                             },
+                             getFilteredUsers() {
+                                 let q = (this.custodianSearch || '').toLowerCase().trim();
+                                 if (!q) return this.users.slice(0, 50);
+                                 return this.users.filter(u =>
+                                     (u.name && u.name.toLowerCase().includes(q)) ||
+                                     (u.email && u.email.toLowerCase().includes(q)) ||
+                                     (u.dept && u.dept.toLowerCase().includes(q)) ||
+                                     (u.branch && u.branch.toLowerCase().includes(q))
+                                 ).slice(0, 30);
+                             }
+                         }"
+                         class="p-3 bg-blue-50/70 rounded-xl border border-blue-200/80 space-y-2">
+                        
+                        <input type="hidden" name="assigned_user_id" :value="selectedUserId">
+
+                        <div class="flex items-center justify-between">
+                            <label class="block text-[11px] font-bold text-blue-900 uppercase">Assigned Employee (Custodian)</label>
+                            <span class="text-[10px] text-blue-700 font-semibold" x-text="selectedUserId ? 'Assigned' : 'Optional / Can be Unassigned'"></span>
+                        </div>
+
+                        <!-- Selected Employee Card -->
+                        <div x-show="getSelectedUser()" class="p-2.5 rounded-xl border border-blue-300 bg-white shadow-2xs flex items-center justify-between gap-2">
+                            <div class="flex items-center space-x-2.5 min-w-0">
+                                <div class="w-7 h-7 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs shrink-0">
+                                    <span x-text="getSelectedUser()?.name ? getSelectedUser().name.charAt(0).toUpperCase() : '👤'"></span>
+                                </div>
+                                <div class="min-w-0">
+                                    <div class="font-bold text-xs text-slate-900 leading-tight truncate" x-text="getSelectedUser()?.name"></div>
+                                    <div class="text-[10px] text-slate-500 truncate" x-text="getSelectedUser()?.email"></div>
+                                    <div class="text-[9px] text-blue-700 font-medium">
+                                        🏢 <span x-text="getSelectedUser()?.dept"></span> &bull; 📍 <span x-text="getSelectedUser()?.branch"></span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex items-center space-x-1 shrink-0">
+                                <button type="button" @click="custodianOpen = !custodianOpen" class="px-2 py-0.5 text-[10px] text-blue-600 hover:bg-blue-50 font-bold rounded-md transition cursor-pointer">
+                                    Change
+                                </button>
+                                <button type="button" @click="selectedUserId = ''; custodianSearch = ''; custodianOpen = false" class="p-1 text-slate-400 hover:text-rose-600 font-bold text-xs rounded-md transition cursor-pointer" title="Unassign">
+                                    ✕
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Unselected State Prompt / Search Trigger -->
+                        <div x-show="!getSelectedUser()">
+                            <div @click="custodianOpen = true" class="w-full text-xs px-3.5 py-2 rounded-xl border border-slate-300 bg-white hover:border-blue-400 cursor-pointer flex items-center justify-between shadow-2xs">
+                                <span class="text-slate-400 font-medium">🔍 Click or search to assign an employee...</span>
+                                <span class="text-slate-400 text-xs">▼</span>
+                            </div>
+                        </div>
+
+                        <!-- Searchable Dropdown List -->
+                        <div x-show="custodianOpen || (!selectedUserId && custodianOpen)" class="mt-2 bg-white rounded-xl border border-slate-200 shadow-lg overflow-hidden space-y-1.5 p-2" x-cloak>
+                            <div class="relative">
+                                <span class="absolute left-2.5 top-2 text-slate-400 text-xs">🔍</span>
+                                <input type="text" x-model="custodianSearch"
+                                       placeholder="Type name, email, or dept..."
+                                       @keydown.escape="custodianOpen = false"
+                                       class="w-full text-xs pl-7 pr-6 py-1.5 rounded-lg border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <button type="button" x-show="custodianSearch" @click="custodianSearch = ''" class="absolute right-2 top-1.5 text-xs text-slate-400 hover:text-slate-600 cursor-pointer">✕</button>
+                            </div>
+
+                            <div class="max-h-40 overflow-y-auto divide-y divide-slate-100">
+                                <!-- Option to leave unassigned -->
+                                <div @click="selectedUserId = ''; custodianOpen = false" class="p-1.5 hover:bg-slate-50 rounded-lg cursor-pointer transition flex items-center justify-between text-slate-600 text-[11px]">
+                                    <span class="font-medium text-slate-500">— Leave Unassigned / Spare Stock —</span>
+                                    <span class="text-[9px] text-slate-400">Clear</span>
+                                </div>
+
+                                <template x-for="user in getFilteredUsers()" :key="user.id">
+                                    <div @click="selectedUserId = user.id; custodianOpen = false; custodianSearch = ''"
+                                         class="p-1.5 hover:bg-blue-50/80 rounded-lg cursor-pointer transition flex items-center justify-between gap-2">
+                                        <div class="min-w-0">
+                                            <div class="font-bold text-slate-900 text-xs truncate" x-text="user.name"></div>
+                                            <div class="text-[10px] text-slate-500 truncate" x-text="user.email"></div>
+                                        </div>
+                                        <span class="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 shrink-0" x-text="user.dept"></span>
+                                    </div>
+                                </template>
+
+                                <div x-show="getFilteredUsers().length === 0" class="p-3 text-center text-slate-400 text-xs italic">
+                                    No employees found matching "<span x-text="custodianSearch"></span>".
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Branch Location</label>
+                            <select name="branch_id" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                                <option value="">-- Select Branch --</option>
+                                @foreach($branches as $b)
+                                    <option value="{{ $b->id }}">📍 {{ $b->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Department</label>
+                            <select name="department_id" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                                <option value="">-- Select Department --</option>
+                                @foreach($departments as $d)
+                                    <option value="{{ $d->id }}">{{ $d->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Specific Room / Floor / Desk</label>
+                            <input type="text" name="location_details" placeholder="e.g. Floor 3, Meeting Room 2" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                    </div>
+
+                    <!-- Hardware Specifications -->
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Brand</label>
+                            <input type="text" name="brand" placeholder="e.g. Dell, Epson, ViewSonic" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Model</label>
+                            <input type="text" name="model" placeholder="e.g. OptiPlex 7090" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Serial Number</label>
+                            <input type="text" name="serial_number" placeholder="e.g. SN-897362" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">CPU Processor</label>
+                            <input type="text" name="specs_cpu" placeholder="e.g. i7-11700" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">RAM Capacity</label>
+                            <input type="text" name="specs_ram" placeholder="e.g. 16GB DDR4" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Storage / SSD</label>
+                            <input type="text" name="specs_storage" placeholder="e.g. 512GB NVMe SSD" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Operating System</label>
+                            <input type="text" name="specs_os" placeholder="e.g. Windows 11 Pro" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Status</label>
+                            <select name="status" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-medium">
+                                <option value="in_use">🟢 In Use / Active</option>
+                                <option value="spare_stock">🔵 Spare in Stock</option>
+                                <option value="under_repair">🟡 Under Repair / RMA</option>
+                                <option value="decommissioned">⚪ Decommissioned</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Purchase Date</label>
+                            <input type="date" name="purchase_date" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Purchase Cost (USD)</label>
+                            @if($canViewFinancials)
+                                <input type="number" step="0.01" min="0" name="purchase_cost" placeholder="e.g. 850.00" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            @else
+                                <input type="text" disabled placeholder="🔒 Restricted to Management" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed">
+                            @endif
+                        </div>
+                    </div>
+
+                    <!-- Lifecycle & Warranty Dates -->
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 bg-amber-50/50 rounded-2xl border border-amber-200/70">
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-800 uppercase mb-0.5">Warranty Expiry (EOW)</label>
+                            <span class="text-[10px] text-slate-500 block mb-1">Free supplier repair end</span>
+                            <input type="date" name="warranty_expiry" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-amber-900 uppercase mb-0.5">EOD Date (Depreciation)</label>
+                            <span class="text-[10px] text-amber-700 block mb-1">Recommended overhaul / $0 book</span>
+                            <input type="date" name="eod_date" class="w-full text-xs px-3 py-2 rounded-xl border border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-rose-900 uppercase mb-0.5">EOL Date (End of Life)</label>
+                            <span class="text-[10px] text-rose-700 block mb-1">Obsolescence / retirement target</span>
+                            <input type="date" name="eol_date" class="w-full text-xs px-3 py-2 rounded-xl border border-rose-300 focus:outline-none focus:ring-2 focus:ring-rose-500 bg-white">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Supplier / Vendor</label>
+                        <input type="text" name="vendor_supplier" placeholder="e.g. Anana Computer, Epson Cambodia" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Technical Notes</label>
+                        <textarea name="notes" rows="2" placeholder="e.g. Connected to network port #12 in floor switch rack" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                    </div>
+                </div>
+
+                <!-- Fixed Pinned Footer -->
+                <div class="flex items-center justify-between px-6 py-3.5 border-t border-slate-200/80 bg-slate-50/95 shrink-0">
+                    <div class="text-[11px] text-slate-500 hidden sm:flex items-center space-x-2">
+                        <span class="inline-block w-2 h-2 rounded-full bg-blue-500"></span>
+                        <span>Asset tag will be auto-generated if left empty.</span>
+                    </div>
+                    <div class="flex items-center space-x-2 w-full sm:w-auto justify-end">
+                        <button type="button" @click="createAssetModal = false" class="px-4 py-2.5 text-xs text-slate-600 font-bold hover:bg-slate-200/70 rounded-xl transition cursor-pointer">Cancel</button>
+                        <button type="submit" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition cursor-pointer flex items-center space-x-1.5">
+                            <span>✨</span>
+                            <span>Save &amp; Register Asset</span>
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- MODAL 2: ADD SPARE PARTS / COMPONENTS TO STORAGE          -->
+    <!-- ======================================================== -->
+    <div x-show="createSpareModal" 
+         x-transition:enter="transition ease-out duration-200" 
+         x-transition:leave="transition ease-in duration-150" 
+         class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto" 
+         x-cloak>
+        <div @click.away="createSpareModal = false" class="bg-white rounded-3xl max-w-lg w-full shadow-2xl p-6 space-y-4 my-8">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div class="flex items-center space-x-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-lg font-bold">
+                        ⚙️
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-900">Add Spare Parts to IT Storage</h3>
+                        <p class="text-[11px] text-slate-500">Record loose RAM sticks, SSDs, power supplies, or cables in stock.</p>
+                    </div>
+                </div>
+                <button type="button" @click="createSpareModal = false" class="text-slate-400 hover:text-slate-600 text-lg font-bold">&times;</button>
+            </div>
+
+            <form method="POST" action="{{ route('portal.assets.spares.store') }}" class="space-y-4">
+                @csrf
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Component Type <span class="text-rose-500">*</span></label>
+                        <select name="component_type" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white font-medium">
+                            <option value="ram">🧠 RAM Memory</option>
+                            <option value="ssd">💾 SSD Storage</option>
+                            <option value="hdd">💽 Hard Disk Drive (HDD)</option>
+                            <option value="psu">⚡ Power Supply (PSU)</option>
+                            <option value="gpu">🎮 Graphics Card (GPU)</option>
+                            <option value="cable">🔌 Cable / Adapter (HDMI, LAN)</option>
+                            <option value="other">⚙️ Other Spare Part</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Storage Location Branch</label>
+                        <select name="branch_id" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white font-medium">
+                            @foreach($branches as $b)
+                                <option value="{{ $b->id }}">📍 {{ $b->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Brand &amp; Model <span class="text-rose-500">*</span></label>
+                    <input type="text" name="brand_model" required placeholder="e.g. Kingston Fury Beast DDR4 or Samsung 980 NVMe" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500">
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Capacity / Specs</label>
+                        <input type="text" name="capacity_or_specs" placeholder="e.g. 8GB 3200MHz, 500GB, 550W" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Quantity in Stock</label>
+                        <input type="number" name="quantity" min="1" max="50" value="1" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500 font-bold">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Serial Number (If single item)</label>
+                    <input type="text" name="serial_number" placeholder="Optional for batch items" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500 font-mono">
+                </div>
+
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Storage Notes</label>
+                    <input type="text" name="notes" placeholder="e.g. Shelf B, IT Server Room" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500">
+                </div>
+
+                <div class="flex items-center justify-end space-x-2 pt-3 border-t border-slate-100">
+                    <button type="button" @click="createSpareModal = false" class="px-4 py-2 text-xs text-slate-600 font-semibold hover:bg-slate-100 rounded-xl transition">Cancel</button>
+                    <button type="submit" class="px-5 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow-xs transition">Add to IT Stock</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- MODAL 3: REGISTER NEW SOFTWARE LICENSE                    -->
+    <!-- ======================================================== -->
+    <div x-show="createLicenseModal" 
+         x-transition:enter="transition ease-out duration-200" 
+         x-transition:enter-start="opacity-0 scale-95"
+         x-transition:enter-end="opacity-100 scale-100"
+         x-transition:leave="transition ease-in duration-150" 
+         x-transition:leave-start="opacity-100 scale-100"
+         x-transition:leave-end="opacity-0 scale-95"
+         class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-3 sm:p-4" 
+         x-cloak>
+        <div @click.away="createLicenseModal = false" class="bg-white rounded-3xl max-w-xl w-full shadow-2xl flex flex-col max-h-[92vh] overflow-hidden my-auto border border-slate-100">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/80 shrink-0">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center text-lg font-bold shadow-2xs">
+                        🔑
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-extrabold text-slate-900">Register Software / SaaS License</h3>
+                        <p class="text-[11px] text-slate-500">Track digital subscriptions, license keys, and total seat quotas.</p>
+                    </div>
+                </div>
+                <button type="button" @click="createLicenseModal = false" class="text-slate-400 hover:text-slate-600 text-xl font-bold p-1 rounded-lg hover:bg-slate-100 transition leading-none">&times;</button>
+            </div>
+
+            <form method="POST" action="{{ route('portal.assets.licenses.store') }}" class="p-6 space-y-4 overflow-y-auto">
+                @csrf
+
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Software / Application Name <span class="text-rose-500">*</span></label>
+                    <input type="text" name="name" required placeholder="e.g. Microsoft 365 Business Standard or Adobe CC" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Publisher / Vendor</label>
+                        <input type="text" name="vendor_publisher" placeholder="e.g. Microsoft, Adobe, Autodesk" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Total Seats Purchased <span class="text-rose-500">*</span></label>
+                        <input type="number" name="seats_total" min="1" value="1" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">License Type</label>
+                        <select name="license_type" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white font-medium">
+                            <option value="subscription">Subscription (Cloud SaaS / Recurring)</option>
+                            <option value="perpetual">Perpetual (One-time Purchase)</option>
+                            <option value="oem">OEM / Hardware Bundled</option>
+                            <option value="volume">Volume Key / Enterprise</option>
+                            <option value="free">Free / Open Source</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Billing Cycle</label>
+                        <select name="billing_cycle" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white font-medium">
+                            <option value="annual">Annual / Yearly</option>
+                            <option value="monthly">Monthly</option>
+                            <option value="one_time">One-time / Lifetime</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">License Key / Activation Code / Admin URL</label>
+                    <input type="text" name="license_key" placeholder="e.g. https://admin.microsoft.com or XXXX-YYYY-ZZZZ" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono">
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Purchase Date</label>
+                        <input type="date" name="purchase_date" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Renewal / Expiry Date</label>
+                        <input type="date" name="expiry_date" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Cost (USD)</label>
+                        @if($canViewFinancials)
+                            <input type="number" step="0.01" min="0" name="purchase_cost" placeholder="e.g. 1200.00" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold">
+                        @else
+                            <input type="text" disabled placeholder="🔒 Restricted" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed">
+                        @endif
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Status</label>
+                    <select name="status" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white font-medium">
+                        <option value="active">Active</option>
+                        <option value="expiring_soon">Expiring Soon</option>
+                        <option value="expired">Expired</option>
+                        <option value="cancelled">Cancelled</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Notes / Instructions</label>
+                    <textarea name="notes" rows="2" placeholder="e.g. Admin login credentials, authorized reseller contact, or user guidelines" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"></textarea>
+                </div>
+
+                <div class="flex items-center justify-end space-x-2 pt-4 border-t border-slate-100">
+                    <button type="button" @click="createLicenseModal = false" class="px-4 py-2.5 text-xs text-slate-600 font-semibold hover:bg-slate-100 rounded-xl transition">Cancel</button>
+                    <button type="submit" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition">Save License</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- MODAL 4: EDIT SOFTWARE LICENSE                            -->
+    <!-- ======================================================== -->
+    <div x-show="editLicenseModal" 
+         x-transition:enter="transition ease-out duration-200" 
+         x-transition:enter-start="opacity-0 scale-95"
+         x-transition:enter-end="opacity-100 scale-100"
+         x-transition:leave="transition ease-in duration-150" 
+         x-transition:leave-start="opacity-100 scale-100"
+         x-transition:leave-end="opacity-0 scale-95"
+         class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-3 sm:p-4" 
+         x-cloak>
+        <div @click.away="editLicenseModal = false" class="bg-white rounded-3xl max-w-xl w-full shadow-2xl flex flex-col max-h-[92vh] overflow-hidden my-auto border border-slate-100">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/80 shrink-0">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-2xl bg-blue-100 text-blue-700 flex items-center justify-center text-lg font-bold shadow-2xs">
+                        ✏️
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-extrabold text-slate-900">Edit Software License</h3>
+                        <p class="text-[11px] text-slate-500" x-text="activeLicense?.name"></p>
+                    </div>
+                </div>
+                <button type="button" @click="editLicenseModal = false" class="text-slate-400 hover:text-slate-600 text-xl font-bold p-1 rounded-lg hover:bg-slate-100 transition leading-none">&times;</button>
+            </div>
+
+            <form method="POST" :action="'/portal/assets/licenses/' + (activeLicense ? activeLicense.id : '')" class="p-6 space-y-4 overflow-y-auto">
+                @csrf
+                @method('PUT')
+
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Software / Application Name <span class="text-rose-500">*</span></label>
+                    <input type="text" name="name" required :value="activeLicense?.name" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Publisher / Vendor</label>
+                        <input type="text" name="vendor_publisher" :value="activeLicense?.vendor_publisher" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Total Seats Purchased <span class="text-rose-500">*</span></label>
+                        <input type="number" name="seats_total" min="1" required :value="activeLicense?.seats_total" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">License Type</label>
+                        <select name="license_type" :value="activeLicense?.license_type" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-medium">
+                            <option value="subscription">Subscription (Cloud SaaS / Recurring)</option>
+                            <option value="perpetual">Perpetual (One-time Purchase)</option>
+                            <option value="oem">OEM / Hardware Bundled</option>
+                            <option value="volume">Volume Key / Enterprise</option>
+                            <option value="free">Free / Open Source</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Billing Cycle</label>
+                        <select name="billing_cycle" :value="activeLicense?.billing_cycle" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-medium">
+                            <option value="annual">Annual / Yearly</option>
+                            <option value="monthly">Monthly</option>
+                            <option value="one_time">One-time / Lifetime</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">License Key / Activation Code / Admin URL</label>
+                    <input type="text" name="license_key" :value="activeLicense?.license_key" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono">
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Purchase Date</label>
+                        <input type="date" name="purchase_date" :value="activeLicense?.purchase_date ? activeLicense.purchase_date.substring(0, 10) : ''" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Renewal / Expiry Date</label>
+                        <input type="date" name="expiry_date" :value="activeLicense?.expiry_date ? activeLicense.expiry_date.substring(0, 10) : ''" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Cost (USD)</label>
+                        @if($canViewFinancials)
+                            <input type="number" step="0.01" min="0" name="purchase_cost" :value="activeLicense?.purchase_cost" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold">
+                        @else
+                            <input type="text" disabled value="🔒 Management Confidential" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed">
+                        @endif
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Status</label>
+                    <select name="status" :value="activeLicense?.status" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-medium">
+                        <option value="active">Active</option>
+                        <option value="expiring_soon">Expiring Soon</option>
+                        <option value="expired">Expired</option>
+                        <option value="cancelled">Cancelled</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Notes / Instructions</label>
+                    <textarea name="notes" rows="2" :value="activeLicense?.notes" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                </div>
+
+                <div class="flex items-center justify-end space-x-2 pt-4 border-t border-slate-100">
+                    <button type="button" @click="editLicenseModal = false" class="px-4 py-2.5 text-xs text-slate-600 font-semibold hover:bg-slate-100 rounded-xl transition">Cancel</button>
+                    <button type="submit" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition">Update License</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- MODAL 5: ALLOCATE LICENSE SEAT (USER OR COMPUTER)         -->
+    <!-- ======================================================== -->
+    <div x-show="assignSeatModal" 
+         x-transition:enter="transition ease-out duration-200" 
+         x-transition:enter-start="opacity-0 scale-95"
+         x-transition:enter-end="opacity-100 scale-100"
+         x-transition:leave="transition ease-in duration-150" 
+         x-transition:leave-start="opacity-100 scale-100"
+         x-transition:leave-end="opacity-0 scale-95"
+         class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-3 sm:p-4" 
+         x-cloak>
+        <div @click.away="assignSeatModal = false"
+             x-data="{
+                 userSearch: '',
+                 userOpen: false,
+                 selectedUserId: '',
+                 assetSearch: '',
+                 assetOpen: false,
+                 selectedAssetId: '',
+                 usersList: {{ $usersJson->toJson() }},
+                 assetsList: {{ $allAssetsJson->toJson() }},
+                 init() {
+                     this.$watch('assignSeatModal', (val) => {
+                         if (val) {
+                             this.userSearch = '';
+                             this.userOpen = false;
+                             this.selectedUserId = '';
+                             this.assetSearch = '';
+                             this.assetOpen = false;
+                             this.selectedAssetId = '';
+                         }
+                     });
+                 },
+                 getSelectedUser() {
+                     if (!this.selectedUserId) return null;
+                     return this.usersList.find(u => u.id == this.selectedUserId) || null;
+                 },
+                 getSelectedAsset() {
+                     if (!this.selectedAssetId) return null;
+                     return this.assetsList.find(a => a.id == this.selectedAssetId) || null;
+                 },
+                 getFilteredUsers() {
+                     let q = (this.userSearch || '').toLowerCase().trim();
+                     if (!q) return this.usersList.slice(0, 30);
+                     return this.usersList.filter(u =>
+                         (u.name && u.name.toLowerCase().includes(q)) ||
+                         (u.email && u.email.toLowerCase().includes(q)) ||
+                         (u.dept && u.dept.toLowerCase().includes(q)) ||
+                         (u.branch && u.branch.toLowerCase().includes(q))
+                     ).slice(0, 30);
+                 },
+                 getFilteredAssets() {
+                     let q = (this.assetSearch || '').toLowerCase().trim();
+                     if (!q) return this.assetsList.slice(0, 30);
+                     return this.assetsList.filter(a =>
+                         (a.tag && a.tag.toLowerCase().includes(q)) ||
+                         (a.name && a.name.toLowerCase().includes(q)) ||
+                         (a.model && a.model.toLowerCase().includes(q)) ||
+                         (a.branch && a.branch.toLowerCase().includes(q))
+                     ).slice(0, 30);
+                 },
+                 selectUser(user) {
+                     this.selectedUserId = user.id;
+                     this.userOpen = false;
+                     this.userSearch = '';
+                     if (user.primary_asset_id && !this.selectedAssetId) {
+                         this.selectedAssetId = user.primary_asset_id;
+                     }
+                 },
+                 selectAsset(asset) {
+                     this.selectedAssetId = asset.id;
+                     this.assetOpen = false;
+                     this.assetSearch = '';
+                     if (asset.assigned_user_id && !this.selectedUserId) {
+                         this.selectedUserId = asset.assigned_user_id;
+                     }
+                 }
+             }"
+             class="bg-white rounded-3xl max-w-lg w-full shadow-2xl flex flex-col max-h-[92vh] overflow-hidden my-auto border border-slate-100">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/80 shrink-0">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-2xl bg-blue-100 text-blue-700 flex items-center justify-center text-lg font-bold shadow-2xs">
+                        👥
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-extrabold text-slate-900">Allocate License Seat</h3>
+                        <p class="text-[11px] text-slate-500" x-text="activeLicense?.name"></p>
+                    </div>
+                </div>
+                <button type="button" @click="assignSeatModal = false" class="text-slate-400 hover:text-slate-600 text-xl font-bold p-1 rounded-lg hover:bg-slate-100 transition leading-none">&times;</button>
+            </div>
+
+            <!-- Seat Availability Subheader -->
+            <div class="px-6 py-2.5 bg-blue-50/50 border-b border-blue-100/60 flex items-center justify-between text-xs text-slate-600 shrink-0">
+                <div class="flex items-center space-x-1.5">
+                    <span class="text-slate-400 font-semibold">Seat Quota:</span>
+                    <span class="font-bold text-blue-700" x-text="activeLicense?.seats_total ? (activeLicense.seats_total - (activeLicense.assignments ? activeLicense.assignments.length : 0)) + ' of ' + activeLicense.seats_total + ' seats available' : ''"></span>
+                </div>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white text-slate-700 border border-slate-200 uppercase tracking-wider capitalize" x-text="activeLicense?.license_type"></span>
+            </div>
+
+            <form method="POST" :action="'/portal/assets/licenses/' + (activeLicense ? activeLicense.id : '') + '/assign'" class="p-6 space-y-4 overflow-y-auto">
+                @csrf
+
+                <!-- 1. Searchable Staff Member Combobox -->
+                <div class="space-y-1.5" @click.away="userOpen = false">
+                    <input type="hidden" name="user_id" :value="selectedUserId">
+                    <div class="flex items-center justify-between">
+                        <label class="block text-[11px] font-bold text-slate-700 uppercase">
+                            👤 Staff Member (User)
+                        </label>
+                        <span class="text-[10px] text-blue-600 font-semibold" x-text="selectedUserId ? 'Selected' : 'Optional / Shared'"></span>
+                    </div>
+
+                    <!-- Selected Staff Card -->
+                    <div x-show="getSelectedUser()" class="p-2.5 rounded-xl border border-blue-200 bg-blue-50/60 shadow-2xs flex items-center justify-between gap-2">
+                        <div class="flex items-center space-x-2.5 min-w-0">
+                            <div class="w-8 h-8 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs shrink-0">
+                                <span x-text="getSelectedUser()?.name ? getSelectedUser().name.charAt(0).toUpperCase() : '👤'"></span>
+                            </div>
+                            <div class="min-w-0">
+                                <div class="font-bold text-xs text-slate-900 leading-tight truncate" x-text="getSelectedUser()?.name"></div>
+                                <div class="text-[10px] text-slate-500 truncate" x-text="getSelectedUser()?.email"></div>
+                                <div class="text-[9px] text-blue-700 font-medium">
+                                    🏢 <span x-text="getSelectedUser()?.dept"></span> &bull; 📍 <span x-text="getSelectedUser()?.branch"></span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-1 shrink-0">
+                            <button type="button" @click="userOpen = !userOpen" class="px-2 py-1 text-[10px] text-blue-600 hover:bg-blue-100 font-bold rounded-lg transition cursor-pointer">
+                                Change
+                            </button>
+                            <button type="button" @click="selectedUserId = ''; userSearch = ''; userOpen = false" class="p-1 text-slate-400 hover:text-rose-600 font-bold text-xs rounded-md transition cursor-pointer" title="Clear selection">
+                                ✕
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Unselected Trigger -->
+                    <div x-show="!getSelectedUser()">
+                        <div @click="userOpen = true" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white hover:border-blue-400 cursor-pointer flex items-center justify-between shadow-2xs">
+                            <span class="text-slate-400 font-medium">🔍 Search staff member by name, email, or dept...</span>
+                            <span class="text-slate-400 text-xs">▼</span>
+                        </div>
+                    </div>
+
+                    <!-- Searchable Dropdown Popup -->
+                    <div x-show="userOpen" class="bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden p-2 space-y-1.5" x-cloak>
+                        <div class="relative">
+                            <span class="absolute left-2.5 top-2.5 text-slate-400 text-xs">🔍</span>
+                            <input type="text" x-model="userSearch"
+                                   placeholder="Type employee name, email, or dept..."
+                                   @keydown.escape="userOpen = false"
+                                   class="w-full text-xs pl-7 pr-6 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <button type="button" x-show="userSearch" @click="userSearch = ''" class="absolute right-2.5 top-2 text-xs text-slate-400 hover:text-slate-600 cursor-pointer">✕</button>
+                        </div>
+
+                        <div class="max-h-40 overflow-y-auto divide-y divide-slate-100">
+                            <div @click="selectedUserId = ''; userOpen = false" class="p-2 hover:bg-slate-50 rounded-lg cursor-pointer transition flex items-center justify-between text-slate-500 text-xs">
+                                <span class="font-medium">— No specific person / Cloud account only —</span>
+                                <span class="text-[10px] text-slate-400">Clear</span>
+                            </div>
+
+                            <template x-for="user in getFilteredUsers()" :key="user.id">
+                                <div @click="selectUser(user)"
+                                     class="p-2 hover:bg-blue-50/80 rounded-xl cursor-pointer transition flex items-center justify-between gap-2">
+                                    <div class="min-w-0">
+                                        <div class="font-bold text-slate-900 text-xs truncate" x-text="user.name"></div>
+                                        <div class="text-[10px] text-slate-500 truncate" x-text="user.email"></div>
+                                    </div>
+                                    <div class="text-right shrink-0">
+                                        <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 block" x-text="user.dept"></span>
+                                        <span class="text-[8px] text-slate-400" x-text="user.branch"></span>
+                                    </div>
+                                </div>
+                            </template>
+
+                            <div x-show="getFilteredUsers().length === 0" class="p-3 text-center text-slate-400 text-xs italic">
+                                No employees found matching "<span x-text="userSearch"></span>".
+                            </div>
+                        </div>
+                    </div>
+                    <span class="text-[10px] text-slate-400 block">Selecting a staff member auto-detects their assigned computer workstation.</span>
+                </div>
+
+                <!-- 2. Searchable Hardware Asset Combobox -->
+                <div class="space-y-1.5" @click.away="assetOpen = false">
+                    <input type="hidden" name="asset_id" :value="selectedAssetId">
+                    <div class="flex items-center justify-between">
+                        <label class="block text-[11px] font-bold text-slate-700 uppercase">
+                            💻 Hardware Asset (Computer / Laptop)
+                        </label>
+                        <span class="text-[10px] text-blue-600 font-semibold" x-text="selectedAssetId ? 'Selected' : 'Optional / Device-less'"></span>
+                    </div>
+
+                    <!-- Selected Asset Card -->
+                    <div x-show="getSelectedAsset()" class="p-2.5 rounded-xl border border-indigo-200 bg-indigo-50/60 shadow-2xs flex items-center justify-between gap-2">
+                        <div class="flex items-center space-x-2.5 min-w-0">
+                            <div class="w-8 h-8 rounded-xl bg-indigo-600 text-white font-bold flex items-center justify-center text-xs shrink-0">
+                                💻
+                            </div>
+                            <div class="min-w-0">
+                                <div class="font-mono font-bold text-xs text-indigo-700 leading-tight truncate" x-text="getSelectedAsset()?.tag"></div>
+                                <div class="font-semibold text-xs text-slate-900 truncate" x-text="getSelectedAsset()?.name"></div>
+                                <div class="text-[9px] text-slate-500 truncate" x-text="getSelectedAsset()?.model + ' • 📍 ' + getSelectedAsset()?.branch"></div>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-1 shrink-0">
+                            <button type="button" @click="assetOpen = !assetOpen" class="px-2 py-1 text-[10px] text-indigo-600 hover:bg-indigo-100 font-bold rounded-lg transition cursor-pointer">
+                                Change
+                            </button>
+                            <button type="button" @click="selectedAssetId = ''; assetSearch = ''; assetOpen = false" class="p-1 text-slate-400 hover:text-rose-600 font-bold text-xs rounded-md transition cursor-pointer" title="Clear selection">
+                                ✕
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Unselected Trigger -->
+                    <div x-show="!getSelectedAsset()">
+                        <div @click="assetOpen = true" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white hover:border-indigo-400 cursor-pointer flex items-center justify-between shadow-2xs">
+                            <span class="text-slate-400 font-medium">🔍 Search computer by tag (e.g. CBVH-PC-0101) or model...</span>
+                            <span class="text-slate-400 text-xs">▼</span>
+                        </div>
+                    </div>
+
+                    <!-- Searchable Dropdown Popup -->
+                    <div x-show="assetOpen" class="bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden p-2 space-y-1.5" x-cloak>
+                        <div class="relative">
+                            <span class="absolute left-2.5 top-2.5 text-slate-400 text-xs">🔍</span>
+                            <input type="text" x-model="assetSearch"
+                                   placeholder="Type asset tag, PC name, or model..."
+                                   @keydown.escape="assetOpen = false"
+                                   class="w-full text-xs pl-7 pr-6 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            <button type="button" x-show="assetSearch" @click="assetSearch = ''" class="absolute right-2.5 top-2 text-xs text-slate-400 hover:text-slate-600 cursor-pointer">✕</button>
+                        </div>
+
+                        <div class="max-h-40 overflow-y-auto divide-y divide-slate-100">
+                            <div @click="selectedAssetId = ''; assetOpen = false" class="p-2 hover:bg-slate-50 rounded-lg cursor-pointer transition flex items-center justify-between text-slate-500 text-xs">
+                                <span class="font-medium">— No specific PC / Cloud account only —</span>
+                                <span class="text-[10px] text-slate-400">Clear</span>
+                            </div>
+
+                            <template x-for="asset in getFilteredAssets()" :key="asset.id">
+                                <div @click="selectAsset(asset)"
+                                     class="p-2 hover:bg-indigo-50/80 rounded-xl cursor-pointer transition flex items-center justify-between gap-2">
+                                    <div class="min-w-0">
+                                        <div class="font-mono font-bold text-indigo-700 text-xs truncate" x-text="asset.tag"></div>
+                                        <div class="font-semibold text-slate-900 text-xs truncate" x-text="asset.name"></div>
+                                    </div>
+                                    <div class="text-right shrink-0">
+                                        <span class="text-[9px] text-slate-500 font-medium block truncate max-w-[120px]" x-text="asset.model"></span>
+                                        <span class="text-[8px] text-slate-400" x-text="'📍 ' + asset.branch"></span>
+                                    </div>
+                                </div>
+                            </template>
+
+                            <div x-show="getFilteredAssets().length === 0" class="p-3 text-center text-slate-400 text-xs italic">
+                                No machines found matching "<span x-text="assetSearch"></span>".
+                            </div>
+                        </div>
+                    </div>
+                    <span class="text-[10px] text-slate-400 block">Selecting a PC auto-detects its registered staff custodian.</span>
+                </div>
+
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Allocation Notes</label>
+                    <input type="text" name="notes" placeholder="e.g. Graphic Designer Workstation or ERP Finance Counter" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+
+                <div class="flex items-center justify-end space-x-2 pt-4 border-t border-slate-100">
+                    <button type="button" @click="assignSeatModal = false" class="px-4 py-2.5 text-xs text-slate-600 font-semibold hover:bg-slate-100 rounded-xl transition">Cancel</button>
+                    <button type="submit" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition">Allocate Seat</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+</div>
