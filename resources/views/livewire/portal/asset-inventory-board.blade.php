@@ -1,14 +1,3 @@
-<style>
-@media print {
-    .no-print, nav, header, aside {
-        display: none !important;
-    }
-    body {
-        background: white !important;
-        font-size: 11px !important;
-    }
-}
-</style>
 <div x-data="{ 
     createAssetModal: false, 
     createSpareModal: false,
@@ -17,7 +6,6 @@
     assignSeatModal: false,
     activeLicense: null,
     assetOwnership: 'personal',
-    currentTab: '{{ $currentTab }}',
     openEditLicense(lic) {
         this.activeLicense = lic;
         this.editLicenseModal = true;
@@ -27,6 +15,17 @@
         this.assignSeatModal = true;
     }
 }" class="space-y-6">
+    <style>
+    @media print {
+        .no-print, nav, header, aside {
+            display: none !important;
+        }
+        body {
+            background: white !important;
+            font-size: 11px !important;
+        }
+    }
+    </style>
 
     <!-- Top Header -->
     <div class="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 no-print">
@@ -93,6 +92,7 @@
     <div class="bg-white p-2 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div class="flex items-center flex-wrap gap-2">
             <button type="button" 
+                    wire:key="tab-btn-assets"
                     wire:click="setTab('assets')"
                     class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center space-x-2 cursor-pointer {{ $currentTab === 'assets' ? 'bg-blue-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">
                 <span>🖥️</span>
@@ -103,6 +103,7 @@
             </button>
 
             <button type="button" 
+                    wire:key="tab-btn-components"
                     wire:click="setTab('components')"
                     class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center space-x-2 cursor-pointer {{ $currentTab === 'components' ? 'bg-amber-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">
                 <span>⚙️</span>
@@ -113,6 +114,7 @@
             </button>
 
             <button type="button" 
+                    wire:key="tab-btn-report"
                     wire:click="setTab('report')"
                     class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center space-x-2 cursor-pointer {{ $currentTab === 'report' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">
                 <span>📊</span>
@@ -123,6 +125,7 @@
             </button>
 
             <button type="button" 
+                    wire:key="tab-btn-licenses"
                     wire:click="setTab('licenses')"
                     class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center space-x-2 cursor-pointer {{ $currentTab === 'licenses' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">
                 <span>🔑</span>
@@ -153,7 +156,7 @@
 
     @if($currentTab === 'assets')
         <!-- TAB 1: HARDWARE ASSETS LIST -->
-        <div class="space-y-4">
+        <div wire:key="tab-panel-assets" class="space-y-4">
             <!-- Filter & Search Toolbar -->
             <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs space-y-3">
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-2.5">
@@ -389,7 +392,7 @@
 
     @elseif($currentTab === 'components')
         <!-- TAB 2: SPARE PARTS & COMPONENTS INVENTORY -->
-        <div class="space-y-4">
+        <div wire:key="tab-panel-components" class="space-y-4">
             <!-- Filter & Search Toolbar -->
             <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs space-y-3">
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
@@ -525,7 +528,7 @@
 
     @elseif($currentTab === 'report')
         <!-- TAB 3: MANAGEMENT STOCK & LIFECYCLE REPORT -->
-        <div class="space-y-5">
+        <div wire:key="tab-panel-report" class="space-y-5">
             <!-- Executive Report Header Banner -->
             <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-6 text-white shadow-md relative overflow-hidden">
                 <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -927,7 +930,7 @@
         </div>
     @elseif($currentTab === 'licenses')
         <!-- TAB 4: SOFTWARE & DIGITAL LICENSES (GLPI LEAN ITAM) -->
-        <div class="space-y-6">
+        <div wire:key="tab-panel-licenses" class="space-y-6">
             
             <!-- 1. KPI Cards -->
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
