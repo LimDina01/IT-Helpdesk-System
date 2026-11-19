@@ -1,5 +1,7 @@
 <?php
 
+// CBVH IT Helpdesk System Application Bootstrap
+
 use App\Http\Middleware\EnsureActiveUser;
 use App\Http\Middleware\EnsureStaffUser;
 use Illuminate\Foundation\Application;
