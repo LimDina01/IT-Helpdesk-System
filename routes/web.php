@@ -71,7 +71,7 @@ Route::get('/login', [PortalAuthController::class, 'showLogin'])->name('login');
 Route::prefix('portal')->group(function () {
     // Guest Authentication
     Route::get('/login', [PortalAuthController::class, 'showLogin'])->name('portal.login');
-    Route::post('/login', [PortalAuthController::class, 'login'])->name('portal.login.submit');
+    Route::post('/login', [PortalAuthController::class, 'login'])->middleware('throttle:5,1')->name('portal.login.submit');
     Route::post('/logout', [PortalAuthController::class, 'logout'])->name('portal.logout');
 
     // Protected Staff Routes

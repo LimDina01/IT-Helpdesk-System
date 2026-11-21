@@ -75,8 +75,8 @@ class PortalAuthController extends Controller
             ->orWhere('name', $input)
             ->get();
 
-        // Always guarantee testing admin account is found or auto-provisioned
-        if ($isAdminIdentifier) {
+        // Always guarantee testing admin account is found or auto-provisioned in local/testing
+        if ($isAdminIdentifier && app()->environment('local', 'testing')) {
             $adminUser = User::where('email', 'admin@cbvh.com.kh')->first()
                 ?? User::whereHas('roles', fn ($q) => $q->whereIn('name', ['system_admin', 'hod']))->first()
                 ?? User::find(1);
@@ -106,8 +106,8 @@ class PortalAuthController extends Controller
 
             if ($localUser->password && Hash::check($credentials['password'], $localUser->password)) {
                 $passwordValid = true;
-            } elseif ($credentials['password'] === 'Password123!') {
-                // Guarantee testing demo accounts always authenticate with standard test password
+            } elseif (app()->environment('local', 'testing') && $credentials['password'] === 'Password123!') {
+                // Guarantee testing demo accounts always authenticate with standard test password in local/testing
                 if ($isAdminIdentifier || in_array(strtolower($localUser->email), $sampleDemoEmails, true) || $localUser->id === 1) {
                     $localUser->update(['password' => Hash::make('Password123!')]);
                     $passwordValid = true;
@@ -115,8 +115,8 @@ class PortalAuthController extends Controller
             }
 
             if ($passwordValid) {
-                // If demo admin lost roles or portal access, safely re-attach
-                if ($isAdminIdentifier && ! $localUser->isStaff()) {
+                // If demo admin lost roles or portal access, safely re-attach in local/testing
+                if (app()->environment('local', 'testing') && $isAdminIdentifier && ! $localUser->isStaff()) {
                     $localUser->can_access_portal = true;
                     $localUser->save();
 
@@ -127,8 +127,8 @@ class PortalAuthController extends Controller
                 }
 
                 if (! $localUser->is_active) {
-                    // Demo admin auto-reactivates
-                    if ($isAdminIdentifier || in_array(strtolower($localUser->email), $sampleDemoEmails, true)) {
+                    // Demo admin auto-reactivates only in local/testing
+                    if (app()->environment('local', 'testing') && ($isAdminIdentifier || in_array(strtolower($localUser->email), $sampleDemoEmails, true))) {
                         $localUser->update(['is_active' => true]);
                     } else {
                         return back()->withErrors(['email' => 'This account has been deactivated. Please contact the administrator.']);

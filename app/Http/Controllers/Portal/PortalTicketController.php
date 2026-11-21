@@ -167,6 +167,11 @@ class PortalTicketController extends Controller
         ]);
 
         $user = Auth::user();
+
+        if ($ticket->status === 'pending_approval') {
+            return back()->withErrors(['error' => 'Cannot assign a ticket that is awaiting multi-stage approval.']);
+        }
+
         abort_if(! $user->hasAnyRole(['helpdesk', 'system_admin', 'hod']) && (int) $validated['technician_id'] !== (int) $user->id, 403, 'Technicians can only assign tickets to themselves.');
 
         $tech = User::findOrFail($validated['technician_id']);
@@ -228,6 +233,10 @@ class PortalTicketController extends Controller
     public function assignToMe(Ticket $ticket, TelegramNotificationService $telegram): RedirectResponse
     {
         $user = Auth::user();
+
+        if ($ticket->status === 'pending_approval') {
+            return back()->withErrors(['error' => 'Cannot self-assign a ticket that is awaiting multi-stage approval.']);
+        }
 
         DB::transaction(function () use ($ticket, $user) {
             $oldTechId = $ticket->current_technician_id;
@@ -320,6 +329,10 @@ class PortalTicketController extends Controller
     public function acceptAndStart(Ticket $ticket): RedirectResponse
     {
         $user = Auth::user();
+
+        if ($ticket->status === 'pending_approval') {
+            return back()->withErrors(['error' => 'Cannot accept or start work on a ticket that is awaiting multi-stage approval.']);
+        }
 
         // Must be the assigned tech or an admin
         if ($ticket->current_technician_id !== $user->id && ! $user->hasRole(['system_admin', 'hod'])) {
@@ -443,6 +456,18 @@ class PortalTicketController extends Controller
     public function markDone(Ticket $ticket, BusinessHoursService $businessHours, TelegramNotificationService $telegram): RedirectResponse
     {
         $user = Auth::user();
+
+        if ($ticket->status === 'pending_approval') {
+            return back()->withErrors(['error' => 'Cannot resolve a ticket that is awaiting multi-stage approval.']);
+        }
+
+        if (! in_array($ticket->status, ['in_progress', 'blocked', 'reopened'], true)) {
+            return back()->withErrors(['error' => 'Ticket cannot be marked done in its current status.']);
+        }
+
+        if ($ticket->current_technician_id !== $user->id && ! $user->hasRole(['system_admin', 'hod'])) {
+            return back()->withErrors(['error' => 'Only the assigned technician or an administrator can mark this ticket as resolved.']);
+        }
 
         DB::transaction(function () use ($ticket, $user, $businessHours) {
             $now = now();
