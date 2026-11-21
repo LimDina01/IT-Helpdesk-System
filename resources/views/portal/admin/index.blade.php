@@ -15,6 +15,12 @@
     editCat: {},
     catToDelete: null,
 
+    init() {
+        this.$watch('createGroupModal || createSubModal || editModal || deleteModal', val => {
+            document.body.classList.toggle('overflow-hidden', val);
+        });
+    },
+
     // Preset Icons Reference
     presetIcons: [
         { id: 'wifi', label: 'Wi-Fi / Network', emoji: '📶' },
@@ -600,6 +606,7 @@
     <!-- ========================================== -->
     <!-- 1. CREATE PARENT GROUP MODAL               -->
     <!-- ========================================== -->
+    <template x-teleport="body">
     <div x-show="createGroupModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4" x-cloak>
         <div @click.away="createGroupModal = false" class="bg-white rounded-3xl max-w-xl w-full shadow-2xl p-6 space-y-4 max-h-[90vh] overflow-y-auto">
             <div class="flex items-center justify-between border-b border-slate-100 pb-3">
@@ -786,10 +793,12 @@
             </form>
         </div>
     </div>
+    </template>
 
     <!-- ========================================== -->
     <!-- 2. CREATE SUBCATEGORY MODAL               -->
     <!-- ========================================== -->
+    <template x-teleport="body">
     <div x-show="createSubModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4" x-cloak>
         <div @click.away="createSubModal = false" class="bg-white rounded-3xl max-w-xl w-full shadow-2xl p-6 space-y-4">
             <div class="flex items-center justify-between border-b border-slate-100 pb-3">
@@ -976,10 +985,12 @@
             </form>
         </div>
     </div>
+    </template>
 
     <!-- ========================================== -->
     <!-- 3. EDIT CATEGORY / GROUP MODAL             -->
     <!-- ========================================== -->
+    <template x-teleport="body">
     <div x-show="editModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4" x-cloak>
         <div @click.away="editModal = false" class="bg-white rounded-3xl max-w-xl w-full shadow-2xl p-6 space-y-4 max-h-[90vh] overflow-y-auto">
             <div class="flex items-center justify-between border-b border-slate-100 pb-3">
@@ -1323,10 +1334,12 @@
             </form>
         </div>
     </div>
+    </template>
 
     <!-- ========================================== -->
     <!-- 4. PERMANENT DELETE CONFIRMATION MODAL    -->
     <!-- ========================================== -->
+    <template x-teleport="body">
     <div x-show="deleteModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4" x-cloak>
         <div @click.away="deleteModal = false" class="bg-white rounded-3xl max-w-sm w-full shadow-2xl p-6 text-center space-y-4">
             <div class="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center text-xl mx-auto">
@@ -1351,6 +1364,7 @@
             </form>
         </div>
     </div>
+    </template>
 
 </div>
 @endsection
