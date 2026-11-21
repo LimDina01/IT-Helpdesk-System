@@ -6,6 +6,12 @@
 <div x-data="{ 
     addApproverModal: false,
     editApproverModal: false,
+
+    init() {
+        this.$watch('addApproverModal || editApproverModal', val => {
+            document.body.classList.toggle('overflow-hidden', val);
+        });
+    },
     editingApprover: {},
     newBranchId: '{{ $selectedBranchId === 'hq' ? '' : ($selectedBranchId ?? '') }}',
     newDeptId: '{{ $selectedDeptId ?? '' }}',
@@ -435,6 +441,7 @@
     <!-- ======================================================= -->
     <!-- MODAL 1: ADD APPROVER CARD                              -->
     <!-- ======================================================= -->
+    <template x-teleport="body">
     <div x-show="addApproverModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto" x-cloak>
         <div @click.away="addApproverModal = false" class="bg-white rounded-3xl max-w-lg w-full shadow-2xl p-6 space-y-4 my-8">
             <div class="flex items-center justify-between border-b border-slate-100 pb-3">
@@ -557,10 +564,12 @@
             </form>
         </div>
     </div>
+    </template>
 
     <!-- ======================================================= -->
     <!-- MODAL 2: EDIT APPROVER CARD                             -->
     <!-- ======================================================= -->
+    <template x-teleport="body">
     <div x-show="editApproverModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto" x-cloak>
         <div @click.away="editApproverModal = false" class="bg-white rounded-3xl max-w-lg w-full shadow-2xl p-6 space-y-4 my-8">
             <div class="flex items-center justify-between border-b border-slate-100 pb-3">
@@ -664,6 +673,7 @@
             </form>
         </div>
     </div>
+    </template>
 
 </div>
 @endsection

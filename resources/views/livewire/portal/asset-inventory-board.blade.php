@@ -6,6 +6,13 @@
     assignSeatModal: false,
     activeLicense: null,
     assetOwnership: 'personal',
+    init() {
+        this.$watch('createAssetModal', val => document.body.classList.toggle('overflow-hidden', val));
+        this.$watch('createSpareModal', val => document.body.classList.toggle('overflow-hidden', val));
+        this.$watch('createLicenseModal', val => document.body.classList.toggle('overflow-hidden', val));
+        this.$watch('editLicenseModal', val => document.body.classList.toggle('overflow-hidden', val));
+        this.$watch('assignSeatModal', val => document.body.classList.toggle('overflow-hidden', val));
+    },
     openEditLicense(lic) {
         this.activeLicense = lic;
         this.editLicenseModal = true;
@@ -1196,6 +1203,7 @@
     <!-- ======================================================== -->
     <!-- MODAL 1: REGISTER NEW HARDWARE ASSET                      -->
     <!-- ======================================================== -->
+    <template x-teleport="body">
     <div x-show="createAssetModal" 
          x-transition:enter="transition ease-out duration-200" 
          x-transition:enter-start="opacity-0 scale-95"
@@ -1496,10 +1504,12 @@
             </form>
         </div>
     </div>
+    </template>
 
     <!-- ======================================================== -->
     <!-- MODAL 2: ADD SPARE PARTS / COMPONENTS TO STORAGE          -->
     <!-- ======================================================== -->
+    <template x-teleport="body">
     <div x-show="createSpareModal" 
          x-transition:enter="transition ease-out duration-200" 
          x-transition:leave="transition ease-in duration-150" 
@@ -1578,10 +1588,12 @@
             </form>
         </div>
     </div>
+    </template>
 
     <!-- ======================================================== -->
     <!-- MODAL 3: REGISTER NEW SOFTWARE LICENSE                    -->
     <!-- ======================================================== -->
+    <template x-teleport="body">
     <div x-show="createLicenseModal" 
          x-transition:enter="transition ease-out duration-200" 
          x-transition:enter-start="opacity-0 scale-95"
@@ -1691,10 +1703,12 @@
             </form>
         </div>
     </div>
+    </template>
 
     <!-- ======================================================== -->
     <!-- MODAL 4: EDIT SOFTWARE LICENSE                            -->
     <!-- ======================================================== -->
+    <template x-teleport="body">
     <div x-show="editLicenseModal" 
          x-transition:enter="transition ease-out duration-200" 
          x-transition:enter-start="opacity-0 scale-95"
@@ -1805,10 +1819,12 @@
             </form>
         </div>
     </div>
+    </template>
 
     <!-- ======================================================== -->
     <!-- MODAL 5: ALLOCATE LICENSE SEAT (USER OR COMPUTER)         -->
     <!-- ======================================================== -->
+    <template x-teleport="body">
     <div x-show="assignSeatModal" 
          x-transition:enter="transition ease-out duration-200" 
          x-transition:enter-start="opacity-0 scale-95"
@@ -2083,5 +2099,6 @@
             </form>
         </div>
     </div>
+    </template>
 
 </div>

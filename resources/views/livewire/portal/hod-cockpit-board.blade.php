@@ -419,7 +419,8 @@
 
     <!-- OVERRIDE PRIORITY MODAL -->
     @if($priorityModal)
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-fadeIn">
+        @teleport('body')
+        <div x-data x-init="document.body.classList.add('overflow-hidden'); $cleanup(() => document.body.classList.remove('overflow-hidden'))" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-fadeIn">
             <div class="bg-white rounded-3xl max-w-md w-full shadow-2xl p-6 space-y-4">
                 <div class="flex items-center justify-between">
                     <h3 class="text-base font-bold text-slate-800 flex items-center space-x-2">
@@ -462,11 +463,13 @@
                 </form>
             </div>
         </div>
+        @endteleport
     @endif
 
     <!-- REVIEW HOLD DECISION MODAL -->
     @if($holdModal)
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-fadeIn">
+        @teleport('body')
+        <div x-data x-init="document.body.classList.add('overflow-hidden'); $cleanup(() => document.body.classList.remove('overflow-hidden'))" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-fadeIn">
             <div class="bg-white rounded-3xl max-w-lg w-full shadow-2xl p-6 space-y-4">
                 <div class="flex items-center justify-between">
                     <h3 class="text-base font-bold text-slate-800 flex items-center space-x-2">
@@ -524,6 +527,7 @@
                 </div>
             </div>
         </div>
+        @endteleport
     @endif
 
 </div>

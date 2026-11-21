@@ -9,7 +9,7 @@
     assetOwnership: '{{ $asset->ownership_type }}',
     assetStatus: '{{ $asset->status }}',
     compSourceMode: 'from_stock'
-}" class="space-y-6">
+}" x-init="$watch('editAssetModal || installCompModal', val => document.body.classList.toggle('overflow-hidden', val))" class="space-y-6">
 
     <!-- Top Breadcrumb & Header -->
     <div class="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -478,6 +478,7 @@
     <!-- ======================================================== -->
     <!-- MODAL: EDIT ASSET DETAILS                                -->
     <!-- ======================================================== -->
+    <template x-teleport="body">
     <div x-show="editAssetModal" 
          x-transition:enter="transition ease-out duration-200" 
          x-transition:enter-start="opacity-0 scale-95"
@@ -830,10 +831,12 @@
             </form>
         </div>
     </div>
+    </template>
 
     <!-- ======================================================== -->
     <!-- MODAL: INSTALL COMPONENT / RAM INTO ASSET                 -->
     <!-- ======================================================== -->
+    <template x-teleport="body">
     <div x-show="installCompModal" 
          x-transition:enter="transition ease-out duration-200" 
          x-transition:leave="transition ease-in duration-150" 
@@ -924,6 +927,7 @@
             </form>
         </div>
     </div>
+    </template>
 
 </div>
 @endsection

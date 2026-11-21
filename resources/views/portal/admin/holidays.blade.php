@@ -3,7 +3,7 @@
 @section('title', 'System Administration - Company Holidays')
 
 @section('content')
-<div x-data="{ createModal: false }" class="space-y-6">
+<div x-data="{ createModal: false }" x-init="$watch('createModal', val => document.body.classList.toggle('overflow-hidden', val))" class="space-y-6">
 
     <!-- Top Admin Header -->
     <div class="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -130,6 +130,7 @@
     </div>
 
     <!-- CREATE HOLIDAY MODAL -->
+    <template x-teleport="body">
     <div x-show="createModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4" x-cloak>
         <div @click.away="createModal = false" class="bg-white rounded-3xl max-w-md w-full shadow-2xl p-6 space-y-4">
             <h3 class="text-base font-bold text-slate-800">Add Company Holiday</h3>
@@ -165,6 +166,7 @@
             </form>
         </div>
     </div>
+    </template>
 
 </div>
 @endsection

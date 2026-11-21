@@ -63,6 +63,12 @@
     copiedEmail: false,
     requesterActive: {{ \Illuminate\Support\Facades\Cache::has("ticket_presence_{$ticket->id}_{$ticket->requester_id}") ? 'true' : 'false' }},
 
+    init() {
+        this.$watch('clarifyModal || blockModal || rejectHoldModal || reassignDrawer || reclassifyModal || approveModal || rejectModal || escalateModal || forwardModal || lightbox', val => {
+            document.body.classList.toggle('overflow-hidden', val);
+        });
+    },
+
     jumpToAttachAsset() {
         this.inspectorTab = 'equipment';
         this.$nextTick(() => {
@@ -1302,6 +1308,7 @@ class="space-y-4">
     </div>
 
     <!-- ASK CLARIFICATION MODAL -->
+    <template x-teleport="body">
     <div x-show="clarifyModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4" x-cloak>
         <div @click.away="clarifyModal = false" class="bg-white rounded-3xl max-w-md w-full shadow-2xl p-6 space-y-4">
             <h3 class="text-sm font-bold text-slate-800">Ask Clarification from Employee</h3>
@@ -1316,8 +1323,10 @@ class="space-y-4">
             </form>
         </div>
     </div>
+    </template>
 
     <!-- MARK BLOCKED / REQUEST HOLD MODAL -->
+    <template x-teleport="body">
     <div x-show="blockModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4" x-cloak>
         <div @click.away="blockModal = false" class="bg-white rounded-3xl max-w-md w-full shadow-2xl p-6 space-y-4">
             <div class="flex items-center space-x-2">
@@ -1371,8 +1380,10 @@ class="space-y-4">
             </form>
         </div>
     </div>
+    </template>
 
     <!-- REJECT HOLD MODAL (IT HOD) -->
+    <template x-teleport="body">
     <div x-show="rejectHoldModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4" x-cloak>
         <div @click.away="rejectHoldModal = false" class="bg-white rounded-3xl max-w-md w-full shadow-2xl p-6 space-y-4">
             <div class="flex items-center space-x-2 text-rose-600">
@@ -1397,8 +1408,10 @@ class="space-y-4">
             </form>
         </div>
     </div>
+    </template>
 
     <!-- APPROVE STEP MODAL -->
+    <template x-teleport="body">
     <div x-show="approveModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4" x-cloak>
         <div @click.away="approveModal = false" class="bg-white rounded-3xl max-w-md w-full shadow-2xl p-6 space-y-4">
             <h3 class="text-sm font-bold text-slate-800">Approve Service Request</h3>
@@ -1421,8 +1434,10 @@ class="space-y-4">
             @endif
         </div>
     </div>
+    </template>
 
     <!-- ESCALATE STEP MODAL -->
+    <template x-teleport="body">
     <div x-show="escalateModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4" x-cloak>
         <div @click.away="escalateModal = false" class="bg-white rounded-3xl max-w-md w-full shadow-2xl p-6 space-y-4">
             <div class="flex items-center space-x-2.5">
@@ -1463,8 +1478,10 @@ class="space-y-4">
             @endif
         </div>
     </div>
+    </template>
 
     <!-- FORWARD / DELEGATE STEP MODAL -->
+    <template x-teleport="body">
     <div x-show="forwardModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4" x-cloak>
         <div @click.away="forwardModal = false" class="bg-white rounded-3xl max-w-md w-full shadow-2xl p-6 space-y-4">
             <div class="flex items-center space-x-2.5">
@@ -1510,8 +1527,10 @@ class="space-y-4">
             @endif
         </div>
     </div>
+    </template>
 
     <!-- REJECT STEP MODAL -->
+    <template x-teleport="body">
     <div x-show="rejectModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4" x-cloak>
         <div @click.away="rejectModal = false" class="bg-white rounded-3xl max-w-md w-full shadow-2xl p-6 space-y-4">
             <h3 class="text-sm font-bold text-slate-800">Reject Service Request</h3>
@@ -1533,9 +1552,11 @@ class="space-y-4">
             @endif
         </div>
     </div>
+    </template>
 
     @if(Auth::user()->hasAnyRole(['helpdesk', 'system_admin', 'hod']))
     <!-- RECLASSIFY / CHANGE TICKET TYPE & CATEGORY MODAL -->
+    <template x-teleport="body">
     <div x-show="reclassifyModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4" x-cloak>
         <div @click.away="reclassifyModal = false" class="bg-white rounded-3xl max-w-lg w-full shadow-2xl p-6 space-y-4">
             <div class="flex items-center justify-between border-b border-slate-100 pb-3">
@@ -1677,8 +1698,10 @@ class="space-y-4">
             </form>
         </div>
     </div>
+    </template>
 
     <!-- ASSIGN / REASSIGN TECHNICIAN MODAL -->
+    <template x-teleport="body">
     <div x-show="reassignDrawer" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4" x-cloak>
         <div @click.away="reassignDrawer = false" class="bg-white rounded-3xl max-w-md w-full shadow-2xl p-6 space-y-4">
             <div class="flex items-center justify-between border-b border-slate-100 pb-3">
@@ -1737,9 +1760,11 @@ class="space-y-4">
             </form>
         </div>
     </div>
+    </template>
     @endif
 
     <!-- FULL-SCREEN IMAGE LIGHTBOX MODAL -->
+    <template x-teleport="body">
     <div x-show="lightbox"
          x-transition:enter="transition ease-out duration-200"
          x-transition:enter-start="opacity-0"
@@ -1764,6 +1789,7 @@ class="space-y-4">
             <img :src="lightboxUrl" :alt="lightboxName" class="max-h-[80vh] max-w-full rounded-2xl shadow-2xl object-contain">
         </div>
     </div>
+    </template>
 
 </div>
 @endsection

@@ -3,7 +3,7 @@
 @section('title', 'Telegram Account Link Requests')
 
 @section('content')
-<div x-data="{ rejectModal: false, selectedRequest: null, rejectReason: '' }" class="space-y-6">
+<div x-data="{ rejectModal: false, selectedRequest: null, rejectReason: '' }" x-init="$watch('rejectModal', val => document.body.classList.toggle('overflow-hidden', val))" class="space-y-6">
 
     <!-- Header & Subtitle -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -175,6 +175,7 @@
     </div>
 
     <!-- REJECTION REASON MODAL -->
+    <template x-teleport="body">
     <div x-show="rejectModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4" x-cloak>
         <div @click.away="rejectModal = false" class="bg-white rounded-3xl max-w-md w-full shadow-2xl p-6 space-y-4">
             <h3 class="text-sm font-bold text-slate-800">Reject Account Link Request</h3>
@@ -191,6 +192,7 @@
             </form>
         </div>
     </div>
+    </template>
 
 </div>
 @endsection

@@ -126,6 +126,7 @@
                     </button>
 
                     <!-- Logout Confirmation Modal -->
+                    <template x-teleport="body">
                     <div x-show="showLogoutModal" 
                          x-transition:enter="transition ease-out duration-200"
                          x-transition:enter-start="opacity-0"
@@ -163,6 +164,7 @@
                             </div>
                         </div>
                     </div>
+                    </template>
                 </div>
             </div>
         </div>

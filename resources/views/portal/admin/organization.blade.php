@@ -10,6 +10,12 @@
     createBranchModal: false, 
     editBranchModal: false,
     assignBranchManagerModal: false,
+
+    init() {
+        this.$watch('createDeptModal || editDeptModal || assignDeptApproverModal || createBranchModal || editBranchModal || assignBranchManagerModal', val => {
+            document.body.classList.toggle('overflow-hidden', val);
+        });
+    },
     targetDept: {}, 
     targetBranch: {},
     targetParentId: '',
@@ -623,6 +629,7 @@
     <!-- ========================================== -->
     <!-- MODAL 1: ADD DEPARTMENT                    -->
     <!-- ========================================== -->
+    <template x-teleport="body">
     <div x-show="createDeptModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4" x-cloak>
         <div @click.away="createDeptModal = false" class="bg-white rounded-3xl max-w-md w-full shadow-2xl p-6 space-y-4">
             <div class="flex items-center justify-between border-b border-slate-100 pb-3">
@@ -682,10 +689,12 @@
             </form>
         </div>
     </div>
+    </template>
 
     <!-- ========================================== -->
     <!-- MODAL 2: EDIT DEPARTMENT                   -->
     <!-- ========================================== -->
+    <template x-teleport="body">
     <div x-show="editDeptModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4" x-cloak>
         <div @click.away="editDeptModal = false" class="bg-white rounded-3xl max-w-md w-full shadow-2xl p-6 space-y-4">
             <div class="flex items-center justify-between border-b border-slate-100 pb-3">
@@ -743,10 +752,12 @@
             </form>
         </div>
     </div>
+    </template>
 
     <!-- ========================================== -->
     <!-- MODAL 3: QUICK ASSIGN DEPARTMENT APPROVER  -->
     <!-- ========================================== -->
+    <template x-teleport="body">
     <div x-show="assignDeptApproverModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4" x-cloak>
         <div @click.away="assignDeptApproverModal = false" class="bg-white rounded-3xl max-w-md w-full shadow-2xl p-6 space-y-4">
             <div class="flex items-center justify-between border-b border-slate-100 pb-3">
@@ -784,10 +795,12 @@
             </form>
         </div>
     </div>
+    </template>
 
     <!-- ========================================== -->
     <!-- MODAL 4: ADD BRANCH                        -->
     <!-- ========================================== -->
+    <template x-teleport="body">
     <div x-show="createBranchModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4" x-cloak>
         <div @click.away="createBranchModal = false" class="bg-white rounded-3xl max-w-md w-full shadow-2xl p-6 space-y-4">
             <div class="flex items-center justify-between border-b border-slate-100 pb-3">
@@ -833,10 +846,12 @@
             </form>
         </div>
     </div>
+    </template>
 
     <!-- ========================================== -->
     <!-- MODAL 5: EDIT BRANCH                       -->
     <!-- ========================================== -->
+    <template x-teleport="body">
     <div x-show="editBranchModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4" x-cloak>
         <div @click.away="editBranchModal = false" class="bg-white rounded-3xl max-w-md w-full shadow-2xl p-6 space-y-4">
             <div class="flex items-center justify-between border-b border-slate-100 pb-3">
@@ -882,10 +897,12 @@
             </form>
         </div>
     </div>
+    </template>
 
     <!-- ========================================== -->
     <!-- MODAL 6: QUICK ASSIGN BRANCH MANAGER       -->
     <!-- ========================================== -->
+    <template x-teleport="body">
     <div x-show="assignBranchManagerModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4" x-cloak>
         <div @click.away="assignBranchManagerModal = false" class="bg-white rounded-3xl max-w-md w-full shadow-2xl p-6 space-y-4">
             <div class="flex items-center justify-between border-b border-slate-100 pb-3">
@@ -923,6 +940,7 @@
             </form>
         </div>
     </div>
+    </template>
 
 </div>
 @endsection
