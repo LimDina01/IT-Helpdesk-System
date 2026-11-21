@@ -45,6 +45,12 @@
     },
     editApproverBadges: [],
 
+    init() {
+        this.$watch('editUserModal || createUserModal || createTmaModal || roleModal', val => {
+            document.body.classList.toggle('overflow-hidden', val);
+        });
+    },
+
     getFilteredManagers(search, deptId, branchId, scopeMode, excludeUserId = null) {
         let q = (search || '').toLowerCase().trim();
         let list = this.candidates.filter(c => !excludeUserId || c.id !== excludeUserId);

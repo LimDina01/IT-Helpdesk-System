@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="h-full bg-slate-50">
+<html lang="en" class="min-h-full bg-slate-50">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -20,7 +20,7 @@
     </style>
     @livewireStyles
 </head>
-<body class="h-full flex flex-col antialiased text-slate-800">
+<body class="min-h-screen flex flex-col antialiased text-slate-800">
 
     <!-- Top Navigation Bar -->
     <header class="bg-slate-900 text-white sticky top-0 z-30 shadow-md">
@@ -118,7 +118,7 @@
                     </div>
                 </div>
 
-                <div x-data="{ showLogoutModal: false }">
+                <div x-data="{ showLogoutModal: false }" x-init="$watch('showLogoutModal', val => document.body.classList.toggle('overflow-hidden', val))">
                     <button type="button" 
                             @click="showLogoutModal = true"
                             class="bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition border border-slate-700 flex items-center space-x-1.5 shadow-2xs">
