@@ -398,6 +398,7 @@
     <!-- ========================================== -->
     <!-- 1. CREATE IT STAFF USER MODAL              -->
     <!-- ========================================== -->
+    <template x-teleport="body">
     <div x-show="createUserModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 backdrop-blur-md p-4" x-cloak>
         <div @click.away="createUserModal = false" class="bg-white rounded-3xl max-w-lg w-full shadow-2xl shadow-slate-950/40 ring-1 ring-slate-900/5 p-6 space-y-4">
             <div class="flex items-center justify-between border-b border-slate-100 pb-3">
@@ -459,10 +460,12 @@
             </form>
         </div>
     </div>
+    </template>
 
     <!-- ========================================== -->
     <!-- 2. CREATE TMA EMPLOYEE MODAL               -->
     <!-- ========================================== -->
+    <template x-teleport="body">
     <div x-show="createTmaModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 backdrop-blur-md p-4" x-cloak>
         <div @click.away="createTmaModal = false" class="bg-white rounded-3xl max-w-xl w-full shadow-2xl shadow-slate-950/40 ring-1 ring-slate-900/5 p-6 sm:p-7 space-y-4 max-h-[92vh] overflow-y-auto">
             <div class="flex items-center justify-between border-b border-slate-100 pb-3">
@@ -719,10 +722,12 @@
             </form>
         </div>
     </div>
+    </template>
 
     <!-- ========================================== -->
     <!-- 3. EDIT ROLES MODAL                        -->
     <!-- ========================================== -->
+    <template x-teleport="body">
     <div x-show="roleModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 backdrop-blur-md p-4" x-cloak>
         <div @click.away="roleModal = false" class="bg-white rounded-3xl max-w-md w-full shadow-2xl shadow-slate-950/40 ring-1 ring-slate-900/5 p-6 space-y-4">
             <h3 class="text-base font-bold text-slate-800">
@@ -751,10 +756,12 @@
             </form>
         </div>
     </div>
+    </template>
 
-        <!-- ========================================== -->
+    <!-- ========================================== -->
     <!-- 4. EDIT USER & EMPLOYEE MODAL              -->
     <!-- ========================================== -->
+    <template x-teleport="body">
     <div x-show="editUserModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 backdrop-blur-md p-4 sm:p-6" x-cloak>
         <div @click.away="editUserModal = false" class="bg-white rounded-3xl max-w-4xl w-full shadow-2xl shadow-slate-950/40 ring-1 ring-slate-900/5 border border-slate-100 flex flex-col max-h-[92vh] overflow-hidden">
             <!-- Modal Header (Fixed) -->
@@ -1151,6 +1158,7 @@
             </form>
         </div>
     </div>
+    </template>
 
 
 </div>
