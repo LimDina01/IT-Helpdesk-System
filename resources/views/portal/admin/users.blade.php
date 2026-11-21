@@ -787,59 +787,61 @@
 
                 <div class="p-5 sm:p-6 space-y-6 overflow-y-auto flex-1">
                     <!-- Top 2-Column Balanced Grid -->
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 items-stretch">
                         
                         <!-- Left Panel: Identity & Contact -->
-                        <div class="p-4 sm:p-5 bg-slate-50/70 rounded-2xl border border-slate-200/80 space-y-4">
-                            <div class="flex items-center justify-between border-b border-slate-200/70 pb-2.5">
-                                <span class="text-xs font-extrabold text-slate-700 uppercase tracking-wider flex items-center space-x-1.5">
-                                    <span>👤</span>
-                                    <span>Identity & Contact</span>
-                                </span>
-                                <span class="text-[10px] text-slate-400 font-medium">Basic Credentials</span>
-                            </div>
+                        <div class="p-4 sm:p-5 bg-slate-50/70 rounded-2xl border border-slate-200/80 flex flex-col justify-between space-y-4">
+                            <div>
+                                <div class="flex items-center justify-between border-b border-slate-200/70 pb-2.5 mb-4">
+                                    <span class="text-xs font-extrabold text-slate-700 uppercase tracking-wider flex items-center space-x-1.5">
+                                        <span>👤</span>
+                                        <span>Identity & Contact</span>
+                                    </span>
+                                    <span class="text-[10px] text-slate-400 font-medium">Basic Credentials</span>
+                                </div>
 
-                            <!-- Name & Email -->
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                <div>
-                                    <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Full Name <span class="text-rose-500">*</span></label>
-                                    <input type="text" name="name" x-model="editForm.name" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                                </div>
-                                <div>
-                                    <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Corporate Email <span class="text-rose-500">*</span></label>
-                                    <input type="email" name="email" x-model="editForm.email" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                                </div>
-                            </div>
-
-                            <!-- Employee Code & Phone -->
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                <div x-show="!isTargetStaff">
-                                    <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Employee ID Code</label>
-                                    <input type="text" name="employee_code" x-model="editForm.employee_code" placeholder="e.g. EMP-1008" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 uppercase font-mono font-bold">
-                                </div>
-                                <div :class="isTargetStaff ? 'sm:col-span-2' : ''">
-                                    <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Phone Number (Optional)</label>
-                                    <input type="text" name="phone" x-model="editForm.phone" placeholder="e.g. +855 12 345 678" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                                </div>
-                            </div>
-
-                            <!-- Telegram Username & Password -->
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                <div>
-                                    <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Telegram Handle</label>
-                                    <div class="flex items-center">
-                                        <span class="text-xs text-slate-400 font-bold mr-1.5">@</span>
-                                        <input type="text" name="telegram_username" x-model="editForm.telegram_username" placeholder="username" class="w-full text-xs px-3 py-2.5 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                <!-- Name & Email -->
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                                    <div>
+                                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Full Name <span class="text-rose-500">*</span></label>
+                                        <input type="text" name="name" x-model="editForm.name" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Corporate Email <span class="text-rose-500">*</span></label>
+                                        <input type="email" name="email" x-model="editForm.email" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
                                     </div>
                                 </div>
-                                <div>
-                                    <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Reset Password</label>
-                                    <input type="text" name="password" placeholder="Leave blank to keep current" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+
+                                <!-- Employee Code & Phone -->
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                                    <div x-show="!isTargetStaff">
+                                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Employee ID Code</label>
+                                        <input type="text" name="employee_code" x-model="editForm.employee_code" placeholder="e.g. EMP-1008" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 uppercase font-mono font-bold">
+                                    </div>
+                                    <div :class="isTargetStaff ? 'sm:col-span-2' : ''">
+                                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Phone Number (Optional)</label>
+                                        <input type="text" name="phone" x-model="editForm.phone" placeholder="e.g. +855 12 345 678" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                    </div>
+                                </div>
+
+                                <!-- Telegram Username & Password -->
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Telegram Handle</label>
+                                        <div class="relative flex items-center">
+                                            <span class="absolute left-3.5 text-xs text-slate-400 font-bold select-none pointer-events-none">@</span>
+                                            <input type="text" name="telegram_username" x-model="editForm.telegram_username" placeholder="username" class="w-full text-xs pl-8 pr-3.5 py-2.5 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Reset Password</label>
+                                        <input type="text" name="password" placeholder="Leave blank to keep current" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                    </div>
                                 </div>
                             </div>
 
                             <!-- Telegram Binding Box -->
-                            <div x-show="editForm.telegram_id" class="p-3 bg-blue-50/90 rounded-xl border border-blue-200 flex items-center justify-between gap-2">
+                            <div x-show="editForm.telegram_id" class="p-3 bg-blue-50/90 rounded-xl border border-blue-200 flex items-center justify-between gap-2 mt-2">
                                 <div class="flex items-center space-x-2">
                                     <span class="text-lg">📱</span>
                                     <div>
@@ -855,176 +857,178 @@
                         </div>
 
                         <!-- Right Panel: Organization & Reporting Line -->
-                        <div class="p-4 sm:p-5 bg-slate-50/70 rounded-2xl border border-slate-200/80 space-y-4">
-                            <div class="flex items-center justify-between border-b border-slate-200/70 pb-2.5">
-                                <span class="text-xs font-extrabold text-slate-700 uppercase tracking-wider flex items-center space-x-1.5">
-                                    <span>🏢</span>
-                                    <span>Organization Placement</span>
-                                </span>
-                                <span class="text-[10px] text-slate-400 font-medium">Department & Approver</span>
-                            </div>
-
-                            <!-- Department & Branch -->
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                <div>
-                                    <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Department</label>
-                                    <select name="department_id" x-model="editForm.department_id" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                                        <option value="">-- No Department Assigned --</option>
-                                        @foreach($departments as $dept)
-                                            <option value="{{ $dept->id }}">{{ $dept->name }} ({{ $dept->code }})</option>
-                                        @endforeach
-                                    </select>
-                                    <p class="text-[10px] text-slate-400 mt-1">HOD approvals route to this department.</p>
+                        <div class="p-4 sm:p-5 bg-slate-50/70 rounded-2xl border border-slate-200/80 flex flex-col justify-between space-y-4">
+                            <div>
+                                <div class="flex items-center justify-between border-b border-slate-200/70 pb-2.5 mb-4">
+                                    <span class="text-xs font-extrabold text-slate-700 uppercase tracking-wider flex items-center space-x-1.5">
+                                        <span>🏢</span>
+                                        <span>Organization Placement</span>
+                                    </span>
+                                    <span class="text-[10px] text-slate-400 font-medium">Department & Approver</span>
                                 </div>
-                                <div>
-                                    <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Branch / Location</label>
-                                    <select name="branch_id" x-model="editForm.branch_id" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                                        <option value="">-- No Branch Assigned --</option>
-                                        @foreach($branches as $branch)
-                                            <option value="{{ $branch->id }}">{{ $branch->name }} ({{ $branch->code }})</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                            </div>
 
-                            <!-- Direct Line Manager / Team Leader -->
-                            <div class="space-y-1.5 pt-1">
-                                <div class="flex items-center justify-between">
-                                    <label class="block text-[11px] font-bold text-slate-600 uppercase">Direct Line Manager / Approver</label>
-                                    
-                                    <!-- Scope Toggle -->
-                                    <div class="flex items-center space-x-1 text-[10px] font-bold">
-                                        <span class="text-slate-400">Scope:</span>
-                                        <button type="button" 
-                                                @click="editManagerScope = 'same'"
-                                                :class="editManagerScope === 'same' ? 'bg-indigo-600 text-white' : 'bg-slate-200/70 text-slate-600 hover:bg-slate-200'"
-                                                class="px-2 py-0.5 rounded-lg transition cursor-pointer">
-                                            🎯 Same (<span x-text="getSameCount(editForm.department_id, editForm.branch_id, editForm.id)"></span>)
-                                        </button>
-                                        <button type="button" 
-                                                @click="editManagerScope = 'all'"
-                                                :class="editManagerScope === 'all' ? 'bg-indigo-600 text-white' : 'bg-slate-200/70 text-slate-600 hover:bg-slate-200'"
-                                                class="px-2 py-0.5 rounded-lg transition cursor-pointer">
-                                            🌐 All (<span x-text="candidates.filter(c => c.id != editForm.id).length"></span>)
-                                        </button>
+                                <!-- Department & Branch -->
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                                    <div>
+                                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Department</label>
+                                        <select name="department_id" x-model="editForm.department_id" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                            <option value="">-- No Department Assigned --</option>
+                                            @foreach($departments as $dept)
+                                                <option value="{{ $dept->id }}">{{ $dept->name }} ({{ $dept->code }})</option>
+                                            @endforeach
+                                        </select>
+                                        <p class="text-[10px] text-slate-400 mt-1">HOD approvals route to this department.</p>
+                                    </div>
+                                    <div>
+                                        <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Branch / Location</label>
+                                        <select name="branch_id" x-model="editForm.branch_id" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                            <option value="">-- No Branch Assigned --</option>
+                                            @foreach($branches as $branch)
+                                                <option value="{{ $branch->id }}">{{ $branch->name }} ({{ $branch->code }})</option>
+                                            @endforeach
+                                        </select>
                                     </div>
                                 </div>
 
-                                <input type="hidden" name="line_manager_user_id" :value="editForm.line_manager_user_id">
-
-                                <!-- Selected State Card -->
-                                <template x-if="editForm.line_manager_user_id && getSelectedManager(editForm.line_manager_user_id)">
-                                    <div class="p-3 bg-indigo-50/70 border border-indigo-200 rounded-2xl flex items-center justify-between">
-                                        <div class="flex items-center space-x-3 truncate">
-                                            <div class="w-8 h-8 rounded-full bg-indigo-600 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-2xs" 
-                                                 x-text="getSelectedManager(editForm.line_manager_user_id)?.initials"></div>
-                                            <div class="truncate">
-                                                <div class="flex items-center space-x-1.5">
-                                                    <span class="text-xs font-bold text-slate-900 truncate" x-text="getSelectedManager(editForm.line_manager_user_id)?.name"></span>
-                                                    <span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 font-bold" 
-                                                          x-text="getSelectedManager(editForm.line_manager_user_id)?.dept_code || 'STAFF'"></span>
-                                                    <span class="text-[9px] px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold" 
-                                                          x-text="getSelectedManager(editForm.line_manager_user_id)?.branch_code || 'HQ'"></span>
-                                                </div>
-                                                <div class="text-[10px] text-slate-500 truncate" x-text="getSelectedManager(editForm.line_manager_user_id)?.email"></div>
-                                            </div>
-                                        </div>
-                                        <div class="flex items-center space-x-1 shrink-0">
+                                <!-- Direct Line Manager / Team Leader -->
+                                <div class="space-y-1.5">
+                                    <div class="flex items-center justify-between gap-2">
+                                        <label class="block text-[11px] font-bold text-slate-600 uppercase truncate">Direct Line Manager / Approver</label>
+                                        
+                                        <!-- Scope Toggle -->
+                                        <div class="flex items-center space-x-1 text-[10px] font-bold shrink-0">
+                                            <span class="text-slate-400 hidden sm:inline">Scope:</span>
                                             <button type="button" 
-                                                    @click="editManagerDropdownOpen = !editManagerDropdownOpen"
-                                                    class="text-xs text-indigo-600 hover:text-indigo-800 font-bold px-2 py-1 rounded-lg hover:bg-indigo-100 transition cursor-pointer">
-                                                Change
+                                                    @click="editManagerScope = 'same'"
+                                                    :class="editManagerScope === 'same' ? 'bg-indigo-600 text-white' : 'bg-slate-200/70 text-slate-600 hover:bg-slate-200'"
+                                                    class="px-2 py-0.5 rounded-lg transition cursor-pointer">
+                                                🎯 Same (<span x-text="getSameCount(editForm.department_id, editForm.branch_id, editForm.id)"></span>)
                                             </button>
                                             <button type="button" 
-                                                    @click="editForm.line_manager_user_id = ''; editManagerSearch = ''"
-                                                    class="text-xs text-rose-500 hover:text-rose-700 font-bold px-2 py-1 rounded-lg hover:bg-rose-50 transition cursor-pointer" title="Reset to Auto Fallback">
-                                                ✕ Clear
+                                                    @click="editManagerScope = 'all'"
+                                                    :class="editManagerScope === 'all' ? 'bg-indigo-600 text-white' : 'bg-slate-200/70 text-slate-600 hover:bg-slate-200'"
+                                                    class="px-2 py-0.5 rounded-lg transition cursor-pointer">
+                                                🌐 All (<span x-text="candidates.filter(c => c.id != editForm.id).length"></span>)
                                             </button>
                                         </div>
                                     </div>
-                                </template>
 
-                                <!-- Unselected / Auto Fallback State -->
-                                <template x-if="!editForm.line_manager_user_id">
-                                    <div class="relative">
-                                        <div @click="editManagerDropdownOpen = true" 
-                                             class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white hover:border-indigo-400 cursor-pointer flex items-center justify-between shadow-2xs">
-                                            <div class="flex items-center space-x-2 text-slate-500 font-medium truncate">
-                                                <span class="text-amber-500 font-bold">⚡</span>
-                                                <span class="truncate">Auto (Department Approver Card Fallback)</span>
-                                            </div>
-                                            <span class="text-xs text-slate-400">🔍 Select Manager ▾</span>
-                                        </div>
-                                    </div>
-                                </template>
+                                    <input type="hidden" name="line_manager_user_id" :value="editForm.line_manager_user_id">
 
-                                <!-- Searchable Dropdown Combobox -->
-                                <div x-show="editManagerDropdownOpen" 
-                                     @click.away="editManagerDropdownOpen = false" 
-                                     class="relative z-50 mt-1.5 bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden" 
-                                     x-cloak>
-                                    
-                                    <div class="p-2 border-b border-slate-100 bg-slate-50/50 flex items-center space-x-2">
-                                        <div class="relative w-full">
-                                            <span class="absolute left-2.5 top-2 text-slate-400 text-xs">🔍</span>
-                                            <input type="text"
-                                                   x-model="editManagerSearch"
-                                                   placeholder="Type name, email, or code to filter..."
-                                                   class="w-full text-xs pl-7 pr-7 py-1.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                                            <button type="button" x-show="editManagerSearch" @click="editManagerSearch = ''" class="absolute right-2 top-1.5 text-xs text-slate-400 hover:text-slate-600">✕</button>
-                                        </div>
-                                    </div>
-
-                                    <div class="max-h-52 overflow-y-auto divide-y divide-slate-100 p-1">
-                                        <div @click="editForm.line_manager_user_id = ''; editManagerDropdownOpen = false; editManagerSearch = ''"
-                                             class="p-2 hover:bg-amber-50/80 rounded-xl cursor-pointer flex items-center justify-between transition"
-                                             :class="!editForm.line_manager_user_id ? 'bg-amber-50/60 font-bold' : ''">
-                                            <div class="flex items-center space-x-2 truncate">
-                                                <span class="text-amber-500">⚡</span>
-                                                <div>
-                                                    <div class="text-xs font-bold text-slate-800">-- Auto (Department Approver Card Fallback) --</div>
-                                                    <div class="text-[10px] text-slate-400">Routes to department's configured Team Leader / HOD</div>
+                                    <!-- Selected State Card -->
+                                    <template x-if="editForm.line_manager_user_id && getSelectedManager(editForm.line_manager_user_id)">
+                                        <div class="p-3 bg-indigo-50/70 border border-indigo-200 rounded-2xl flex items-center justify-between">
+                                            <div class="flex items-center space-x-3 truncate">
+                                                <div class="w-8 h-8 rounded-full bg-indigo-600 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-2xs" 
+                                                     x-text="getSelectedManager(editForm.line_manager_user_id)?.initials"></div>
+                                                <div class="truncate">
+                                                    <div class="flex items-center space-x-1.5">
+                                                        <span class="text-xs font-bold text-slate-900 truncate" x-text="getSelectedManager(editForm.line_manager_user_id)?.name"></span>
+                                                        <span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 font-bold" 
+                                                              x-text="getSelectedManager(editForm.line_manager_user_id)?.dept_code || 'STAFF'"></span>
+                                                        <span class="text-[9px] px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold" 
+                                                              x-text="getSelectedManager(editForm.line_manager_user_id)?.branch_code || 'HQ'"></span>
+                                                    </div>
+                                                    <div class="text-[10px] text-slate-500 truncate" x-text="getSelectedManager(editForm.line_manager_user_id)?.email"></div>
                                                 </div>
                                             </div>
-                                            <template x-if="!editForm.line_manager_user_id">
-                                                <span class="text-amber-600 font-bold text-xs">✓ Active</span>
-                                            </template>
+                                            <div class="flex items-center space-x-1 shrink-0">
+                                                <button type="button" 
+                                                        @click="editManagerDropdownOpen = !editManagerDropdownOpen"
+                                                        class="text-xs text-indigo-600 hover:text-indigo-800 font-bold px-2 py-1 rounded-lg hover:bg-indigo-100 transition cursor-pointer">
+                                                    Change
+                                                </button>
+                                                <button type="button" 
+                                                        @click="editForm.line_manager_user_id = ''; editManagerSearch = ''"
+                                                        class="text-xs text-rose-500 hover:text-rose-700 font-bold px-2 py-1 rounded-lg hover:bg-rose-50 transition cursor-pointer" title="Reset to Auto Fallback">
+                                                    ✕ Clear
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </template>
+
+                                    <!-- Unselected / Auto Fallback State -->
+                                    <template x-if="!editForm.line_manager_user_id">
+                                        <div class="relative">
+                                            <div @click="editManagerDropdownOpen = true" 
+                                                 class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white hover:border-indigo-400 cursor-pointer flex items-center justify-between shadow-2xs">
+                                                <div class="flex items-center space-x-2 text-slate-600 font-medium truncate">
+                                                    <span class="text-amber-500 font-bold">⚡</span>
+                                                    <span class="truncate">Auto (Department Head / Team Lead)</span>
+                                                </div>
+                                                <span class="text-xs text-indigo-600 font-semibold shrink-0 ml-2">🔍 Select Manager ▾</span>
+                                            </div>
+                                        </div>
+                                    </template>
+
+                                    <!-- Searchable Dropdown Combobox -->
+                                    <div x-show="editManagerDropdownOpen" 
+                                         @click.away="editManagerDropdownOpen = false" 
+                                         class="relative z-50 mt-1.5 bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden" 
+                                         x-cloak>
+                                        
+                                        <div class="p-2 border-b border-slate-100 bg-slate-50/50 flex items-center space-x-2">
+                                            <div class="relative w-full">
+                                                <span class="absolute left-2.5 top-2 text-slate-400 text-xs">🔍</span>
+                                                <input type="text"
+                                                       x-model="editManagerSearch"
+                                                       placeholder="Type name, email, or code to filter..."
+                                                       class="w-full text-xs pl-7 pr-7 py-1.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                                <button type="button" x-show="editManagerSearch" @click="editManagerSearch = ''" class="absolute right-2 top-1.5 text-xs text-slate-400 hover:text-slate-600">✕</button>
+                                            </div>
                                         </div>
 
-                                        <template x-for="candidate in getFilteredManagers(editManagerSearch, editForm.department_id, editForm.branch_id, editManagerScope, editForm.id)" :key="candidate.id">
-                                            <div @click="editForm.line_manager_user_id = candidate.id; editManagerDropdownOpen = false; editManagerSearch = ''"
-                                                 class="p-2 hover:bg-indigo-50/80 rounded-xl cursor-pointer flex items-center justify-between transition"
-                                                 :class="editForm.line_manager_user_id == candidate.id ? 'bg-indigo-50 font-bold' : ''">
-                                                <div class="flex items-center space-x-2.5 truncate">
-                                                    <div class="w-7 h-7 rounded-full bg-slate-800 text-white font-bold text-[10px] flex items-center justify-center shrink-0" 
-                                                         x-text="candidate.initials"></div>
-                                                    <div class="truncate">
-                                                        <div class="flex items-center space-x-1.5">
-                                                            <span class="text-xs font-bold text-slate-900 truncate" x-text="candidate.name"></span>
-                                                            <span class="text-[9px] font-mono px-1 py-0.2 rounded bg-indigo-50 text-indigo-700 border border-indigo-200" 
-                                                                  x-text="candidate.dept_code || 'STAFF'"></span>
-                                                            <span class="text-[9px] px-1 py-0.2 rounded bg-emerald-50 text-emerald-700 border border-emerald-200" 
-                                                                  x-text="candidate.branch_code || 'HQ'"></span>
-                                                        </div>
-                                                        <div class="text-[10px] text-slate-400 truncate" x-text="candidate.employee_code ? (candidate.employee_code + (candidate.roles ? ' • ' + candidate.roles : '')) : (candidate.roles || '')"></div>
+                                        <div class="max-h-52 overflow-y-auto divide-y divide-slate-100 p-1">
+                                            <div @click="editForm.line_manager_user_id = ''; editManagerDropdownOpen = false; editManagerSearch = ''"
+                                                 class="p-2 hover:bg-amber-50/80 rounded-xl cursor-pointer flex items-center justify-between transition"
+                                                 :class="!editForm.line_manager_user_id ? 'bg-amber-50/60 font-bold' : ''">
+                                                <div class="flex items-center space-x-2 truncate">
+                                                    <span class="text-amber-500">⚡</span>
+                                                    <div>
+                                                        <div class="text-xs font-bold text-slate-800">-- Auto (Department Head / Team Lead Fallback) --</div>
+                                                        <div class="text-[10px] text-slate-400">Routes to department's configured Team Leader / HOD</div>
                                                     </div>
                                                 </div>
-                                                <template x-if="editForm.line_manager_user_id == candidate.id">
-                                                    <span class="text-indigo-600 font-bold text-xs shrink-0">✓ Selected</span>
+                                                <template x-if="!editForm.line_manager_user_id">
+                                                    <span class="text-amber-600 font-bold text-xs">✓ Active</span>
                                                 </template>
                                             </div>
-                                        </template>
 
-                                        <div x-show="getFilteredManagers(editManagerSearch, editForm.department_id, editForm.branch_id, editManagerScope, editForm.id).length === 0" 
-                                             class="py-4 text-center text-xs text-slate-400 space-y-1">
-                                            <div>No candidates found in this scope.</div>
-                                            <button type="button" @click="editManagerScope = 'all'; editManagerSearch = ''" class="text-indigo-600 font-bold hover:underline text-[11px]">
-                                                🌐 Switch to All Company candidates
-                                            </button>
+                                            <template x-for="candidate in getFilteredManagers(editManagerSearch, editForm.department_id, editForm.branch_id, editManagerScope, editForm.id)" :key="candidate.id">
+                                                <div @click="editForm.line_manager_user_id = candidate.id; editManagerDropdownOpen = false; editManagerSearch = ''"
+                                                     class="p-2 hover:bg-indigo-50/80 rounded-xl cursor-pointer flex items-center justify-between transition"
+                                                     :class="editForm.line_manager_user_id == candidate.id ? 'bg-indigo-50 font-bold' : ''">
+                                                    <div class="flex items-center space-x-2.5 truncate">
+                                                        <div class="w-7 h-7 rounded-full bg-slate-800 text-white font-bold text-[10px] flex items-center justify-center shrink-0" 
+                                                             x-text="candidate.initials"></div>
+                                                        <div class="truncate">
+                                                            <div class="flex items-center space-x-1.5">
+                                                                <span class="text-xs font-bold text-slate-900 truncate" x-text="candidate.name"></span>
+                                                                <span class="text-[9px] font-mono px-1 py-0.2 rounded bg-indigo-50 text-indigo-700 border border-indigo-200" 
+                                                                      x-text="candidate.dept_code || 'STAFF'"></span>
+                                                                <span class="text-[9px] px-1 py-0.2 rounded bg-emerald-50 text-emerald-700 border border-emerald-200" 
+                                                                      x-text="candidate.branch_code || 'HQ'"></span>
+                                                            </div>
+                                                            <div class="text-[10px] text-slate-400 truncate" x-text="candidate.employee_code ? (candidate.employee_code + (candidate.roles ? ' • ' + candidate.roles : '')) : (candidate.roles || '')"></div>
+                                                        </div>
+                                                    </div>
+                                                    <template x-if="editForm.line_manager_user_id == candidate.id">
+                                                        <span class="text-indigo-600 font-bold text-xs shrink-0">✓ Selected</span>
+                                                    </template>
+                                                </div>
+                                            </template>
+
+                                            <div x-show="getFilteredManagers(editManagerSearch, editForm.department_id, editForm.branch_id, editManagerScope, editForm.id).length === 0" 
+                                                 class="py-4 text-center text-xs text-slate-400 space-y-1">
+                                                <div>No candidates found in this scope.</div>
+                                                <button type="button" @click="editManagerScope = 'all'; editManagerSearch = ''" class="text-indigo-600 font-bold hover:underline text-[11px]">
+                                                    🌐 Switch to All Company candidates
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
+                                    <p class="text-[10px] text-slate-400">Option B: Service requests from this employee route to this Team Leader for Level 1 review.</p>
                                 </div>
-                                <p class="text-[10px] text-slate-400">Option B: Service requests from this employee route to this Team Leader for Level 1 review.</p>
                             </div>
                         </div>
                     </div>
