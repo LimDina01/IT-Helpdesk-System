@@ -133,10 +133,10 @@
                          x-transition:leave="transition ease-in duration-150"
                          x-transition:leave-start="opacity-100"
                          x-transition:leave-end="opacity-0"
-                         class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4" 
+                         class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 backdrop-blur-md p-4" 
                          x-cloak>
                         <div @click.away="showLogoutModal = false" 
-                             class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl space-y-4 border border-slate-100 text-slate-800 animate-fadeIn">
+                             class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl shadow-slate-950/40 ring-1 ring-slate-900/5 space-y-4 border border-slate-100 text-slate-800 animate-fadeIn">
                             <div class="flex items-center space-x-3.5">
                                 <div class="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold text-xl shrink-0 border border-rose-100 shadow-2xs">
                                     🚪
