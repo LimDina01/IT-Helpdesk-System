@@ -816,11 +816,9 @@ function tmaApp() {
                     localStorage.removeItem('cbvh_tma_form_data');
                 } catch (e) {}
 
-                if (window.Telegram?.WebApp?.initData && typeof window.Telegram.WebApp.close === 'function') {
-                    window.Telegram.WebApp.close();
-                } else {
-                    this.authState = 'web_login_required';
-                }
+                this.currentView = 'home';
+                this.authState = 'web_login_required';
+                this.updateBackButton();
             });
         },
 
